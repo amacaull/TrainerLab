@@ -1,0 +1,19 @@
+{
+  "id": "charizard",
+  "displayName": "Charizard",
+  "type1": "Fire",
+  "type2": "Flying",
+  "baseStats": {
+    "hp": 78,
+    "atk": 84,
+    "def": 78,
+    "specAtk": 109,
+    "specDef": 85,
+    "speed": 100
+  },
+  "ability": "blaze",
+  "movepool": [
+    "Flamethrower",
+    "Tackle"
+  ]
+}

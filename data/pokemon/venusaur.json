@@ -1,0 +1,19 @@
+{
+  "id": "venusaur",
+  "displayName": "Venusaur",
+  "type1": "Grass",
+  "type2": "Poison",
+  "baseStats": {
+    "hp": 80,
+    "atk": 82,
+    "def": 83,
+    "specAtk": 100,
+    "specDef": 100,
+    "speed": 80
+  },
+  "ability": "overgrow",
+  "movepool": [
+    "VineWhip",
+    "Tackle"
+  ]
+}
