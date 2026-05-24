@@ -3,16 +3,17 @@
 #include "engine/events.hpp"
 
 #include <memory>
-#include <nlohmann/json_fwd.hpp>
 
 namespace engine {
 
 struct BattleState;
 struct Move;
 class RNG;
+class DataLoader;
 
 struct EffectContext {
     BattleState& state;
+    const DataLoader& data;
     RNG& rng;
     EventLog& events;
     CombatantRef user;
@@ -20,9 +21,8 @@ struct EffectContext {
     const Move& move;
 };
 
-// Base class for all atomic effects.
-// A Move is a list of Effects; the engine applies them in order.
-// To add a new effect: subclass Effect, register it in makeEffectFromJson.
+// To add a new effect: subclass Effect, register it in makeEffectFromJson
+// (in data_loader.cpp).
 class Effect {
 public:
     virtual ~Effect() = default;
@@ -31,8 +31,5 @@ public:
 };
 
 using EffectPtr = std::unique_ptr<Effect>;
-
-// Factory: builds an Effect from a JSON node like {"kind": "Damage", ...}.
-EffectPtr makeEffectFromJson(const nlohmann::json& j);
 
 } // namespace engine

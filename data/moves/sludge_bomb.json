@@ -1,0 +1,11 @@
+{
+  "name": "SludgeBomb",
+  "type": "Poison",
+  "category": "Special",
+  "power": 90,
+  "accuracy": 100,
+  "priority": 0,
+  "effects": [
+    { "kind": "Damage" }
+  ]
+}

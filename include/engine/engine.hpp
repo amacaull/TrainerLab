@@ -7,16 +7,14 @@
 
 namespace engine {
 
-// Stateless: holds no battle state of its own.
 class BattleEngine {
 public:
     explicit BattleEngine(const DataLoader& data) : data_(data) {}
 
-    // Resolves one turn in-place on state. Returns the event log for the turn.
     EventLog resolveTurn(BattleState& state, const Action& actionP0, const Action& actionP1, RNG& rng) const;
 
 private:
-    // Returns {first_side, second_side} based on priority then speed.
+    // Returns {first_side, second_side} ordered by priority, then speed.
     std::array<int, 2> computeOrder(const BattleState& state, const Action& a0, const Action& a1) const;
 
     void executeAction(BattleState& state, int side, const Action& action, RNG& rng, EventLog& events) const;

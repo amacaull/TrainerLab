@@ -1,3 +1,5 @@
+#include "test_helpers.hpp"
+
 #include "engine/battle_state.hpp"
 #include "engine/data_loader.hpp"
 #include "engine/engine.hpp"
@@ -6,28 +8,16 @@
 #include <catch2/catch_test_macros.hpp>
 
 using namespace engine;
-
-namespace {
-
-BattlePokemon buildCombatant(const Species& sp, int level, const std::vector<std::string>& moves) {
-    BattlePokemon p;
-    p.species = &sp;
-    p.level = level;
-    p.stats = computeStats(sp.baseStats, level);
-    p.currentHp = p.stats.hp;
-    p.moves = moves;
-    return p;
-}
-
-} // namespace
+using engine::test::buildCombatant;
 
 TEST_CASE("Full battle ends in a KO", "[engine][integration]") {
     DataLoader data;
     data.loadAll(BATTLE_ENGINE_DATA_DIR);
 
     BattleState state;
-    state.teams[0].push_back(buildCombatant(data.species("charizard"), 50, {"Flamethrower"}));
-    state.teams[1].push_back(buildCombatant(data.species("venusaur"),  50, {"VineWhip"}));
+    state.teams[0][0] = buildCombatant(data, "charizard", 50, {"Flamethrower"});
+    state.teams[1][0] = buildCombatant(data, "venusaur",  50, {"VineWhip"});
+    state.team_size = {1, 1};
 
     BattleEngine engine(data);
     MersenneRNG rng(12345);

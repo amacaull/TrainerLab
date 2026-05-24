@@ -8,7 +8,7 @@
 **Build** : CMake
 **Tests** : Catch2 v3
 **Données** : JSON (nlohmann/json)
-**Dernière MAJ** : 2026-05-19 (décisions : FFI Rust, propriété Rust du state, indexation numérique, politique d'erreurs)
+**Dernière MAJ** : 2026-05-24 (phase 1 terminée : type chart 18×18, roster de test, catalogue par index, validateState ; décisions niveau/IVs/EVs/roster tranchées)
 
 ---
 
@@ -108,7 +108,7 @@ Objectif : un combat 1v1 Dracaufeu vs Florizarre avec Lance-Flammes et Fouet Lia
 
 ### Dette technique de la phase 0 (à régler en phase 1)
 
-- ⬜ `g_typeChart` est une globale ; à déplacer dans `EffectContext` proprement
+- ✅ `g_typeChart` est une globale ; déplacé dans `EffectContext` (passé via `DataLoader`)
 - ⬜ Speed tie déterministe (camp 0 d'abord) ; devrait être aléatoire
 - ⬜ Pas de gestion du switch dans `executeAction` (placeholder qui no-op)
 - ⬜ `accuracy > 100` non géré spécialement (sera utile pour les moves qui ne ratent jamais)
@@ -118,31 +118,33 @@ Objectif : un combat 1v1 Dracaufeu vs Florizarre avec Lance-Flammes et Fouet Lia
 Mostly du JSON et des tests de cohérence, plus un petit refactor pour préparer le FFI.
 
 **Données :**
-- ⬜ Type chart complet (18×18)
-- ⬜ Stats de base validées pour 6-8 Pokémon de test
-- ⬜ 10-15 attaques de dégâts pur couvrant tous les types
-- ⬜ Test : tous les Pokémon référencent des talents qui existent
-- ⬜ Test : tous les Pokémon ont un movepool valide (moves existants)
-- ⬜ Test : matrice de types complète et symétrique selon les règles canon
+- ✅ Type chart complet (18×18)
+- ✅ Stats de base validées pour 8 Pokémon de test (cf. ADR #16)
+- ✅ 15 attaques de dégâts pur couvrant tous les types présents dans le roster
+- 🔵 Test : tous les Pokémon référencent des talents qui existent (reporté phase 5 — pas d'ability registry avant)
+- ✅ Test : tous les Pokémon ont un movepool valide (test_catalog.cpp + validation au chargement par DataLoader)
+- ✅ Test : matrice de types complète et valeurs canon vérifiées (immunités, ×2, ×4, ×0.25, ×0)
 
 **Refactor pour préparer le FFI (cf. ADR #11 et #12) :**
-- ⬜ Catalogue de moves : `std::vector<Move>` indexé + `unordered_map<string, int>` pour le lookup au chargement
-- ⬜ Catalogue d'espèces : idem
-- ⬜ `BattlePokemon` : remplacer `std::vector<std::string> moves` par `int move_ids[4]` (indices dans le catalogue)
-- ⬜ `BattleState` : remplacer `std::array<std::vector<BattlePokemon>, 2> teams` par `std::array<std::array<BattlePokemon, 3>, 2> teams` (taille fixe)
-- ⬜ Vérifier que `sizeof(BattleState)` est stable et que la struct n'a aucune indirection
-- ⬜ Tous les tests passent toujours après le refactor
+- ✅ Catalogue de moves : `std::vector<Move>` indexé + `unordered_map<string, int>` pour le lookup au chargement
+- ✅ Catalogue d'espèces : idem (`species_id_to_index_`)
+- ✅ `BattlePokemon` : `std::array<int, 4> move_ids` + `int species_id` (plus de `Species*` ni de `vector<string>`)
+- ✅ `BattleState` : `std::array<std::array<BattlePokemon, 3>, 2> teams` (taille fixe) + `int team_size[2]`
+- ✅ Plus aucune indirection dans `BattlePokemon`/`BattleState` (POD strict, prêt FFI)
+- ✅ Tous les tests passent toujours après le refactor (36/36)
 
 **Validation défensive (cf. ADR #13) :**
-- ⬜ Fonction `validateState(const BattleState&)` qui throw une erreur descriptive si l'état est invalide
-- ⬜ Invariants à vérifier (liste de base, à compléter à chaque phase qui ajoute des champs) :
+- ✅ Fonction `validateState(const BattleState&, const DataLoader&)` qui throw `std::invalid_argument` avec message descriptif (`include/engine/validate.hpp`)
+- ✅ Invariants vérifiés (à compléter à chaque phase qui ajoute des champs) :
   - `current_hp >= 0` et `current_hp <= stats.hp` pour chaque Pokémon
   - `level >= 1` et `level <= 100`
-  - `active_index[side]` dans `[0, 2]`
-  - `move_ids[i]` valides (dans le catalogue) ou égal à `-1` (slot vide)
+  - `team_size[side]` dans `[1, kTeamSize]`
+  - `active_index[side]` dans `[0, team_size[side])`
+  - `move_ids[i]` valides (dans le catalogue) ou égal à `kNoMove` (slot vide)
   - `species_id` valide (dans le catalogue)
-- ⬜ Appeler `validateState` au début de toute future fonction exposée au FFI
-- ⬜ Tests : passer un state invalide doit throw, le message d'erreur doit être clair et exploitable
+  - `turn >= 0`
+- ⬜ Appeler `validateState` au début de toute fonction exposée au FFI (déjà appelée dans `main.cpp` ; à systématiser en phase 10)
+- ✅ Tests : 13 cas dans `test_validate.cpp` (states invalides + qualité des messages d'erreur)
 
 ### Phase 2 — Statuts
 
@@ -267,6 +269,9 @@ Ajout d'effets et de hooks `on_residual` (fin de tour) et `on_before_move`.
 | 11 | **Rust détient le `BattleState`** (Option A) | struct de taille fixe (3v3 fixé), zéro allocation dynamique runtime, sauvegarde DB triviale côté Rust avec `serde`, debug simple, API FFI minimale | 2026-05-19 |
 | 12 | **Référencement par index numérique à la frontière FFI** (jamais par string) | `BattleState` 100% C-compatible, aucune allocation à l'interface, lookup O(1), pas de typo silencieuse ; les noms (`"Flamethrower"`) restent uniquement côté C++ dans le `DataLoader` interne (`unordered_map<string, int>` pour le chargement initial des JSON) | 2026-05-19 |
 | 13 | **Politique d'erreurs FFI : validation défensive + conversion en `Result`** | aucune exception C++ ne traverse la frontière FFI (UB sinon) ; chaque fonction exposée valide ses entrées (HP ≥ 0, level ∈ [1,100], indices dans les bornes, etc.) au début, throw une erreur descriptive si invalide, attrapée et convertie en `Result::Err` côté Rust via `cxx` ; en interne le moteur peut throw librement ; les segfaults (déréférences, etc.) restent fatals — pour les éviter, validation systématique des invariants en entrée | 2026-05-19 |
+| 14 | **Niveau fixe à 50** (champ `level` conservé dans le POD pour flexibilité de test) | gameplay équilibré sans config de niveau côté frontend, mais on garde la possibilité de tester d'autres niveaux | 2026-05-24 |
+| 15 | **Pas d'IVs ni d'EVs** (équivalent IVs=0, EVs=0, nature neutre) | équilibrage par stats de base + types, lisible pour le joueur, pas d'UI de config nécessaire ; `computeStats` reste paramétrée par stats de base + niveau, suffisant | 2026-05-24 |
+| 16 | **Roster de test (8 Pokémon)** distinct du roster final (48 Pokémon, à définir) | la phase 1 vérifie le moteur, pas le contenu final ; roster de test : Charizard, Venusaur, Blastoise, Pikachu, Snorlax, Gengar, Machamp, Garchomp (couvre 8 types primaires + rôles offensifs/défensifs/rapides/lents) | 2026-05-24 |
 
 ---
 
@@ -288,10 +293,10 @@ Ajout d'effets et de hooks `on_residual` (fin de tour) et `on_before_move`.
 
 ### Pour les phases de contenu (1 et suivantes)
 
-- ⬜ **Roster** : qui propose les 48 Pokémon ? (cf. recap projet)
-- ⬜ **Movepool par Pokémon** : qui décide ?
-- ⬜ **Niveau** : combat à niveau fixe (50 ? 100 ?) ou variable ?
-- ⬜ **IVs / EVs** : on les implémente ou on les ignore et tout le monde a des stats parfaites ?
+- ✅ **Roster** : 48 Pokémon, à proposer par l'équipe (cf. recap projet). Roster de test phase 1 décidé par Alex (cf. ADR #16).
+- ✅ **Movepool par Pokémon** : décidé par Alex pour la phase 1 (test), à arbitrer en équipe pour le jeu final.
+- ✅ **Niveau** : fixe à 50 (cf. ADR #14).
+- ✅ **IVs / EVs** : pas implémentés (cf. ADR #15).
 
 ### Pour l'équipe globale
 

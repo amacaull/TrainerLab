@@ -1,0 +1,11 @@
+{
+  "id": "blastoise",
+  "displayName": "Blastoise",
+  "type1": "Water",
+  "type2": "Water",
+  "baseStats": {
+    "hp": 79, "atk": 83, "def": 100, "specAtk": 85, "specDef": 105, "speed": 78
+  },
+  "ability": "torrent",
+  "movepool": ["Surf", "IceBeam", "Earthquake", "Tackle"]
+}

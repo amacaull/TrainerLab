@@ -1,5 +1,6 @@
 #include "engine/engine.hpp"
 
+#include "engine/effect.hpp"
 #include "engine/move.hpp"
 #include "engine/pokemon.hpp"
 
@@ -9,12 +10,12 @@ namespace engine {
 
 namespace {
 
-// Switch actions always go first (priority +6).
+// Switch actions take priority over moves (+6 brackets above any move).
 int actionPriority(const Action& a, const DataLoader& data, const BattlePokemon& user) {
     if (std::holds_alternative<SwitchAction>(a)) return 6;
     const auto& useMove = std::get<UseMove>(a);
-    const std::string& moveName = user.moves[static_cast<size_t>(useMove.moveIndex)];
-    return data.move(moveName).priority;
+    int moveId = user.move_ids[static_cast<size_t>(useMove.moveIndex)];
+    return data.moveByIndex(moveId).priority;
 }
 
 } // namespace
@@ -28,21 +29,20 @@ std::array<int, 2> BattleEngine::computeOrder(const BattleState& state, const Ac
     int s1 = state.active(1).stats.speed;
     if (s0 != s1) return (s0 > s1) ? std::array<int, 2>{0, 1} : std::array<int, 2>{1, 0};
 
-    // Speed tie: side 0 first for now (phase 1 will make this random).
+    // TODO phase 1 followup: random speed-tie break.
     return {0, 1};
 }
 
 void BattleEngine::executeAction(BattleState& state, int side, const Action& action, RNG& rng, EventLog& events) const {
-    // Attacker may have fainted from the previous action this turn.
     if (state.active(side).isFainted()) return;
 
-    // Phase 0: switch not implemented yet, silently skip.
+    // TODO phase 4: implement switch.
     if (std::holds_alternative<SwitchAction>(action)) return;
 
     const auto& useMove = std::get<UseMove>(action);
     BattlePokemon& user = state.active(side);
-    const std::string& moveName = user.moves[static_cast<size_t>(useMove.moveIndex)];
-    const Move& move = data_.move(moveName);
+    int moveId = user.move_ids[static_cast<size_t>(useMove.moveIndex)];
+    const Move& move = data_.moveByIndex(moveId);
 
     CombatantRef userRef{side, state.activeIndex[static_cast<size_t>(side)]};
     int otherSide = 1 - side;
@@ -55,7 +55,7 @@ void BattleEngine::executeAction(BattleState& state, int side, const Action& act
         return;
     }
 
-    EffectContext ctx{state, rng, events, userRef, targetRef, move};
+    EffectContext ctx{state, data_, rng, events, userRef, targetRef, move};
     for (const auto& effect : move.effects) {
         effect->apply(ctx);
     }

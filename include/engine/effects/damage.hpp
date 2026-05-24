@@ -1,10 +1,9 @@
 #pragma once
 
-#include "engine/effects/effect.hpp"
+#include "engine/effect.hpp"
 
 namespace engine {
 
-// Reads power/type/category from the move in the context.
 class DamageEffect : public Effect {
 public:
     void apply(EffectContext& ctx) const override;

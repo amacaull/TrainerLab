@@ -1,10 +1,10 @@
 #include "engine/data_loader.hpp"
 
 #include "engine/effects/damage.hpp"
-#include "engine/effects/effect.hpp"
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -15,10 +15,6 @@ using nlohmann::json;
 
 namespace engine {
 
-// See TODO in damage.cpp.
-const TypeChart* g_typeChart = nullptr;
-
-// Effect factory. Add a case here when adding a new Effect type.
 EffectPtr makeEffectFromJson(const json& j) {
     const std::string kind = j.at("kind").get<std::string>();
     if (kind == "Damage") return std::make_unique<DamageEffect>();
@@ -35,6 +31,17 @@ json readJsonFile(const fs::path& p) {
     return j;
 }
 
+// Sort filenames so catalog indices are stable across runs.
+// FFI clients (Rust) cache ids at startup; same data must yield same ids.
+std::vector<fs::path> sortedJsonFiles(const fs::path& dir) {
+    std::vector<fs::path> files;
+    for (auto& entry : fs::directory_iterator(dir)) {
+        if (entry.path().extension() == ".json") files.push_back(entry.path());
+    }
+    std::sort(files.begin(), files.end());
+    return files;
+}
+
 } // namespace
 
 void DataLoader::loadAll(const std::string& dataDir) {
@@ -44,27 +51,23 @@ void DataLoader::loadAll(const std::string& dataDir) {
     loadTypes((root / "types.json").string());
     loadMoves((root / "moves").string());
     loadSpecies((root / "pokemon").string());
-    g_typeChart = &typeChart_;
 }
 
 void DataLoader::loadTypes(const std::string& path) {
     json j = readJsonFile(path);
 
-    // Default to 1.0x for every (attacker, defender) pair.
     for (int a = 0; a < TypeCount; ++a) {
         for (int d = 0; d < TypeCount; ++d) {
             typeChart_.set(static_cast<Type>(a), static_cast<Type>(d), 1.0f);
         }
     }
 
-    // Keys starting with '_' are comments (e.g. "_comment").
     for (auto& [attackerStr, row] : j.items()) {
         if (!attackerStr.empty() && attackerStr[0] == '_') continue;
         Type attacker = typeFromString(attackerStr);
         for (auto& [defenderStr, mul] : row.items()) {
             if (!defenderStr.empty() && defenderStr[0] == '_') continue;
-            Type defender = typeFromString(defenderStr);
-            typeChart_.set(attacker, defender, mul.get<float>());
+            typeChart_.set(attacker, typeFromString(defenderStr), mul.get<float>());
         }
     }
 }
@@ -72,9 +75,8 @@ void DataLoader::loadTypes(const std::string& path) {
 void DataLoader::loadMoves(const std::string& dir) {
     if (!fs::exists(dir)) return;
 
-    for (auto& entry : fs::directory_iterator(dir)) {
-        if (entry.path().extension() != ".json") continue;
-        json j = readJsonFile(entry.path());
+    for (const auto& path : sortedJsonFiles(dir)) {
+        json j = readJsonFile(path);
 
         Move m;
         m.name     = j.at("name").get<std::string>();
@@ -89,16 +91,20 @@ void DataLoader::loadMoves(const std::string& dir) {
                 m.effects.push_back(makeEffectFromJson(e));
             }
         }
-        moves_.emplace(m.name, std::move(m));
+
+        if (move_name_to_id_.count(m.name) > 0) {
+            throw std::runtime_error("Duplicate move name: " + m.name);
+        }
+        move_name_to_id_.emplace(m.name, static_cast<int>(moves_.size()));
+        moves_.push_back(std::move(m));
     }
 }
 
 void DataLoader::loadSpecies(const std::string& dir) {
     if (!fs::exists(dir)) return;
 
-    for (auto& entry : fs::directory_iterator(dir)) {
-        if (entry.path().extension() != ".json") continue;
-        json j = readJsonFile(entry.path());
+    for (const auto& path : sortedJsonFiles(dir)) {
+        json j = readJsonFile(path);
 
         Species s;
         s.id          = j.at("id").get<std::string>();
@@ -119,31 +125,43 @@ void DataLoader::loadSpecies(const std::string& dir) {
         for (const auto& mv : j.at("movepool")) {
             s.movepool.push_back(mv.get<std::string>());
         }
-        species_.emplace(s.id, std::move(s));
+
+        if (species_id_to_index_.count(s.id) > 0) {
+            throw std::runtime_error("Duplicate species id: " + s.id);
+        }
+        species_id_to_index_.emplace(s.id, static_cast<int>(species_.size()));
+        species_.push_back(std::move(s));
     }
 
-    // Validate: every move in every movepool must exist.
-    for (const auto& [id, sp] : species_) {
+    for (const auto& sp : species_) {
         for (const auto& mv : sp.movepool) {
-            if (!hasMove(mv)) {
+            if (findMoveId(mv) < 0) {
                 std::ostringstream oss;
-                oss << "Species '" << id << "' references unknown move '" << mv << "'";
+                oss << "Species '" << sp.id << "' references unknown move '" << mv << "'";
                 throw std::runtime_error(oss.str());
             }
         }
     }
 }
 
-const Move& DataLoader::move(const std::string& name) const {
-    auto it = moves_.find(name);
-    if (it == moves_.end()) throw std::out_of_range("Unknown move: " + name);
-    return it->second;
+const Move& DataLoader::moveByIndex(int id) const {
+    if (!isValidMoveId(id)) throw std::out_of_range("Invalid move id: " + std::to_string(id));
+    return moves_[static_cast<size_t>(id)];
 }
 
-const Species& DataLoader::species(const std::string& id) const {
-    auto it = species_.find(id);
-    if (it == species_.end()) throw std::out_of_range("Unknown species: " + id);
-    return it->second;
+const Species& DataLoader::speciesByIndex(int id) const {
+    if (!isValidSpeciesId(id)) throw std::out_of_range("Invalid species id: " + std::to_string(id));
+    return species_[static_cast<size_t>(id)];
+}
+
+int DataLoader::findMoveId(const std::string& name) const {
+    auto it = move_name_to_id_.find(name);
+    return (it == move_name_to_id_.end()) ? -1 : it->second;
+}
+
+int DataLoader::findSpeciesId(const std::string& id) const {
+    auto it = species_id_to_index_.find(id);
+    return (it == species_id_to_index_.end()) ? -1 : it->second;
 }
 
 } // namespace engine

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "engine/effects/effect.hpp"
+#include "engine/effect.hpp"
 #include "engine/types.hpp"
 
 #include <string>
@@ -23,7 +23,6 @@ struct Move {
     int priority = 0; // -7..+5
     std::vector<EffectPtr> effects;
 
-    // Move-only because of unique_ptr<Effect> in effects.
     Move() = default;
     Move(const Move&) = delete;
     Move& operator=(const Move&) = delete;

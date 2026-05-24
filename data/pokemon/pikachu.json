@@ -1,0 +1,11 @@
+{
+  "id": "pikachu",
+  "displayName": "Pikachu",
+  "type1": "Electric",
+  "type2": "Electric",
+  "baseStats": {
+    "hp": 35, "atk": 55, "def": 40, "specAtk": 50, "specDef": 50, "speed": 90
+  },
+  "ability": "static",
+  "movepool": ["Thunderbolt", "QuickAttack", "IceBeam", "Tackle"]
+}

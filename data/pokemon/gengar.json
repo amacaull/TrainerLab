@@ -1,0 +1,11 @@
+{
+  "id": "gengar",
+  "displayName": "Gengar",
+  "type1": "Ghost",
+  "type2": "Poison",
+  "baseStats": {
+    "hp": 60, "atk": 65, "def": 60, "specAtk": 130, "specDef": 75, "speed": 110
+  },
+  "ability": "cursedbody",
+  "movepool": ["ShadowBall", "SludgeBomb", "Thunderbolt", "Tackle"]
+}

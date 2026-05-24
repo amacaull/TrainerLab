@@ -36,11 +36,14 @@ add_library(battle_engine_lib STATIC
     src/types.cpp
     src/stats.cpp
     src/move.cpp
-    src/pokemon.cpp
+	src/pokemon.cpp
+	src/events.cpp
     src/battle_state.cpp
+    src/validate.cpp
     src/rng.cpp
     src/data_loader.cpp
     src/engine.cpp
+	src/effects/effect.cpp
     src/effects/damage.cpp
 )
 
@@ -48,7 +51,6 @@ target_include_directories(battle_engine_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/
 
 target_link_libraries(battle_engine_lib PUBLIC nlohmann_json::nlohmann_json)
 
-# Runtime data path baked into the binary.
 target_compile_definitions(battle_engine_lib PUBLIC
     BATTLE_ENGINE_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data"
 )

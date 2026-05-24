@@ -4,7 +4,6 @@
 
 #include <array>
 #include <variant>
-#include <vector>
 
 namespace engine {
 
@@ -21,9 +20,12 @@ struct SwitchAction {
 
 using Action = std::variant<UseMove, SwitchAction>;
 
-// POD-only: no methods beyond getters. Future-proof for FFI exposure.
+// FFI contract: POD layout, fixed-size teams, no heap indirection.
+// team_size[side] indicates how many slots are filled; trailing slots
+// stay at BattlePokemon defaults (species_id == kNoSpecies).
 struct BattleState {
-    std::array<std::vector<BattlePokemon>, kSideCount> teams;
+    std::array<std::array<BattlePokemon, kTeamSize>, kSideCount> teams {};
+    std::array<int, kSideCount> team_size {0, 0};
     std::array<int, kSideCount> activeIndex {0, 0};
     int turn = 0;
 
