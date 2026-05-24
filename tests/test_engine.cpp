@@ -11,23 +11,23 @@ using namespace engine;
 using engine::test::buildCombatant;
 
 TEST_CASE("Full battle ends in a KO", "[engine][integration]") {
-    DataLoader data;
-    data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  DataLoader data;
+  data.loadAll(BATTLE_ENGINE_DATA_DIR);
 
-    BattleState state;
-    state.teams[0][0] = buildCombatant(data, "charizard", 50, {"Flamethrower"});
-    state.teams[1][0] = buildCombatant(data, "venusaur",  50, {"VineWhip"});
-    state.team_size = {1, 1};
+  BattleState state;
+  state.teams[0][0] = buildCombatant(data, "charizard", 50, {"Flamethrower"});
+  state.teams[1][0] = buildCombatant(data, "venusaur", 50, {"VineWhip"});
+  state.team_size = {1, 1};
 
-    BattleEngine engine(data);
-    MersenneRNG rng(12345);
+  BattleEngine engine(data);
+  MersenneRNG rng(12345);
 
-    int maxTurns = 30;
-    while (!state.isOver() && maxTurns-- > 0) {
-        engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
-    }
+  int maxTurns = 30;
+  while (!state.isOver() && maxTurns-- > 0) {
+    engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
+  }
 
-    REQUIRE(state.isOver());
-    REQUIRE(state.sideHasLost(1));
-    REQUIRE_FALSE(state.sideHasLost(0));
+  REQUIRE(state.isOver());
+  REQUIRE(state.sideHasLost(1));
+  REQUIRE_FALSE(state.sideHasLost(0));
 }
