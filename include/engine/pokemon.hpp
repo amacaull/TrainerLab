@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/stats.hpp"
+#include "engine/status.hpp"
 #include "engine/types.hpp"
 
 #include <array>
@@ -33,6 +34,8 @@ struct BattlePokemon {
   Stats stats;
   int currentHp = 0;
   std::array<int, kMaxMovesPerPokemon> move_ids{kNoMove, kNoMove, kNoMove, kNoMove};
+  Status status = Status::None;
+  int status_turns = 0; // Sleep: turns left asleep. Toxic: damage ramp counter.
 
   bool isFainted() const { return currentHp <= 0; }
   bool isEmpty() const { return species_id == kNoSpecies; }

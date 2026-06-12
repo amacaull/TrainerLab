@@ -54,7 +54,11 @@ void DamageEffect::apply(EffectContext &ctx) const {
 
   float randMul = static_cast<float>(ctx.rng.rangeInt(85, 100)) / 100.0f;
 
-  float total = base * stabMul * typeMul * randMul;
+  // Burn: final x0.5 modifier on physical damage (canon gen 5+).
+  float burnMul =
+      (attacker.status == Status::Burn && move.category == MoveCategory::Physical) ? 0.5f : 1.0f;
+
+  float total = base * stabMul * typeMul * randMul * burnMul;
   int damage = std::max(1, static_cast<int>(std::floor(total)));
   if (typeMul == 0.0f)
     damage = 0;
@@ -65,6 +69,14 @@ void DamageEffect::apply(EffectContext &ctx) const {
 
   if (defender.isFainted()) {
     ctx.events.emplace_back(FaintedEvent{ctx.target});
+    return;
+  }
+
+  // Canon: a damaging Fire move thaws a frozen target.
+  if (damage > 0 && move.type == Type::Fire && defender.status == Status::Freeze) {
+    defender.status = Status::None;
+    defender.status_turns = 0;
+    ctx.events.emplace_back(StatusCuredEvent{ctx.target, Status::Freeze});
   }
 }
 

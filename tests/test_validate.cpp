@@ -2,6 +2,7 @@
 
 #include "engine/battle_state.hpp"
 #include "engine/data_loader.hpp"
+#include "engine/status.hpp"
 #include "engine/validate.hpp"
 
 #include <catch2/catch_test_macros.hpp>
@@ -108,6 +109,23 @@ TEST_CASE("validateState rejects invalid move_id", "[validate]") {
   data.loadAll(BATTLE_ENGINE_DATA_DIR);
   auto s = makeValidState(data);
   s.teams[0][0].move_ids[0] = 9999;
+  REQUIRE_THROWS_AS(validateState(s, data), std::invalid_argument);
+}
+
+TEST_CASE("validateState rejects invalid status value", "[validate]") {
+  DataLoader data;
+  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  auto s = makeValidState(data);
+  s.teams[0][0].status = static_cast<Status>(99);
+  REQUIRE_THROWS_AS(validateState(s, data), std::invalid_argument);
+}
+
+TEST_CASE("validateState rejects negative status_turns", "[validate]") {
+  DataLoader data;
+  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  auto s = makeValidState(data);
+  s.teams[0][0].status = Status::Toxic;
+  s.teams[0][0].status_turns = -1;
   REQUIRE_THROWS_AS(validateState(s, data), std::invalid_argument);
 }
 

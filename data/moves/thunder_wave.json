@@ -1,0 +1,11 @@
+{
+  "name": "ThunderWave",
+  "type": "Electric",
+  "category": "Status",
+  "power": 0,
+  "accuracy": 90,
+  "priority": 0,
+  "effects": [
+    { "kind": "ApplyStatus", "status": "Paralysis" }
+  ]
+}

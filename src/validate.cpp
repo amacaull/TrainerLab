@@ -2,6 +2,7 @@
 
 #include "engine/battle_state.hpp"
 #include "engine/data_loader.hpp"
+#include "engine/status.hpp"
 
 #include <sstream>
 #include <stdexcept>
@@ -40,6 +41,15 @@ void validatePokemon(const BattlePokemon &p, const DataLoader &data, int side, i
       fail(where.str() + ": move_ids[" + std::to_string(k) + "] invalid (" + std::to_string(mid) +
            "), catalog size: " + std::to_string(data.moveCount()));
     }
+  }
+
+  int statusVal = static_cast<int>(p.status);
+  if (statusVal < 0 || statusVal >= StatusCount) {
+    fail(where.str() + ": invalid status value " + std::to_string(statusVal) + " (must be in [0, " +
+         std::to_string(StatusCount) + "))");
+  }
+  if (p.status_turns < 0) {
+    fail(where.str() + ": status_turns negative (" + std::to_string(p.status_turns) + ")");
   }
 }
 

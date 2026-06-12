@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 project(battle_engine
-    VERSION 0.1.0
+    VERSION 0.2.0
     DESCRIPTION "Pokemon battle engine for ft_transcendence"
     LANGUAGES CXX
 )
@@ -35,16 +35,18 @@ FetchContent_MakeAvailable(Catch2)
 add_library(battle_engine_lib STATIC
     src/types.cpp
     src/stats.cpp
+    src/status.cpp
     src/move.cpp
-	src/pokemon.cpp
-	src/events.cpp
+    src/pokemon.cpp
+    src/events.cpp
     src/battle_state.cpp
     src/validate.cpp
     src/rng.cpp
     src/data_loader.cpp
     src/engine.cpp
-	src/effects/effect.cpp
+    src/effects/effect.cpp
     src/effects/damage.cpp
+    src/effects/apply_status.cpp
 )
 
 target_include_directories(battle_engine_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)

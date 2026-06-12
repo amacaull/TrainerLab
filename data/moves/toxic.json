@@ -1,0 +1,11 @@
+{
+  "name": "Toxic",
+  "type": "Poison",
+  "category": "Status",
+  "power": 0,
+  "accuracy": 90,
+  "priority": 0,
+  "effects": [
+    { "kind": "ApplyStatus", "status": "Toxic" }
+  ]
+}

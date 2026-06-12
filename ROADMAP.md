@@ -8,7 +8,7 @@
 **Build** : CMake
 **Tests** : Catch2 v3
 **Données** : JSON (nlohmann/json)
-**Dernière MAJ** : 2026-05-24 (phase 1 terminée : type chart 18×18, roster de test, catalogue par index, validateState ; décisions niveau/IVs/EVs/roster tranchées)
+**Dernière MAJ** : 2026-06-12 (phase 2 statuts mergée ; 54/54 tests)
 
 ---
 
@@ -146,18 +146,29 @@ Mostly du JSON et des tests de cohérence, plus un petit refactor pour préparer
 - ⬜ Appeler `validateState` au début de toute fonction exposée au FFI (déjà appelée dans `main.cpp` ; à systématiser en phase 10)
 - ✅ Tests : 13 cas dans `test_validate.cpp` (states invalides + qualité des messages d'erreur)
 
-### Phase 2 — Statuts
+### Phase 2 — Statuts  ✅
 
 Ajout d'effets et de hooks `on_residual` (fin de tour) et `on_before_move`.
 
-- ⬜ Effet `ApplyStatus` (Burn, Poison, Toxic, Paralysis, Sleep, Freeze)
-- ⬜ Champ `status` dans `BattlePokemon`
-- ⬜ Hook `on_residual` : dégâts brûlure/poison/toxic incrémental
-- ⬜ Hook `on_before_move` : skip si paralysé/gelé/endormi (avec probas)
-- ⬜ Brûlure réduit attaque physique de moitié (modificateur de dégâts)
-- ⬜ Clause Sleep (1 seul endormi par camp adverse)
-- ⬜ Tests : chaque statut individuellement + interactions
-- ⬜ **`validateState`** : étendre pour vérifier `status` (valeur d'enum valide) et `status_turns >= 0`
+- ✅ Effet `ApplyStatus` (Burn, Poison, Toxic, Paralysis, Sleep, Freeze) — `effects/apply_status.{hpp,cpp}` ; probas (10% burn sur Flamethrower...) reportées phase 8 comme prévu
+- ✅ Champ `status` dans `BattlePokemon` (+ `status_turns` : tours de sommeil restants OU compteur Toxic — un seul statut à la fois, pas de conflit ; POD conservé)
+- ✅ Hook `on_residual` : dégâts brûlure (1/16), poison (1/8), toxic incrémental (n/16) — fonction interne `applyResidual` dans `engine.cpp`, appliquée camp le plus rapide d'abord (vitesse effective)
+- ✅ Hook `on_before_move` : skip si paralysé (25%)/gelé (dégel 20%/tour)/endormi (1-3 tours roulés à l'application) — fonction interne `passesBeforeMove`
+- ✅ Brûlure réduit les dégâts physiques de moitié (modificateur final ×0.5, canon gen 5+)
+- ✅ Clause Sleep (1 seul endormi non-K.O. par camp ; `ApplyStatus(Sleep)` échoue sinon)
+- ✅ Immunités de type : Feu ≠ burn, Électrik ≠ para, Poison/Acier ≠ poison ; immunité de la table des types bloque aussi les moves Status (ThunderWave vs Sol) — cf. ADR #17
+- ✅ Paralysie ÷2 la vitesse effective dans `computeOrder` dès maintenant (cf. ADR #17)
+- ✅ Dégel canon Showdown : un move Feu offensif qui touche dégèle la cible (cf. ADR #17)
+- ✅ 5 nouveaux moves Status : WillOWisp, ThunderWave, Toxic, Spore, PoisonPowder (catalogue : 20 moves)
+- ✅ 5 nouveaux events : StatusApplied, StatusFailed, StatusDamage, StatusCured, MoveSkipped (raison : Asleep/Frozen/FullyParalyzed)
+- ✅ Tests : chaque statut individuellement + interactions (18 nouveaux cas, 54/54 au total)
+- ✅ **`validateState`** : étendu pour vérifier `status` (valeur d'enum valide) et `status_turns >= 0`
+
+### Notes phase 2 (à brancher plus tard)
+
+- Phase 4 : reset du compteur Toxic (`status_turns`) au switch-out (TODO déjà posé dans `executeAction`)
+- Phase 5 : `passesBeforeMove` et `applyResidual` sont des fonctions internes ; le système de hooks génériques des talents viendra s'y greffer sans changer leur contrat
+- Phase 8 : si Rest est ajouté, exempter le sommeil auto-infligé de la Clause Sleep
 
 ### Phase 3 — Boosts de stats
 
@@ -174,6 +185,7 @@ Ajout d'effets et de hooks `on_residual` (fin de tour) et `on_before_move`.
 - ⬜ Switch joue toujours avant les attaques (priorité spéciale)
 - ⬜ Effet `Pivot` (U-Turn, Volt Switch : dégâts puis switch forcé du user)
 - ⬜ Hook `on_switch_in` (préparation pour talents/hazards)
+- ⬜ Reset du compteur Toxic (`status_turns`) au switch-out (TODO posé en phase 2)
 - ⬜ Tests : switch en mid-turn, switch après KO, double KO
 
 ### Phase 5 — Talents
@@ -272,6 +284,7 @@ Ajout d'effets et de hooks `on_residual` (fin de tour) et `on_before_move`.
 | 14 | **Niveau fixe à 50** (champ `level` conservé dans le POD pour flexibilité de test) | gameplay équilibré sans config de niveau côté frontend, mais on garde la possibilité de tester d'autres niveaux | 2026-05-24 |
 | 15 | **Pas d'IVs ni d'EVs** (équivalent IVs=0, EVs=0, nature neutre) | équilibrage par stats de base + types, lisible pour le joueur, pas d'UI de config nécessaire ; `computeStats` reste paramétrée par stats de base + niveau, suffisant | 2026-05-24 |
 | 16 | **Roster de test (8 Pokémon)** distinct du roster final (48 Pokémon, à définir) | la phase 1 vérifie le moteur, pas le contenu final ; roster de test : Charizard, Venusaur, Blastoise, Pikachu, Snorlax, Gengar, Machamp, Garchomp (couvre 8 types primaires + rôles offensifs/défensifs/rapides/lents) | 2026-05-24 |
+| 17 | **Statuts : mécanique canon gen 6+/Showdown dès la phase 2** | immunités de type (Feu≠burn, Électrik≠para, Poison/Acier≠poison) et immunité de la table des types pour les moves Status (ThunderWave vs Sol) incluses tout de suite ; paralysie ÷2 vitesse appliquée dans `computeOrder` sans attendre les multiplicateurs de la phase 3 ; dégel = 20%/tour + move Feu offensif qui touche (canon Showdown) ; sommeil roulé 1-3 tours à l'application ; probas de statut via `RNG::chance(float)` (et non `chancePct`) pour que `FixedRNG` force/bloque les procs sans toucher aux jets de précision ; résiduels appliqués dans l'ordre de vitesse effective | 2026-06-12 |
 
 ---
 
@@ -301,6 +314,52 @@ Ajout d'effets et de hooks `on_residual` (fin de tour) et `on_before_move`.
 ### Pour l'équipe globale
 
 - ⬜ **CI/CD** : GitHub Actions ? GitLab CI ?
+
+---
+
+## Tooling
+
+Outils en place pour la cohérence du code et le workflow Git. À installer une fois par développeur.
+
+### Build et tests
+
+- **CMake** (≥ 3.20) configure le projet, FetchContent récupère nlohmann/json et Catch2 automatiquement.
+- **Catch2 v3** pour les tests unitaires et d'intégration. Lancer avec `ctest --output-on-failure` depuis `build/`.
+
+### Formatage : clang-format
+
+- Style défini dans `.clang-format` à la racine de `battle-engine/` : **base LLVM + ColumnLimit 100**.
+- Installation locale : `brew install clang-format` (macOS) ou `apt install clang-format` (Linux).
+- Application manuelle : `clang-format -i <fichier>`.
+- Recommandé : activer le format-on-save dans l'éditeur via clangd (cf. config éditeur ci-dessous).
+
+### Hook pre-commit
+
+- Le hook `tools/pre-commit` (à la racine du repo) auto-formate les fichiers `.cpp`/`.hpp` staged sous `backend/battle-engine/` au moment du `git commit`. Les fichiers reformatés sont re-stagés transparente, le commit procède avec le message d'origine.
+- **À installer une seule fois après clone** :
+
+```bash
+  ./tools/install-hooks.sh
+```
+
+  Crée un symlink `.git/hooks/pre-commit` → `tools/pre-commit`. Comme ça les mises à jour du hook (versionnées dans le repo) sont automatiquement actives.
+- Si jamais on veut bypasser ponctuellement (rare) : `git commit --no-verify`.
+
+### Configuration éditeur
+
+- `.clangd` à la racine de `battle-engine/` configure clangd (LSP officiel C++) : pointe vers `build/compile_commands.json`, désactive les warnings `UnusedIncludes` (faux positifs sur les headers orphelins).
+- **Setup VSCode recommandé** :
+  - Désinstaller / désactiver l'extension Microsoft C/C++ pour ce workspace.
+  - Installer l'extension **clangd** (publisher : LLVM).
+  - **Ouvrir VSCode depuis `battle-engine/`**, pas depuis la racine du repo, sinon clangd ne trouve pas son `.clangd`.
+- Pour activer le format-on-save dans VSCode, ajouter dans `.vscode/settings.json` :
+
+```json
+  {
+    "editor.formatOnSave": true,
+    "[cpp]": { "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd" }
+  }
+```
 
 ---
 

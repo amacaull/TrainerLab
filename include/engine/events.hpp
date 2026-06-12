@@ -1,5 +1,7 @@
 #pragma once
 
+#include "engine/status.hpp"
+
 #include <string>
 #include <variant>
 #include <vector>
@@ -10,6 +12,8 @@ struct CombatantRef {
   int side;      // 0 or 1
   int teamIndex; // 0..kTeamSize-1
 };
+
+enum class SkipReason { Asleep, Frozen, FullyParalyzed };
 
 struct MoveUsedEvent {
   CombatantRef user;
@@ -32,7 +36,37 @@ struct MissedEvent {
   std::string moveName;
 };
 
-using BattleEvent = std::variant<MoveUsedEvent, DamageDealtEvent, FaintedEvent, MissedEvent>;
+struct StatusAppliedEvent {
+  CombatantRef target;
+  Status status;
+};
+
+// Immunity (type or chart), already statused, or Sleep Clause.
+struct StatusFailedEvent {
+  CombatantRef target;
+  Status status;
+};
+
+struct StatusDamageEvent {
+  CombatantRef target;
+  Status status;
+  int damage;
+};
+
+// Wake-up or thaw.
+struct StatusCuredEvent {
+  CombatantRef who;
+  Status status;
+};
+
+struct MoveSkippedEvent {
+  CombatantRef user;
+  SkipReason reason;
+};
+
+using BattleEvent =
+    std::variant<MoveUsedEvent, DamageDealtEvent, FaintedEvent, MissedEvent, StatusAppliedEvent,
+                 StatusFailedEvent, StatusDamageEvent, StatusCuredEvent, MoveSkippedEvent>;
 using EventLog = std::vector<BattleEvent>;
 
 } // namespace engine

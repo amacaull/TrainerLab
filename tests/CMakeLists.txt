@@ -2,6 +2,7 @@ add_executable(battle_engine_tests
     test_types.cpp
     test_stats.cpp
     test_damage.cpp
+    test_status.cpp
     test_engine.cpp
     test_catalog.cpp
     test_validate.cpp

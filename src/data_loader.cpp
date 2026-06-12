@@ -1,5 +1,6 @@
 #include "engine/data_loader.hpp"
 
+#include "engine/effects/apply_status.hpp"
 #include "engine/effects/damage.hpp"
 
 #include <nlohmann/json.hpp>
@@ -19,6 +20,8 @@ EffectPtr makeEffectFromJson(const json &j) {
   const std::string kind = j.at("kind").get<std::string>();
   if (kind == "Damage")
     return std::make_unique<DamageEffect>();
+  if (kind == "ApplyStatus")
+    return std::make_unique<ApplyStatusEffect>(statusFromString(j.at("status").get<std::string>()));
   throw std::invalid_argument("makeEffectFromJson: unknown effect '" + kind + "'");
 }
 

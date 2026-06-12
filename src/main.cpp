@@ -3,6 +3,7 @@
 #include "engine/engine.hpp"
 #include "engine/events.hpp"
 #include "engine/rng.hpp"
+#include "engine/status.hpp"
 #include "engine/validate.hpp"
 
 #include <iostream>
@@ -67,6 +68,23 @@ void printEvent(const BattleEvent &ev, const BattleState &state, const DataLoade
           std::cout << "    " << pokeName(e.who) << " fainted!\n";
         } else if constexpr (std::is_same_v<T, MissedEvent>) {
           std::cout << "    " << pokeName(e.user) << " missed " << e.moveName << "!\n";
+        } else if constexpr (std::is_same_v<T, StatusAppliedEvent>) {
+          std::cout << "    " << pokeName(e.target) << " is afflicted with " << statusName(e.status)
+                    << "!\n";
+        } else if constexpr (std::is_same_v<T, StatusFailedEvent>) {
+          std::cout << "    " << statusName(e.status) << " failed on " << pokeName(e.target)
+                    << "!\n";
+        } else if constexpr (std::is_same_v<T, StatusDamageEvent>) {
+          std::cout << "    " << pokeName(e.target) << " takes " << e.damage << " damage from "
+                    << statusName(e.status) << "\n";
+        } else if constexpr (std::is_same_v<T, StatusCuredEvent>) {
+          std::cout << "    " << pokeName(e.who) << " is no longer " << statusName(e.status)
+                    << "\n";
+        } else if constexpr (std::is_same_v<T, MoveSkippedEvent>) {
+          const char *why = e.reason == SkipReason::Asleep   ? "is fast asleep"
+                            : e.reason == SkipReason::Frozen ? "is frozen solid"
+                                                             : "is fully paralyzed";
+          std::cout << "    " << pokeName(e.user) << " " << why << "!\n";
         }
       },
       ev);
@@ -179,6 +197,25 @@ int main() {
          {"Thunderbolt"},
          7,
          5},
+
+        {"Match 6: burn cripples a physical attacker",
+         "WillOWisp burns Machamp: CloseCombat halved (resisted on Fire/Flying) + 1/16 chip per "
+         "turn",
+         "charizard",
+         {"WillOWisp"},
+         "machamp",
+         {"CloseCombat"},
+         42,
+         5},
+
+        {"Match 7: Spore, sleep turns, wake-up",
+         "Venusaur sleeps Snorlax (1-3 turns); Snorlax skips, wakes, gets re-Spored",
+         "venusaur",
+         {"Spore"},
+         "snorlax",
+         {"BodySlam"},
+         42,
+         6},
     };
 
     BattleEngine engine(data);
