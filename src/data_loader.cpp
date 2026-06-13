@@ -2,6 +2,7 @@
 
 #include "engine/effects/apply_status.hpp"
 #include "engine/effects/damage.hpp"
+#include "engine/effects/stat_change.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -16,12 +17,40 @@ using nlohmann::json;
 
 namespace engine {
 
+namespace {
+
+StatIndex statIndexFromString(const std::string &s) {
+  if (s == "Atk")
+    return StatIndex::Atk;
+  if (s == "Def")
+    return StatIndex::Def;
+  if (s == "SpA")
+    return StatIndex::SpA;
+  if (s == "SpD")
+    return StatIndex::SpD;
+  if (s == "Spe")
+    return StatIndex::Spe;
+  if (s == "Accuracy")
+    return StatIndex::Accuracy;
+  if (s == "Evasion")
+    return StatIndex::Evasion;
+  throw std::invalid_argument("statIndexFromString: unknown stat '" + s + "'");
+}
+
+} // namespace
+
 EffectPtr makeEffectFromJson(const json &j) {
   const std::string kind = j.at("kind").get<std::string>();
   if (kind == "Damage")
     return std::make_unique<DamageEffect>();
   if (kind == "ApplyStatus")
     return std::make_unique<ApplyStatusEffect>(statusFromString(j.at("status").get<std::string>()));
+  if (kind == "StatChange") {
+    StatIndex stat = statIndexFromString(j.at("stat").get<std::string>());
+    int delta = j.at("delta").get<int>();
+    bool affectsUser = j.value("target", std::string("user")) == "user";
+    return std::make_unique<StatChangeEffect>(stat, delta, affectsUser);
+  }
   throw std::invalid_argument("makeEffectFromJson: unknown effect '" + kind + "'");
 }
 

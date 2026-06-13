@@ -47,6 +47,7 @@ add_library(battle_engine_lib STATIC
     src/effects/effect.cpp
     src/effects/damage.cpp
     src/effects/apply_status.cpp
+    src/effects/stat_change.cpp
 )
 
 target_include_directories(battle_engine_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)

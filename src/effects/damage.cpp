@@ -27,25 +27,34 @@ void DamageEffect::apply(EffectContext &ctx) const {
   const Species &defenderSp = ctx.data.speciesByIndex(defender.species_id);
 
   int atkStat, defStat;
+  StatIndex atkIdx, defIdx;
   if (move.category == MoveCategory::Physical) {
     atkStat = attacker.stats.atk;
     defStat = defender.stats.def;
+    atkIdx = StatIndex::Atk;
+    defIdx = StatIndex::Def;
   } else if (move.category == MoveCategory::Special) {
     atkStat = attacker.stats.specAtk;
     defStat = defender.stats.specDef;
+    atkIdx = StatIndex::SpA;
+    defIdx = StatIndex::SpD;
   } else {
     return;
   }
+
+  float atkMul = stageMultiplier(attacker.stat_stages[static_cast<size_t>(atkIdx)]);
+  float defMul = stageMultiplier(defender.stat_stages[static_cast<size_t>(defIdx)]);
+  float effAtk = static_cast<float>(atkStat) * atkMul;
+  float effDef = static_cast<float>(defStat) * defMul;
 
   // Damage formula (gen 5+):
   //   base = floor( ((2*level/5 + 2) * power * Atk/Def) / 50 ) + 2
   // Then: STAB (x1.5), type effectiveness, random 0.85..1.0.
   int level = attacker.level;
-  float base =
-      (((2.0f * static_cast<float>(level) / 5.0f) + 2.0f) * static_cast<float>(move.power) *
-       static_cast<float>(atkStat) / static_cast<float>(defStat)) /
-          50.0f +
-      2.0f;
+  float base = (((2.0f * static_cast<float>(level) / 5.0f) + 2.0f) *
+                static_cast<float>(move.power) * effAtk / effDef) /
+                   50.0f +
+               2.0f;
 
   bool stab = (move.type == attackerSp.type1 || move.type == attackerSp.type2);
   float stabMul = stab ? 1.5f : 1.0f;

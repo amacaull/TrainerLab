@@ -8,7 +8,7 @@
 **Build** : CMake
 **Tests** : Catch2 v3
 **Données** : JSON (nlohmann/json)
-**Dernière MAJ** : 2026-06-12 (phase 2 statuts mergée ; 54/54 tests)
+**Dernière MAJ** : 2026-06-13 (phase 3 boosts de stats mergée ; 63/63 tests)
 
 ---
 
@@ -170,14 +170,23 @@ Ajout d'effets et de hooks `on_residual` (fin de tour) et `on_before_move`.
 - Phase 5 : `passesBeforeMove` et `applyResidual` sont des fonctions internes ; le système de hooks génériques des talents viendra s'y greffer sans changer leur contrat
 - Phase 8 : si Rest est ajouté, exempter le sommeil auto-infligé de la Clause Sleep
 
-### Phase 3 — Boosts de stats
+### Phase 3 — Boosts de stats  ✅
 
-- ⬜ Effet `StatChange` (+1, +2, -1, -2 sur Atk/Def/SpA/SpD/Spe/Acc/Eva)
-- ⬜ Stages dans `BattlePokemon` (clamp à -6/+6)
-- ⬜ Multiplicateurs appliqués au calcul de dégâts et à la vitesse
-- ⬜ Boost reset au switch
-- ⬜ Tests : Swords Dance × Earthquake = dégâts ×2, etc.
-- ⬜ **`validateState`** : étendre pour vérifier `stat_stages[i]` dans `[-6, +6]`
+- ✅ Effet `StatChange` (delta arbitraire sur Atk/Def/SpA/SpD/Spe/Acc/Eva, cible `user`/`target` en JSON) — `effects/stat_change.{hpp,cpp}`
+- ✅ Stages dans `BattlePokemon` (`std::array<int, 7> stat_stages`, POD conservé ; enum `StatIndex` pour l'ordre stable)
+- ✅ Multiplicateurs canon `(2+n)/2` / `2/(2-n)` (`stageMultiplier` dans `stats.cpp`), clamp à [-6, +6]
+- ✅ Appliqués au calcul de dégâts (Atk/Def/SpA/SpD) et à la vitesse effective (Spe, avant la ÷2 paralysie — ordre canon)
+- 🔵 Acc/Eva : champs posés, clampés et validés mais PAS branchés sur le jet de précision (reporté phase 8, où la précision devient un calcul fin ; cf. ADR #18)
+- 🔵 Boost reset au switch : reporté phase 4 (pas de switch avant — TODO posé, comme le reset Toxic)
+- ✅ 2 nouveaux moves : SwordsDance (Atk +2 self), Growl (Atk -1 target) ; catalogue : 22 moves
+- ✅ 2 nouveaux events : StatStageChanged (delta réel après clamp), StatChangeFailed (au cap +6/-6)
+- ✅ Tests : multiplicateurs, SwordsDance ≈ ×2 dégâts, Growl baisse l'Atk adverse, cap +6, flip d'ordre via stage Spe, validation (9 nouveaux cas, 63/63 au total)
+- ✅ **`validateState`** : vérifie `stat_stages[i]` dans `[-6, +6]`
+
+### Notes phase 3 (à brancher plus tard)
+
+- Phase 4 : reset des `stat_stages` au switch-out (à grouper avec le reset Toxic déjà prévu)
+- Phase 8 : brancher Acc/Eva sur le jet de précision (table `(3+n)/3` / `3/(3-n)`, distincte de la table principale)
 
 ### Phase 4 — Switch et Pivot
 
@@ -285,6 +294,7 @@ Ajout d'effets et de hooks `on_residual` (fin de tour) et `on_before_move`.
 | 15 | **Pas d'IVs ni d'EVs** (équivalent IVs=0, EVs=0, nature neutre) | équilibrage par stats de base + types, lisible pour le joueur, pas d'UI de config nécessaire ; `computeStats` reste paramétrée par stats de base + niveau, suffisant | 2026-05-24 |
 | 16 | **Roster de test (8 Pokémon)** distinct du roster final (48 Pokémon, à définir) | la phase 1 vérifie le moteur, pas le contenu final ; roster de test : Charizard, Venusaur, Blastoise, Pikachu, Snorlax, Gengar, Machamp, Garchomp (couvre 8 types primaires + rôles offensifs/défensifs/rapides/lents) | 2026-05-24 |
 | 17 | **Statuts : mécanique canon gen 6+/Showdown dès la phase 2** | immunités de type (Feu≠burn, Électrik≠para, Poison/Acier≠poison) et immunité de la table des types pour les moves Status (ThunderWave vs Sol) incluses tout de suite ; paralysie ÷2 vitesse appliquée dans `computeOrder` sans attendre les multiplicateurs de la phase 3 ; dégel = 20%/tour + move Feu offensif qui touche (canon Showdown) ; sommeil roulé 1-3 tours à l'application ; probas de statut via `RNG::chance(float)` (et non `chancePct`) pour que `FixedRNG` force/bloque les procs sans toucher aux jets de précision ; résiduels appliqués dans l'ordre de vitesse effective | 2026-06-12 |
+| 18 | **Stages Acc/Eva stockés mais inertes en phase 3** | les 7 stages vivent dans `stat_stages` (POD, ordre stable via `StatIndex`) et sont clampés/validés, mais seuls Atk/Def/SpA/SpD/Spe sont branchés (dégâts + vitesse) ; la précision reste un `chancePct(accuracy)` brut jusqu'à la phase 8, où elle devient un calcul fin avec sa propre table de stages `(3+n)/3` ; éviter de mélanger deux tables de multiplicateurs maintenant pour rien | 2026-06-13 |
 
 ---
 

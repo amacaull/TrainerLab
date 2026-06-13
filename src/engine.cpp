@@ -22,7 +22,8 @@ int actionPriority(const Action &a, const DataLoader &data, const BattlePokemon 
 }
 
 int effectiveSpeed(const BattlePokemon &p) {
-  int spd = p.stats.speed;
+  float mul = stageMultiplier(p.stat_stages[static_cast<size_t>(StatIndex::Spe)]);
+  int spd = static_cast<int>(static_cast<float>(p.stats.speed) * mul);
   if (p.status == Status::Paralysis)
     spd /= 2;
   return spd;

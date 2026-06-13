@@ -1,5 +1,6 @@
 #pragma once
 
+#include "engine/pokemon.hpp"
 #include "engine/status.hpp"
 
 #include <string>
@@ -64,9 +65,24 @@ struct MoveSkippedEvent {
   SkipReason reason;
 };
 
+// delta is the actual change applied after clamping (0 if already capped).
+struct StatStageChangedEvent {
+  CombatantRef target;
+  StatIndex stat;
+  int delta;
+};
+
+// Stat already at +6 (raise) or -6 (lower).
+struct StatChangeFailedEvent {
+  CombatantRef target;
+  StatIndex stat;
+  bool wasRaise;
+};
+
 using BattleEvent =
     std::variant<MoveUsedEvent, DamageDealtEvent, FaintedEvent, MissedEvent, StatusAppliedEvent,
-                 StatusFailedEvent, StatusDamageEvent, StatusCuredEvent, MoveSkippedEvent>;
+                 StatusFailedEvent, StatusDamageEvent, StatusCuredEvent, MoveSkippedEvent,
+                 StatStageChangedEvent, StatChangeFailedEvent>;
 using EventLog = std::vector<BattleEvent>;
 
 } // namespace engine

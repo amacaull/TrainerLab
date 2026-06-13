@@ -10,7 +10,7 @@ TEST_CASE("DataLoader: catalog sizes match expected content", "[catalog]") {
   data.loadAll(BATTLE_ENGINE_DATA_DIR);
 
   REQUIRE(data.speciesCount() == 8);
-  REQUIRE(data.moveCount() == 20);
+  REQUIRE(data.moveCount() == 22);
 }
 
 TEST_CASE("DataLoader: lookup by name returns valid id, miss returns -1", "[catalog]") {

@@ -14,4 +14,8 @@ struct Stats {
 // Modern-gen formula, IVs=0, EVs=0, neutral nature.
 Stats computeStats(const Stats &base, int level);
 
+// Canon stage multiplier for Atk/Def/SpA/SpD/Spe: (2+n)/2 for n>=0,
+// 2/(2-n) for n<0. Stage is clamped to [-6, +6].
+float stageMultiplier(int stage);
+
 } // namespace engine

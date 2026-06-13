@@ -51,6 +51,15 @@ void validatePokemon(const BattlePokemon &p, const DataLoader &data, int side, i
   if (p.status_turns < 0) {
     fail(where.str() + ": status_turns negative (" + std::to_string(p.status_turns) + ")");
   }
+
+  for (int k = 0; k < kStatStageCount; ++k) {
+    int stage = p.stat_stages[static_cast<size_t>(k)];
+    if (stage < kMinStage || stage > kMaxStage) {
+      fail(where.str() + ": stat_stages[" + std::to_string(k) + "] out of range [" +
+           std::to_string(kMinStage) + ", " + std::to_string(kMaxStage) + "], got " +
+           std::to_string(stage));
+    }
+  }
 }
 
 } // namespace
