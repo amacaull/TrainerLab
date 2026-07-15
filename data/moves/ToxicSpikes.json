@@ -1,0 +1,13 @@
+{
+  "name": "ToxicSpikes",
+  "type": "Poison",
+  "category": "Status",
+  "accuracy": 100,
+  "effects": [
+    {
+      "kind": "SetHazard",
+      "hazard": "ToxicSpikes"
+    }
+  ],
+  "selfOrField": true
+}

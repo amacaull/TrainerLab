@@ -1,0 +1,13 @@
+{
+  "name": "RainDance",
+  "type": "Water",
+  "category": "Status",
+  "accuracy": 100,
+  "effects": [
+    {
+      "kind": "SetWeather",
+      "weather": "Rain"
+    }
+  ],
+  "selfOrField": true
+}

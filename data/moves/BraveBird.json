@@ -1,0 +1,17 @@
+{
+  "name": "BraveBird",
+  "type": "Flying",
+  "category": "Physical",
+  "power": 120,
+  "accuracy": 100,
+  "contact": true,
+  "effects": [
+    {
+      "kind": "Damage"
+    },
+    {
+      "kind": "Recoil",
+      "denominator": 3
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "VoltSwitch",
+  "type": "Electric",
+  "category": "Special",
+  "power": 70,
+  "accuracy": 100,
+  "effects": [
+    {
+      "kind": "Damage"
+    },
+    {
+      "kind": "Pivot"
+    }
+  ]
+}

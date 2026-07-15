@@ -60,13 +60,15 @@ TEST_CASE("Charizard outspeeds Venusaur", "[order]") {
   REQUIRE(firstMove->user.side == 0);
 }
 
-TEST_CASE("Earthquake on Gengar deals damage (Ground vs Ghost/Poison)", "[damage][types]") {
+// Gengar now holds Levitate (phase 5), which voids Earthquake; the Ground
+// coverage check moved to Pikachu (Electric, 2x weak).
+TEST_CASE("Earthquake on Pikachu is super-effective (Ground vs Electric)", "[damage][types]") {
   DataLoader data;
   data.loadAll(BATTLE_ENGINE_DATA_DIR);
 
   BattleState state;
   state.teams[0][0] = buildCombatant(data, "garchomp", 50, {"Earthquake"});
-  state.teams[1][0] = buildCombatant(data, "gengar", 50, {"ShadowBall"});
+  state.teams[1][0] = buildCombatant(data, "pikachu", 50, {"QuickAttack"});
   state.team_size = {1, 1};
 
   BattleEngine engine(data);

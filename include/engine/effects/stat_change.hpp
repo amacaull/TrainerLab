@@ -5,6 +5,11 @@
 
 namespace engine {
 
+// Clamped stage change + StatStageChanged/StatChangeFailed event emission.
+// Shared by StatChangeEffect and abilities (Intimidate).
+void applyStatStageDelta(BattlePokemon &mon, CombatantRef ref, StatIndex stat, int delta,
+                         EventLog &events);
+
 // Adjusts one stat stage on either the user or the target, clamped to
 // [-6, +6]. Target defaults to the move's target; self-boosts (Swords Dance)
 // set affectsUser. Emits StatStageChanged (or StatChangeFailed at the cap).

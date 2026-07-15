@@ -4,8 +4,10 @@
   "category": "Physical",
   "power": 100,
   "accuracy": 80,
-  "priority": 0,
   "effects": [
-    { "kind": "Damage" }
-  ]
+    {
+      "kind": "Damage"
+    }
+  ],
+  "highCrit": true
 }

@@ -1,11 +1,22 @@
 {
   "id": "gengar",
   "displayName": "Gengar",
+  "baseStats": {
+    "hp": 60,
+    "atk": 65,
+    "def": 60,
+    "specAtk": 130,
+    "specDef": 75,
+    "speed": 110
+  },
   "type1": "Ghost",
   "type2": "Poison",
-  "baseStats": {
-    "hp": 60, "atk": 65, "def": 60, "specAtk": 130, "specDef": 75, "speed": 110
-  },
-  "ability": "cursedbody",
-  "movepool": ["ShadowBall", "SludgeBomb", "Thunderbolt", "Tackle"]
+  "ability": "Levitate",
+  "movepool": [
+    "ShadowBall",
+    "WillOWisp",
+    "ThunderWave",
+    "Toxic",
+    "ToxicSpikes"
+  ]
 }

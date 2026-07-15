@@ -7,6 +7,12 @@ add_executable(battle_engine_tests
     test_catalog.cpp
     test_validate.cpp
     test_stage.cpp
+    test_switch.cpp
+    test_ability.cpp
+    test_weather.cpp
+    test_hazard.cpp
+    test_phase8.cpp
+    test_phase9.cpp
 )
 
 target_include_directories(battle_engine_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

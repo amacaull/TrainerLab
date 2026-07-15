@@ -1,5 +1,7 @@
 #include "engine/validate.hpp"
 
+#include <string>
+
 #include "engine/battle_state.hpp"
 #include "engine/data_loader.hpp"
 #include "engine/status.hpp"
@@ -52,6 +54,26 @@ void validatePokemon(const BattlePokemon &p, const DataLoader &data, int side, i
     fail(where.str() + ": status_turns negative (" + std::to_string(p.status_turns) + ")");
   }
 
+  if (p.sleep_self_inflicted != 0 && p.status != Status::Sleep) {
+    fail(where.str() + ": sleep_self_inflicted set without Sleep status");
+  }
+  if (p.flinched < 0 || p.flinched > 1 || p.roosted < 0 || p.roosted > 1 || p.protected_now < 0 ||
+      p.protected_now > 1) {
+    fail(where.str() + ": volatile flags must be 0 or 1");
+  }
+  if (p.protect_chain < 0) {
+    fail(where.str() + ": protect_chain negative");
+  }
+  if (p.charging_move_id != kNoMove && !data.isValidMoveId(p.charging_move_id)) {
+    fail(where.str() + ": charging_move_id invalid (" + std::to_string(p.charging_move_id) + ")");
+  }
+  if (p.invulnerable_state < 0 || p.invulnerable_state > 2) {
+    fail(where.str() + ": invulnerable_state out of range [0, 2]");
+  }
+  if (p.invulnerable_state != 0 && p.charging_move_id == kNoMove) {
+    fail(where.str() + ": invulnerable without a charging move");
+  }
+
   for (int k = 0; k < kStatStageCount; ++k) {
     int stage = p.stat_stages[static_cast<size_t>(k)];
     if (stage < kMinStage || stage > kMaxStage) {
@@ -65,6 +87,25 @@ void validatePokemon(const BattlePokemon &p, const DataLoader &data, int side, i
 } // namespace
 
 void validateState(const BattleState &state, const DataLoader &data) {
+  if (state.weather < Weather::None || state.weather >= Weather::Count)
+    fail("weather has an invalid enum value");
+  if (state.weather_turns_left < 0)
+    fail("weather_turns_left is negative");
+  if (state.weather == Weather::None && state.weather_turns_left != 0)
+    fail("weather_turns_left must be 0 when weather is None");
+  if (state.weather != Weather::None && state.weather_turns_left > kWeatherDuration)
+    fail("weather_turns_left exceeds the maximum duration");
+
+  for (int side = 0; side < kSideCount; ++side) {
+    const SideHazards &hz = state.hazards[static_cast<size_t>(side)];
+    if (hz.stealth_rock < 0 || hz.stealth_rock > kMaxStealthRock)
+      fail("stealth_rock layers out of range for side " + std::to_string(side));
+    if (hz.spikes < 0 || hz.spikes > kMaxSpikes)
+      fail("spikes layers out of range for side " + std::to_string(side));
+    if (hz.toxic_spikes < 0 || hz.toxic_spikes > kMaxToxicSpikes)
+      fail("toxic_spikes layers out of range for side " + std::to_string(side));
+  }
+
   for (int side = 0; side < kSideCount; ++side) {
     int size = state.team_size[static_cast<size_t>(side)];
     if (size < 1 || size > kTeamSize) {

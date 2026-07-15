@@ -17,6 +17,13 @@ Stats computeStats(const Stats &base, int level) {
   return s;
 }
 
+float accuracyStageMultiplier(int stage) {
+  stage = std::clamp(stage, -6, 6);
+  if (stage >= 0)
+    return static_cast<float>(3 + stage) / 3.0f;
+  return 3.0f / static_cast<float>(3 - stage);
+}
+
 float stageMultiplier(int stage) {
   stage = std::clamp(stage, -6, 6);
   if (stage >= 0)

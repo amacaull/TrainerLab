@@ -12,6 +12,11 @@ constexpr int StatusCount = static_cast<int>(Status::Count);
 std::string_view statusName(Status s);
 Status statusFromString(std::string_view s);
 
+struct Species;
+// Canon type immunities: Fire can't burn, Electric can't be paralyzed,
+// Poison/Steel can't be poisoned. Shared by ApplyStatus, Toxic Spikes, Static.
+bool typeImmuneToStatus(Status s, const Species &sp);
+
 // Canon gen 6+ values. Probabilities go through RNG::chance(float) so
 // FixedRNG can force/deny procs without touching accuracy rolls (chancePct).
 constexpr float kFullParalysisChance = 0.25f;

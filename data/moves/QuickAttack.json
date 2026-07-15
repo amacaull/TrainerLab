@@ -6,6 +6,9 @@
   "accuracy": 100,
   "priority": 1,
   "effects": [
-    { "kind": "Damage" }
-  ]
+    {
+      "kind": "Damage"
+    }
+  ],
+  "contact": true
 }

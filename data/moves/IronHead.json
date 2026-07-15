@@ -1,0 +1,17 @@
+{
+  "name": "IronHead",
+  "type": "Steel",
+  "category": "Physical",
+  "power": 80,
+  "accuracy": 100,
+  "contact": true,
+  "effects": [
+    {
+      "kind": "Damage"
+    },
+    {
+      "kind": "Flinch",
+      "chance": 30
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "name": "DragonTail",
+  "type": "Dragon",
+  "category": "Physical",
+  "power": 60,
+  "accuracy": 90,
+  "priority": -6,
+  "contact": true,
+  "effects": [
+    {
+      "kind": "Damage"
+    },
+    {
+      "kind": "ForceSwitch"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "Roost",
+  "type": "Flying",
+  "category": "Status",
+  "accuracy": 0,
+  "effects": [
+    {
+      "kind": "Recovery",
+      "denominator": 2
+    },
+    {
+      "kind": "Roost"
+    }
+  ],
+  "selfOrField": true
+}

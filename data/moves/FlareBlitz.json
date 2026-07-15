@@ -1,0 +1,22 @@
+{
+  "name": "FlareBlitz",
+  "type": "Fire",
+  "category": "Physical",
+  "power": 120,
+  "accuracy": 100,
+  "contact": true,
+  "effects": [
+    {
+      "kind": "Damage"
+    },
+    {
+      "kind": "Recoil",
+      "denominator": 3
+    },
+    {
+      "kind": "ApplyStatus",
+      "status": "Burn",
+      "chance": 10
+    }
+  ]
+}

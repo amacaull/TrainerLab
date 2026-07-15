@@ -18,4 +18,9 @@ Stats computeStats(const Stats &base, int level);
 // 2/(2-n) for n<0. Stage is clamped to [-6, +6].
 float stageMultiplier(int stage);
 
+// Accuracy/Evasion table (distinct from the main one): (3+n)/3 for n>=0,
+// 3/(3-n) for n<0. Applied to the accuracy roll as a single combined stage
+// (user Acc - target Eva), clamped to [-6, +6].
+float accuracyStageMultiplier(int stage);
+
 } // namespace engine

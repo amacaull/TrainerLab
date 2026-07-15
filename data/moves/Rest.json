@@ -1,0 +1,12 @@
+{
+  "name": "Rest",
+  "type": "Psychic",
+  "category": "Status",
+  "accuracy": 0,
+  "effects": [
+    {
+      "kind": "Rest"
+    }
+  ],
+  "selfOrField": true
+}

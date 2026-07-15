@@ -8,7 +8,7 @@
 **Build** : CMake
 **Tests** : Catch2 v3
 **Données** : JSON (nlohmann/json)
-**Dernière MAJ** : 2026-06-13 (phase 3 boosts de stats mergée ; 63/63 tests)
+**Dernière MAJ** : 2026-07-09 (phases 8 secondaires/crits/recovery et 9 moves avancés mergées ; 136/136 tests)
 
 ---
 
@@ -109,9 +109,9 @@ Objectif : un combat 1v1 Dracaufeu vs Florizarre avec Lance-Flammes et Fouet Lia
 ### Dette technique de la phase 0 (à régler en phase 1)
 
 - ✅ `g_typeChart` est une globale ; déplacé dans `EffectContext` (passé via `DataLoader`)
-- ⬜ Speed tie déterministe (camp 0 d'abord) ; devrait être aléatoire
-- ⬜ Pas de gestion du switch dans `executeAction` (placeholder qui no-op)
-- ⬜ `accuracy > 100` non géré spécialement (sera utile pour les moves qui ne ratent jamais)
+- ⬜ Speed tie déterministe (camp 0 d'abord) ; devrait être aléatoire → **à régler en phase 8** (RNG déterministe déjà en place pour le tester)
+- ✅ Pas de gestion du switch dans `executeAction` (résolu en phase 4 : `performSwitch`)
+- ✅ `accuracy > 100` non géré spécialement — de facto résolu : le jet n'a lieu que si `accuracy < 100`, donc toute valeur ≥ 100 ne rate jamais (Spore, moves auto-ciblés...)
 
 ### Phase 1 — Données complètes de base + prep FFI
 
@@ -121,7 +121,7 @@ Mostly du JSON et des tests de cohérence, plus un petit refactor pour préparer
 - ✅ Type chart complet (18×18)
 - ✅ Stats de base validées pour 8 Pokémon de test (cf. ADR #16)
 - ✅ 15 attaques de dégâts pur couvrant tous les types présents dans le roster
-- 🔵 Test : tous les Pokémon référencent des talents qui existent (reporté phase 5 — pas d'ability registry avant)
+- ✅ Test : tous les Pokémon référencent des talents qui existent (fait en phase 5 : validation au chargement par `DataLoader` + test dédié)
 - ✅ Test : tous les Pokémon ont un movepool valide (test_catalog.cpp + validation au chargement par DataLoader)
 - ✅ Test : matrice de types complète et valeurs canon vérifiées (immunités, ×2, ×4, ×0.25, ×0)
 
@@ -168,7 +168,7 @@ Ajout d'effets et de hooks `on_residual` (fin de tour) et `on_before_move`.
 
 - Phase 4 : reset du compteur Toxic (`status_turns`) au switch-out (TODO déjà posé dans `executeAction`)
 - Phase 5 : `passesBeforeMove` et `applyResidual` sont des fonctions internes ; le système de hooks génériques des talents viendra s'y greffer sans changer leur contrat
-- Phase 8 : si Rest est ajouté, exempter le sommeil auto-infligé de la Clause Sleep
+- ✅ Phase 8 : Rest ajouté, sommeil auto-infligé (`sleep_self_inflicted`) exempté de la Clause Sleep (ADR #28)
 
 ### Phase 3 — Boosts de stats  ✅
 
@@ -177,7 +177,7 @@ Ajout d'effets et de hooks `on_residual` (fin de tour) et `on_before_move`.
 - ✅ Multiplicateurs canon `(2+n)/2` / `2/(2-n)` (`stageMultiplier` dans `stats.cpp`), clamp à [-6, +6]
 - ✅ Appliqués au calcul de dégâts (Atk/Def/SpA/SpD) et à la vitesse effective (Spe, avant la ÷2 paralysie — ordre canon)
 - 🔵 Acc/Eva : champs posés, clampés et validés mais PAS branchés sur le jet de précision (reporté phase 8, où la précision devient un calcul fin ; cf. ADR #18)
-- 🔵 Boost reset au switch : reporté phase 4 (pas de switch avant — TODO posé, comme le reset Toxic)
+- ✅ Boost reset au switch : fait en phase 4 (groupé avec le reset Toxic dans `performSwitch`)
 - ✅ 2 nouveaux moves : SwordsDance (Atk +2 self), Growl (Atk -1 target) ; catalogue : 22 moves
 - ✅ 2 nouveaux events : StatStageChanged (delta réel après clamp), StatChangeFailed (au cap +6/-6)
 - ✅ Tests : multiplicateurs, SwordsDance ≈ ×2 dégâts, Growl baisse l'Atk adverse, cap +6, flip d'ordre via stage Spe, validation (9 nouveaux cas, 63/63 au total)
@@ -186,62 +186,90 @@ Ajout d'effets et de hooks `on_residual` (fin de tour) et `on_before_move`.
 ### Notes phase 3 (à brancher plus tard)
 
 - Phase 4 : reset des `stat_stages` au switch-out (à grouper avec le reset Toxic déjà prévu)
-- Phase 8 : brancher Acc/Eva sur le jet de précision (table `(3+n)/3` / `3/(3-n)`, distincte de la table principale)
+- ✅ Phase 8 : Acc/Eva branchés sur le jet de précision (table `(3+n)/3`, `accuracyStageMultiplier`), stage combiné clampé (ADR #18 résolu)
 
-### Phase 4 — Switch et Pivot
+### Phase 4 — Switch et Pivot  ✅
 
-- ⬜ `Action::Switch{index}` traitée par le moteur
-- ⬜ Switch joue toujours avant les attaques (priorité spéciale)
-- ⬜ Effet `Pivot` (U-Turn, Volt Switch : dégâts puis switch forcé du user)
-- ⬜ Hook `on_switch_in` (préparation pour talents/hazards)
-- ⬜ Reset du compteur Toxic (`status_turns`) au switch-out (TODO posé en phase 2)
-- ⬜ Tests : switch en mid-turn, switch après KO, double KO
+- ✅ `Action::Switch{index}` traitée par le moteur (`performSwitch` dans `switching.hpp/cpp`, partagée avec Pivot et remplacements)
+- ✅ Switch joue toujours avant les attaques (priorité +6, déjà câblée dans `computeOrder`)
+- ✅ Reset des `stat_stages` ET du compteur Toxic au switch-out (TODOs posés en phases 2/3) ; le sommeil et les statuts eux-mêmes persistent (canon)
+- ✅ Effet `Pivot` (`effects/pivot.{hpp,cpp}`) : dégâts puis switch du user en mid-turn ; l'attaque adverse plus lente touche le Pokémon entrant ; banc vide = dégâts seuls (canon)
+- ✅ `UseMove.pivotTarget` : cible du pivot déclarée dans l'action, -1 = auto premier valide (cf. ADR #20)
+- ✅ Remplacement après KO façon Showdown : `resolveReplacement(state, side, index)`, switch gratuit entre deux tours, `resolveTurn` refuse de démarrer avec un actif K.O. (cf. ADR #19)
+- ✅ Validation défensive des actions : `checkAction` throw `std::invalid_argument` avant toute mutation (cible de switch invalide, slot de move vide, actif K.O. non remplacé)
+- ✅ Hook `on_switch_in` branché dans `performSwitch` (utilisé par les talents dès la phase 5 ; les hazards s'y grefferont en phase 7)
+- ✅ 2 nouveaux moves : UTurn, VoltSwitch ; 2 nouveaux events : SwitchedOut, SwitchedIn
+- ✅ Tests : ordre switch-avant-move, resets, cibles invalides, remplacement, pivot (cible déclarée / auto / banc vide), hit sur l'entrant (13 nouveaux cas)
+- ✅ **`validateState`** : inchangé — aucune nouvelle donnée dans `BattleState` (le pivotTarget vit dans l'`Action`)
 
-### Phase 5 — Talents
+### Phase 5 — Talents  ✅
 
-- ⬜ Interface `Ability` avec tous les hooks (`on_switch_in`, `on_modify_damage`, etc.)
-- ⬜ Registry par string → factory
-- ⬜ `Species` référence un talent par nom
-- ⬜ Premiers talents : Intimidation, Torrent, Brasier, Engrais, Lévitation
-- ⬜ Tests : Intimidation baisse l'attaque adverse au switch-in, etc.
+- ✅ Interface `Ability` (`ability.hpp/cpp`) : hooks virtuels no-op par défaut (`onSwitchIn`, `damageMultiplier`, `immuneToMove`) ; talents stateless en singletons const — tout état par-combat devra vivre dans le POD
+- ✅ Registry par nom : `abilityByName(string_view)`, nullptr si inconnu ; `DataLoader` valide au chargement que chaque talent référencé existe
+- ✅ `Species` référence un talent par nom (champ `ability` des JSON, désormais rempli pour tout le roster)
+- ✅ Talents actifs : Intimidation (Atk -1 adverse au switch-in, via `applyStatStageDelta` partagé), Brasier/Torrent/Engrais (×1.5 sur move du type à ≤1/3 PV), Lévitation (immunité totale aux moves Sol, y compris Status)
+- ✅ Stubs inertes enregistrés pour le reste du roster : Static, ThickFat, Guts, RoughSkin (à câbler dans les phases futures)
+- ✅ `BattleEngine::startBattle(state)` : déclenche les `on_switch_in` des leads (plus rapide d'abord) — à appeler une fois avant le premier `resolveTurn`
+- ✅ Gyarados ajouté au roster de test (porteur canon d'Intimidation ; roster : 9 espèces, cf. ADR #21)
+- ✅ 1 nouvel event : AbilityTriggered (annonce Intimidation, blocage Lévitation)
+- ✅ Tests : registry, validation catalogue, Intimidation (switch, remplacement, startBattle, cap -6), Lévitation (bloque Séisme, laisse passer le reste), pinch ×1.5 (les 3 talents) + inertie hors seuil/hors type (9 nouveaux cas, 85/85 au total)
 
-### Phase 6 — Météo
+### Notes phases 4-5 (à brancher plus tard)
 
-- ⬜ Enum `Weather` + champ + tours restants dans `BattleState`
-- ⬜ Effet `SetWeather` (Dance Pluie, Zénith, Tempête de Sable, Grêle)
-- ⬜ Hook `on_modify_damage` (Pluie × Eau ×1.5, etc.)
-- ⬜ Hook `on_residual` (dégâts Sable/Grêle aux types non-immunisés)
-- ⬜ Talents-météo (Sécheresse, Crachin) au switch-in
-- ⬜ Tests
-- ⬜ **`validateState`** : étendre pour vérifier `weather` (enum valide) et `weather_turns_left >= 0`
+- Phase 7 : l'application des hazards se greffera dans `performSwitch` (même point d'entrée que les talents `on_switch_in`)
+- ✅ Phase 8 : Guts, RoughSkin, Static, ThickFat câblés (flag `contact` sur les moves, hooks `onDamagingHit`/`incomingDamageMultiplier`/`ignoresBurnPenalty`)
+- ✅ Speed tie déterministe résolu (phase 8) : `fasterSide(state, rng)` aléatoire, y compris pour l'ordre des `on_switch_in` (`startBattle` prend un `RNG&`)
 
-### Phase 7 — Hazards
+### Phase 6 — Météo  ✅
 
-- ⬜ Enum `Hazard` + map<Hazard, int> par camp dans `BattleState`
-- ⬜ Effets `SetHazard` (Stealth Rock, Spikes, Toxic Spikes)
-- ⬜ Hook `on_switch_in` : application des hazards
-- ⬜ Effets `RemoveHazards` (Rapid Spin, Defog)
-- ⬜ Lévitation / type Vol ignorent Spikes/Toxic Spikes
-- ⬜ Tests
-- ⬜ **`validateState`** : étendre pour vérifier les compteurs de hazards par camp (≥ 0, ≤ max canon : Stealth Rock 1, Spikes 3, Toxic Spikes 2)
+- ✅ Enum `Weather` + `weather`/`weather_turns_left` dans `BattleState` (nouveau header `field.hpp`, POD conservé)
+- ✅ Effet `SetWeather` (RainDance, SunnyDay, Sandstorm, Hail) : 5 tours fixes, échec si la même météo est déjà active, remplacement sinon (canon)
+- ✅ Multiplicateurs offensifs dans la formule : Pluie ×1.5 Eau / ×0.5 Feu, Soleil miroir ; **boost SpD ×1.5 des types Roche sous Sable** (canon gen4+, conservé par Showdown)
+- ✅ Résiduels météo : Sable chip 1/16 sauf Roche/Sol/Acier, Grêle 1/16 sauf Glace ; appliqués **avant** les résiduels de statut (ordre canon) ; Lévitation ne protège PAS (canon)
+- ✅ Timing canon Showdown : le compteur décrémente en fin de tour ; à zéro la météo s'arrête **sans** chip ce tour-là (4 ticks de dégâts puis « subsides » au 5e)
+- ✅ Talents-météo `WeatherAbility` au switch-in : SandStream (Tyranitar), Drizzle (Politoed) ; silencieux si leur météo est déjà là ; au `startBattle` le plus lent gagne la guerre météo (canon, conséquence de l'ordre de vitesse des hooks)
+- ✅ Bonus canon : le gel est impossible en plein soleil (prêt pour les secondaires de phase 8)
+- ✅ 4 nouveaux events : WeatherStarted, WeatherEnded, WeatherDamage, MoveFailed (générique « But it failed! », réutilisé par les hazards)
+- ✅ Tests : 11 nouveaux cas (set/échec/durée, multiplicateurs, chips et immunités, ordre résiduels, SpD sable spécial-seulement, talents, bornes validateState)
+- ✅ **`validateState`** : `weather` enum valide, `weather_turns_left` dans [0..5], zéro exigé si météo None
 
-### Phase 8 — Effets secondaires probabilistes + crits + recul + recovery
+### Phase 7 — Hazards  ✅
 
-- ⬜ Probabilité dans `ApplyStatus` (10% brûlure sur Flamethrower, etc.)
-- ⬜ Effet `Flinch` (10% sur Iron Head, etc.)
-- ⬜ Crits (proba de base + boosts, ignore les baisses de défense)
-- ⬜ Effet `Recoil{fraction}` (1/3 sur Brave Bird, 1/4 sur Flare Blitz)
-- ⬜ Effet `Recovery{fraction}` (1/2 sur Recover, Roost...)
-- ⬜ Roost retire temporairement le type Vol
-- ⬜ Tests avec RNG déterministe
+- ✅ `SideHazards` par camp dans `BattleState` : **struct POD à champs fixes plutôt que map** (contrainte FFI, cf. ADR #23) ; caps canon SR 1 / Spikes 3 / TSpikes 2
+- ✅ Effets `SetHazard` (StealthRock, Spikes, ToxicSpikes — posés sur le camp adverse, échec au cap) et `ClearHazards` (RapidSpin : son camp ; Defog gen6+ : les deux camps + Évasion -1 stockée mais inerte, ADR #18)
+- ✅ Application à l'entrée dans `performSwitch` (switch volontaire, pivot, remplacement, mais pas les leads du `startBattle` — canon) : SR = 1/8 × efficacité Roche (frappe tout le monde, Vol/Lévitation compris) ; Spikes 1/8-1/6-1/4 et TSpikes poison/toxic pour les Pokémon au sol uniquement ; un type Poison au sol absorbe les TSpikes ; l'Acier au sol prend les Spikes mais pas le poison
+- ✅ Ordre canon : hazards avant le hook de talent ; un Pokémon qui meurt aux hazards ne déclenche pas son talent
+- ✅ **Fix canon transverse : une immunité (0x) ou une cible déjà K.O. stoppe la chaîne d'effets** (`EffectContext.moveFailed`) — Volt Switch ne pivote plus contre un type Sol, Rapid Spin est bloqué par les Spectres, un move sur cible K.O. échoue proprement (cf. ADR #24)
+- ✅ 4 nouveaux events : HazardSet, HazardDamage, HazardsCleared, ToxicSpikesAbsorbed
+- ✅ Roster de test : +Tyranitar (SandStream), +Politoed (Drizzle), +Scizor (Swarm — 4e pinch — et cobaye Acier au sol) → 12 espèces, 33 moves (cf. ADR #25)
+- ✅ Tests : 14 nouveaux cas (110/110 au total)
+- ✅ **`validateState`** : compteurs de hazards bornés par camp
 
-### Phase 9 — Mécaniques avancées de moves
+### Phase 8 — Effets secondaires probabilistes + crits + recul + recovery  ✅
 
-- ⬜ Effet `ForceSwitch` (Whirlwind, Roar, Dragon Tail)
-- ⬜ Effet `Protect` + flag "used last turn" (échoue si chaîné)
-- ⬜ Multi-tour : `MultiTurnCharge` (Solar Beam, Fly, Dig)
-- ⬜ Invulnérabilité partielle pendant Fly/Dig
-- ⬜ Tests
+- ✅ Wrapper `SecondaryEffect` : `"chance": 30` en JSON enrobe n'importe quel effet, roulé via `RNG::chance(float)` pour que `FixedRNG` force (0.0) ou refuse (0.99) les procs sans toucher aux jets de précision (cf. ADR #26) ; secondaires canon posés : Flamethrower 10% burn, Thunderbolt 10% para, BodySlam 30% para, FlareBlitz 10% burn
+- ✅ Effet `Flinch` (`effects/flinch.{hpp,cpp}`) : pose le volatile `flinched`, consommé en tête de `passesBeforeMove` (n'agit que si la cible n'a pas encore joué), purgé en fin de tour ; IronHead/AirSlash 30%
+- ✅ Crits (`effects/damage.cpp`) : taux Showdown (1/24 base, 1/8 pour `highCrit` comme StoneEdge), ×1.5, ignorent les stages défavorables à l'attaquant (`atkStage=max(0)`, `defStage=min(0)`) ; `DamageDealtEvent.wasCrit` (cf. ADR #27)
+- ✅ Effet `Recoil{denominator}` (`effects/recoil.{hpp,cpp}`) : 1/3 sur BraveBird et FlareBlitz ; lit `EffectContext.lastDamageDealt` (PV réellement retirés), peut K.O. le user ; `RecoilDamageEvent`
+- ✅ Effet `Recovery{denominator}` (`effects/recovery.{hpp,cpp}`) : 1/2 sur Recover/Roost ; échoue à PV plein (→ `moveFailed`, coupe la chaîne donc la suppression de type de Roost) ; `HealedEvent`
+- ✅ `RoostEffect` : volatile `roosted` qui supprime le type Vol du défenseur jusqu'à la fin du tour (Vol pur → Normal, canon) ; lu dans `damage.cpp` pour `typeMul` et le boost SpD sable
+- ✅ `RestEffect` + champ POD `sleep_self_inflicted` : soin complet + sommeil 2 tours auto-infligé, exempté de la Clause Sleep ; échoue à PV plein ou déjà endormi (cf. ADR #28)
+- ✅ **Acc/Eva branchés** (ADR #18 résolu) : table `(3+n)/3` (`accuracyStageMultiplier`), stage combiné `user.Acc - target.Eva` clampé, appliqué au jet ; `accuracy <= 0` = sentinelle never-miss (moves self/field)
+- ✅ **Talents de contact/défensifs câblés** : Guts (Atk ×1.5 sous statut + ignore la réduction brûlure via `ignoresBurnPenalty`), ThickFat (`incomingDamageMultiplier` ×0.5 Feu/Glace), Static (`onDamagingHit` 30% para au contact, immunités de type respectées via `typeImmuneToStatus` partagé), RoughSkin (1/8 PV max de l'attaquant au contact, peut K.O.) ; nouveau flag `contact` sur les moves
+- ✅ **Speed tie déterministe aléatoire** (dette phase 0 résolue) : `fasterSide(state, rng)` avec `rng.chance(0.5f)` sur égalité, utilisé partout (ordre, `startBattle`, chips météo, résiduels) ; **`startBattle` et `computeOrder` prennent désormais un `RNG&`** (cf. ADR #31)
+- ✅ **`validateState`** : `sleep_self_inflicted` cohérent avec Sleep, flags volatiles 0/1, `protect_chain >= 0`, `charging_move_id` valide-ou-`kNoMove`, `invulnerable_state` dans [0,2] et jamais sans charge
+- ✅ Tests : 15 nouveaux cas dans `test_phase8.cpp` (RNG déterministe partout, 136/136 au total)
+
+### Phase 9 — Mécaniques avancées de moves  ✅
+
+- ✅ Effet `ForceSwitch` (`effects/force_switch.{hpp,cpp}`) : Whirlwind / Dragon Tail draguent un remplaçant adverse **aléatoire** (via `rng.rangeInt`) ; l'entrant subit les hazards et déclenche son talent ; banc vide → Whirlwind échoue, Dragon Tail reste dégâts-seuls (canon) ; priorité -6
+- ✅ Effet `Protect` (`effects/protect.{hpp,cpp}`) : volatile `protected_now`, bloque les moves ciblant le protégé ; chaîne 1/3^n via `protect_chain` (échec → `moveFailed`, chaîne réinitialisée en fin de tour si Protect n'a pas réussi) ; priorité +4 (cf. ADR #30)
+- ✅ **Règle de blocage data-driven** : flag `blockedByProtect` (défaut = `category != Status`, override `"selfOrField": true` pour hazards/météo/soins/boosts self) ; Whirlwind traverse via `bypassesProtect` (cf. ADR #30)
+- ✅ Multi-tour : enum `TwoTurn` (Charge/Fly/Dig) + champs POD `charging_move_id`/`invulnerable_state` ; **le moteur force la continuation** — l'action fournie (même un switch) est ignorée pendant la charge ; SolarBeam saute la charge en plein soleil, ×0.5 sous météo non-solaire (cf. ADR #29)
+- ✅ Invulnérabilité partielle : Fly (état 1, aérien) et Dig (état 2, souterrain) → Miss automatique sauf move `hitsDig` contre Dig (Earthquake, qui frappe alors ×2) ; charge interrompue (para/flinch/gel) = perdue
+- ✅ 4 nouveaux events : `HealedEvent`, `RecoilDamageEvent`, `ChargingEvent`, `ProtectedEvent` ; `SkipReason::Flinched`
+- ✅ 12 nouveaux moves (catalogue 33 → 45) : BraveBird, FlareBlitz, IronHead, Recover, Roost, Rest, Whirlwind, DragonTail, Protect, SolarBeam, Fly, Dig ; Match 10 de démo (deux-tours, Protect, Rest, recul)
+- ✅ Tests : 11 nouveaux cas dans `test_phase9.cpp`
 
 ### Phase 10 — Exposition FFI (intégration avec le backend Rust)
 
@@ -250,6 +278,7 @@ Ajout d'effets et de hooks `on_residual` (fin de tour) et `on_before_move`.
 - ⬜ Choix de la crate côté Rust : `cxx` (recommandé, type-safe, moderne) ou `bindgen`/`cc`
 - ⬜ Couche `extern "C"` ou `#[cxx::bridge]` pour exposer :
   - `resolveTurn(state*, action_p0, action_p1, rng_seed) -> EventLog`
+  - `startBattle(state*, rng_seed) -> EventLog` (talents des leads ; **prend un seed depuis la phase 8**, ADR #31) et `resolveReplacement(state*, side, index) -> EventLog` (remplacement post-KO, cf. ADR #19)
   - Constructeurs/getters pour `BattleState`, `BattlePokemon`, etc.
 - ⬜ Assurer que `BattleState` a un layout C-compatible (audit des types : pas de `std::vector` directement exposé, prévoir des vues `span`-like ou des accesseurs)
 - ⬜ Intégration build : `build.rs` côté Cargo qui invoque CMake, ou lib statique précompilée
@@ -295,6 +324,19 @@ Ajout d'effets et de hooks `on_residual` (fin de tour) et `on_before_move`.
 | 16 | **Roster de test (8 Pokémon)** distinct du roster final (48 Pokémon, à définir) | la phase 1 vérifie le moteur, pas le contenu final ; roster de test : Charizard, Venusaur, Blastoise, Pikachu, Snorlax, Gengar, Machamp, Garchomp (couvre 8 types primaires + rôles offensifs/défensifs/rapides/lents) | 2026-05-24 |
 | 17 | **Statuts : mécanique canon gen 6+/Showdown dès la phase 2** | immunités de type (Feu≠burn, Électrik≠para, Poison/Acier≠poison) et immunité de la table des types pour les moves Status (ThunderWave vs Sol) incluses tout de suite ; paralysie ÷2 vitesse appliquée dans `computeOrder` sans attendre les multiplicateurs de la phase 3 ; dégel = 20%/tour + move Feu offensif qui touche (canon Showdown) ; sommeil roulé 1-3 tours à l'application ; probas de statut via `RNG::chance(float)` (et non `chancePct`) pour que `FixedRNG` force/bloque les procs sans toucher aux jets de précision ; résiduels appliqués dans l'ordre de vitesse effective | 2026-06-12 |
 | 18 | **Stages Acc/Eva stockés mais inertes en phase 3** | les 7 stages vivent dans `stat_stages` (POD, ordre stable via `StatIndex`) et sont clampés/validés, mais seuls Atk/Def/SpA/SpD/Spe sont branchés (dégâts + vitesse) ; la précision reste un `chancePct(accuracy)` brut jusqu'à la phase 8, où elle devient un calcul fin avec sa propre table de stages `(3+n)/3` ; éviter de mélanger deux tables de multiplicateurs maintenant pour rien | 2026-06-13 |
+| 19 | **Remplacement après KO façon Showdown : `resolveReplacement` dédiée** | le joueur choisit son remplaçant après le KO (canon), switch gratuit hors tour ; le moteur reste stateless : `resolveTurn` throw si un actif est K.O., le caller Rust détecte `isFainted()`, demande au joueur, puis appelle `resolveReplacement(state, side, index)` ; pas d'auto-switch (le choix est stratégique, crucial pour l'IA) | 2026-07-05 |
+| 20 | **Cible du pivot déclarée dans `UseMove.pivotTarget`** (-1 = auto) | un pivot canon interrompt le tour pour laisser choisir après les dégâts — impossible en un seul appel stateless sans encoder un état "mi-tour" dans le POD ; déclarer la cible à la sélection du move garde la sémantique mid-turn canon (l'adversaire plus lent frappe l'entrant) au prix d'un choix fait avant de voir les dégâts ; `PivotEffect` re-valide la cible au moment du switch (fallback auto si elle est tombée K.O. entre-temps) ; POD conservé, champ trivial côté FFI | 2026-07-05 |
+| 21 | **Gyarados ajouté au roster de test (9 espèces) + stubs de talents inertes** | aucun des 8 Pokémon initiaux ne porte Intimidation en canon ; plutôt que de tordre les données, on ajoute son porteur emblématique ; les talents du roster non encore implémentés (Static, ThickFat, Guts, RoughSkin) sont enregistrés comme no-op pour que la validation "tout talent référencé existe" passe avec des données canon | 2026-07-05 |
+| 22 | **Météo : durée fixe 5 tours, fin avant le chip du dernier tour** | pas d'objets tenus donc pas de Roche Lisse (8 tours) ; timing aligné sur Showdown : 4 ticks de dégâts puis « subsides » en fin de 5e tour ; le compteur vit dans le POD (`weather_turns_left`) | 2026-07-05 |
+| 23 | **Hazards en struct POD à champs fixes (pas de map)** | le ROADMAP prévoyait `map<Hazard,int>` mais `BattleState` traverse le FFI : 3 ints par camp (`stealth_rock`, `spikes`, `toxic_spikes`) suffisent, layout C trivial, validation triviale | 2026-07-05 |
+| 24 | **`EffectContext.moveFailed` : le chain-stop des effets** | une immunité de type (0x), une cible déjà K.O. ou un set raté (météo identique, hazard au cap) posent le flag et coupent le reste de la chaîne ; corrige au passage un écart canon pré-existant (Volt Switch pivotait contre un type Sol) et rend Rapid Spin bloquable par les Spectres | 2026-07-05 |
+| 25 | **Roster de test : +Tyranitar, +Politoed, +Scizor (12 espèces)** | il faut des porteurs canon pour SandStream et Drizzle, et un Acier au sol pour tester l'interaction Toxic Spikes ; Scizor apporte en prime Swarm (pinch Insecte, gratuit avec la classe existante) et U-Turn canon | 2026-07-05 |
+| 26 | **Effets secondaires = wrapper `SecondaryEffect` piloté par `"chance"`** | plutôt que d'ajouter une proba à chaque effet, un wrapper générique enrobe n'importe quel effet (`{"kind":"ApplyStatus",...,"chance":10}`) ; roulé via `RNG::chance(float)` (et non `chancePct`) pour que `FixedRNG` force/refuse les procs sans perturber les jets de précision ; composable avec tout effet futur sans le modifier | 2026-07-09 |
+| 27 | **Crits : taux Showdown actuels (1/24 base, 1/8 high-crit), ×1.5, ignorent les stages défavorables à l'attaquant** | aligné sur la référence Showdown (et non le 1/16 gen 6) ; le crit ramène `atkStage` à ≥0 et `defStage` à ≤0 (ignore une baisse d'Atk du frappeur et un boost de Def de la cible) sans toucher les stages favorables ; flag `highCrit` data-driven | 2026-07-09 |
+| 28 | **Rest : champ POD `sleep_self_inflicted` exempté de la Clause Sleep** | le sommeil de Rest doit coexister avec un dormeur infligé par l'adversaire (canon Showdown) ; un booléen dans le POD marque le sommeil auto-infligé, ignoré par `sideHasSleeper` ; purgé au réveil et à l'application d'un nouveau statut ; validé (interdit sans statut Sleep) | 2026-07-09 |
+| 29 | **Moves multi-tours : continuation forcée par le moteur, flags data-driven** | pendant la charge (Fly/Dig/SolarBeam) le Pokémon est verrouillé ; côté FFI le moteur **ignore** l'action fournie (même un switch) et rejoue le move chargé — plus simple pour Rust et l'IA qu'un throw, et impossible à contourner ; l'invulnérabilité (`invulnerable_state` 1=Fly/2=Dig) et les cas spéciaux (SolarBeam saute la charge au soleil et est ×0.5 sous autre météo ; Earthquake `hitsDig` frappe ×2 un Dig) sont pilotés par des flags JSON (`twoTurn`, `solarCharge`, `hitsDig`) ; `checkAction` accepte n'importe quelle action tant qu'une charge est en cours | 2026-07-09 |
+| 30 | **Protect : chaîne 1/3^n + blocage data-driven `blockedByProtect`** | la réussite d'un Protect consécutif suit 1/3^n (Showdown), compteur `protect_chain` dans le POD, réinitialisé en fin de tour dès qu'un tour se passe sans Protect réussi ; ce qui est bloqué est déterminé par un flag `blockedByProtect` (défaut : moves à dégâts + status offensifs ; `"selfOrField": true` exempte hazards/météo/soins/boosts self) plutôt que par une heuristique category/accuracy fragile ; Whirlwind traverse via `bypassesProtect` | 2026-07-09 |
+| 31 | **Speed ties aléatoires partout ; `startBattle`/`computeOrder` prennent un `RNG&`** | résout la dette phase 0 (camp 0 arbitraire) : `fasterSide(state, rng)` tranche les égalités de vitesse par `rng.chance(0.5f)`, pour l'ordre du tour, les résiduels, les chips météo et l'ordre des `on_switch_in` simultanés ; **BREAKING pour le FFI (phase 10)** : la signature de `startBattle` change (prend un seed/RNG), à refléter dans la couche d'exposition Rust | 2026-07-09 |
 
 ---
 
@@ -400,6 +442,21 @@ refactor(types): extrait TypeChart dans son propre header
 - **Stage** : niveau de boost/baisse de stat (-6 à +6).
 - **STAB** : Same Type Attack Bonus, ×1.5 si le move partage un type avec son utilisateur.
 - **Hazard** : entry hazard, piège posé sur le terrain adverse (Stealth Rock, Spikes...).
+
+### Conventions de données (JSON de moves)
+
+Champs booléens optionnels d'un move (défaut `false` sauf mention) :
+
+- `contact` : le move fait contact (déclenche Static, Rough Skin).
+- `highCrit` : +1 palier de crit (1/8 au lieu de 1/24).
+- `bypassesProtect` : ignore Protect (Whirlwind).
+- `hitsDig` : touche une cible sous terre et la frappe ×2 (Earthquake).
+- `solarCharge` : saute la charge en plein soleil, ×0.5 sous météo non-solaire (SolarBeam).
+- `blockedByProtect` : **défaut `true`** ; mettre `"selfOrField": true` dans le JSON pour l'exempter (hazards, météo, soins, boosts self).
+- `twoTurn` : `"charge"` (SolarBeam), `"fly"` (Fly, aérien) ou `"dig"` (Dig, souterrain).
+- `chance` : sur un **effet** (pas le move), enrobe l'effet en secondaire probabiliste (`10` = 10%).
+
+**Sentinelle `accuracy <= 0` = never-miss** : les moves self/field (Recover, Roost, Rest, Swords Dance, Protect, hazards, météo) portent `"accuracy": 0` et ne roulent jamais la précision. Les moves offensifs gardent leur précision canon (100, 90, 85...).
 
 ---
 

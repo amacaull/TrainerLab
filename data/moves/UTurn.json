@@ -1,0 +1,16 @@
+{
+  "name": "UTurn",
+  "type": "Bug",
+  "category": "Physical",
+  "power": 70,
+  "accuracy": 100,
+  "effects": [
+    {
+      "kind": "Damage"
+    },
+    {
+      "kind": "Pivot"
+    }
+  ],
+  "contact": true
+}

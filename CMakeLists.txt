@@ -43,11 +43,24 @@ add_library(battle_engine_lib STATIC
     src/validate.cpp
     src/rng.cpp
     src/data_loader.cpp
+    src/field.cpp
+    src/switching.cpp
+    src/ability.cpp
     src/engine.cpp
     src/effects/effect.cpp
     src/effects/damage.cpp
     src/effects/apply_status.cpp
     src/effects/stat_change.cpp
+    src/effects/pivot.cpp
+    src/effects/set_weather.cpp
+    src/effects/set_hazard.cpp
+    src/effects/clear_hazards.cpp
+    src/effects/secondary.cpp
+    src/effects/flinch.cpp
+    src/effects/recoil.cpp
+    src/effects/recovery.cpp
+    src/effects/force_switch.cpp
+    src/effects/protect.cpp
 )
 
 target_include_directories(battle_engine_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)

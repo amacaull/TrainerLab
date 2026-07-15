@@ -130,8 +130,11 @@ TEST_CASE("Burn halves physical damage, leaves special damage untouched", "[stat
     return moveDamageOn(events, 1);
   };
 
-  int physNormal = runTurn("machamp", "CloseCombat", Status::None);
-  int physBurned = runTurn("machamp", "CloseCombat", Status::Burn);
+  // Garchomp, not Machamp: Machamp has Guts, which inverts the burn penalty
+  // into a x1.5 boost (covered in test_phase8). Earthquake is unaffected by
+  // Snorlax's Thick Fat (Fire/Ice only) and by Garchomp's own Rough Skin.
+  int physNormal = runTurn("garchomp", "Earthquake", Status::None);
+  int physBurned = runTurn("garchomp", "Earthquake", Status::Burn);
   REQUIRE(physBurned < physNormal);
   REQUIRE(physBurned >= physNormal / 2 - 1);
   REQUIRE(physBurned <= physNormal / 2 + 1);

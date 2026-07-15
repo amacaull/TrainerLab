@@ -1,11 +1,20 @@
 {
   "id": "machamp",
   "displayName": "Machamp",
-  "type1": "Fighting",
-  "type2": "Fighting",
   "baseStats": {
-    "hp": 90, "atk": 130, "def": 80, "specAtk": 65, "specDef": 85, "speed": 55
+    "hp": 90,
+    "atk": 130,
+    "def": 80,
+    "specAtk": 65,
+    "specDef": 85,
+    "speed": 55
   },
-  "ability": "guts",
-  "movepool": ["CloseCombat", "StoneEdge", "Earthquake", "Tackle"]
+  "type1": "Fighting",
+  "ability": "Guts",
+  "movepool": [
+    "CloseCombat",
+    "StoneEdge",
+    "BodySlam",
+    "Earthquake"
+  ]
 }

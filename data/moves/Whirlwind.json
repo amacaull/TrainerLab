@@ -1,0 +1,13 @@
+{
+  "name": "Whirlwind",
+  "type": "Normal",
+  "category": "Status",
+  "accuracy": 0,
+  "priority": -6,
+  "bypassesProtect": true,
+  "effects": [
+    {
+      "kind": "ForceSwitch"
+    }
+  ]
+}

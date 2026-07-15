@@ -1,11 +1,22 @@
 {
   "id": "garchomp",
   "displayName": "Garchomp",
+  "baseStats": {
+    "hp": 108,
+    "atk": 130,
+    "def": 95,
+    "specAtk": 80,
+    "specDef": 85,
+    "speed": 102
+  },
   "type1": "Dragon",
   "type2": "Ground",
-  "baseStats": {
-    "hp": 108, "atk": 130, "def": 95, "specAtk": 80, "specDef": 85, "speed": 102
-  },
-  "ability": "sandveil",
-  "movepool": ["DragonClaw", "Earthquake", "StoneEdge", "Tackle"]
+  "ability": "RoughSkin",
+  "movepool": [
+    "Earthquake",
+    "DragonClaw",
+    "StoneEdge",
+    "SwordsDance",
+    "Dig"
+  ]
 }

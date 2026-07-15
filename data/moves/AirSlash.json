@@ -4,8 +4,13 @@
   "category": "Special",
   "power": 75,
   "accuracy": 95,
-  "priority": 0,
   "effects": [
-    { "kind": "Damage" }
+    {
+      "kind": "Damage"
+    },
+    {
+      "kind": "Flinch",
+      "chance": 30
+    }
   ]
 }

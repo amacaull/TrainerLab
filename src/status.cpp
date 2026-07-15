@@ -1,5 +1,8 @@
 #include "engine/status.hpp"
 
+#include "engine/pokemon.hpp"
+#include "engine/types.hpp"
+
 #include <array>
 #include <stdexcept>
 #include <string>
@@ -26,6 +29,21 @@ Status statusFromString(std::string_view s) {
     }
   }
   throw std::invalid_argument("statusFromString: unknown status '" + std::string(s) + "'");
+}
+
+bool typeImmuneToStatus(Status s, const Species &sp) {
+  auto hasType = [&sp](Type t) { return sp.type1 == t || sp.type2 == t; };
+  switch (s) {
+  case Status::Burn:
+    return hasType(Type::Fire);
+  case Status::Paralysis:
+    return hasType(Type::Electric);
+  case Status::Poison:
+  case Status::Toxic:
+    return hasType(Type::Poison) || hasType(Type::Steel);
+  default:
+    return false;
+  }
 }
 
 } // namespace engine

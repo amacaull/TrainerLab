@@ -1,8 +1,20 @@
 #include "engine/data_loader.hpp"
 
+#include "engine/ability.hpp"
 #include "engine/effects/apply_status.hpp"
+#include "engine/effects/clear_hazards.hpp"
 #include "engine/effects/damage.hpp"
+#include "engine/effects/flinch.hpp"
+#include "engine/effects/force_switch.hpp"
+#include "engine/effects/pivot.hpp"
+#include "engine/effects/protect.hpp"
+#include "engine/effects/recoil.hpp"
+#include "engine/effects/recovery.hpp"
+#include "engine/effects/secondary.hpp"
+#include "engine/effects/set_hazard.hpp"
+#include "engine/effects/set_weather.hpp"
 #include "engine/effects/stat_change.hpp"
+#include "engine/field.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -51,6 +63,29 @@ EffectPtr makeEffectFromJson(const json &j) {
     bool affectsUser = j.value("target", std::string("user")) == "user";
     return std::make_unique<StatChangeEffect>(stat, delta, affectsUser);
   }
+  if (kind == "Pivot")
+    return std::make_unique<PivotEffect>();
+  if (kind == "SetWeather")
+    return std::make_unique<SetWeatherEffect>(
+        weatherFromString(j.at("weather").get<std::string>()));
+  if (kind == "SetHazard")
+    return std::make_unique<SetHazardEffect>(hazardFromString(j.at("hazard").get<std::string>()));
+  if (kind == "ClearHazards")
+    return std::make_unique<ClearHazardsEffect>(j.value("scope", std::string("user")) == "both");
+  if (kind == "Flinch")
+    return std::make_unique<FlinchEffect>();
+  if (kind == "Recoil")
+    return std::make_unique<RecoilEffect>(j.at("denominator").get<int>());
+  if (kind == "Recovery")
+    return std::make_unique<RecoveryEffect>(j.at("denominator").get<int>());
+  if (kind == "Roost")
+    return std::make_unique<RoostEffect>();
+  if (kind == "Rest")
+    return std::make_unique<RestEffect>();
+  if (kind == "ForceSwitch")
+    return std::make_unique<ForceSwitchEffect>();
+  if (kind == "Protect")
+    return std::make_unique<ProtectEffect>();
   throw std::invalid_argument("makeEffectFromJson: unknown effect '" + kind + "'");
 }
 
@@ -124,10 +159,31 @@ void DataLoader::loadMoves(const std::string &dir) {
     m.power = j.value("power", 0);
     m.accuracy = j.value("accuracy", 100);
     m.priority = j.value("priority", 0);
+    m.makesContact = j.value("contact", false);
+    m.highCrit = j.value("highCrit", false);
+    m.bypassesProtect = j.value("bypassesProtect", false);
+    m.hitsDig = j.value("hitsDig", false);
+    m.solarCharge = j.value("solarCharge", false);
+    // Protect blocks moves aimed at the protected Pokemon (all damaging moves
+    // and foe-targeting status moves). Self/field moves (hazards, weather,
+    // recovery, self-boosts) pass through: flag them with "selfOrField": true.
+    bool selfOrField = j.value("selfOrField", false);
+    m.blockedByProtect = !selfOrField;
+    const std::string twoTurn = j.value("twoTurn", std::string(""));
+    m.twoTurn = twoTurn == "charge" ? TwoTurn::Charge
+                : twoTurn == "fly"  ? TwoTurn::Fly
+                : twoTurn == "dig"  ? TwoTurn::Dig
+                                    : TwoTurn::None;
 
     if (j.contains("effects")) {
       for (const auto &e : j.at("effects")) {
-        m.effects.push_back(makeEffectFromJson(e));
+        EffectPtr effect = makeEffectFromJson(e);
+        // "chance": 30 wraps the effect as a 30% secondary (ADR #26).
+        if (e.contains("chance")) {
+          float p = e.at("chance").get<float>() / 100.0f;
+          effect = std::make_unique<SecondaryEffect>(p, std::move(effect));
+        }
+        m.effects.push_back(std::move(effect));
       }
     }
 
@@ -180,6 +236,11 @@ void DataLoader::loadSpecies(const std::string &dir) {
         oss << "Species '" << sp.id << "' references unknown move '" << mv << "'";
         throw std::runtime_error(oss.str());
       }
+    }
+    if (!sp.ability.empty() && abilityByName(sp.ability) == nullptr) {
+      std::ostringstream oss;
+      oss << "Species '" << sp.id << "' references unknown ability '" << sp.ability << "'";
+      throw std::runtime_error(oss.str());
     }
   }
 }

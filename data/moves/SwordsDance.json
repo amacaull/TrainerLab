@@ -1,0 +1,15 @@
+{
+  "name": "SwordsDance",
+  "type": "Normal",
+  "category": "Status",
+  "accuracy": 0,
+  "effects": [
+    {
+      "kind": "StatChange",
+      "stat": "Atk",
+      "delta": 2,
+      "target": "user"
+    }
+  ],
+  "selfOrField": true
+}

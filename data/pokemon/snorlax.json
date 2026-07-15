@@ -1,11 +1,23 @@
 {
   "id": "snorlax",
   "displayName": "Snorlax",
-  "type1": "Normal",
-  "type2": "Normal",
   "baseStats": {
-    "hp": 160, "atk": 110, "def": 65, "specAtk": 65, "specDef": 110, "speed": 30
+    "hp": 160,
+    "atk": 110,
+    "def": 65,
+    "specAtk": 65,
+    "specDef": 110,
+    "speed": 30
   },
-  "ability": "thickfat",
-  "movepool": ["BodySlam", "Earthquake", "CloseCombat", "Tackle"]
+  "type1": "Normal",
+  "ability": "ThickFat",
+  "movepool": [
+    "BodySlam",
+    "Earthquake",
+    "Tackle",
+    "Toxic",
+    "Rest",
+    "Whirlwind",
+    "Protect"
+  ]
 }

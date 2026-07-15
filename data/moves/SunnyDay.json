@@ -1,0 +1,13 @@
+{
+  "name": "SunnyDay",
+  "type": "Fire",
+  "category": "Status",
+  "accuracy": 100,
+  "effects": [
+    {
+      "kind": "SetWeather",
+      "weather": "Sun"
+    }
+  ],
+  "selfOrField": true
+}

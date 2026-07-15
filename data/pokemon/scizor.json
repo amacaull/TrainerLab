@@ -1,0 +1,21 @@
+{
+  "id": "scizor",
+  "displayName": "Scizor",
+  "baseStats": {
+    "hp": 70,
+    "atk": 130,
+    "def": 100,
+    "specAtk": 55,
+    "specDef": 80,
+    "speed": 65
+  },
+  "type1": "Bug",
+  "type2": "Steel",
+  "ability": "Swarm",
+  "movepool": [
+    "UTurn",
+    "SwordsDance",
+    "Defog",
+    "IronHead"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "Dig",
+  "type": "Ground",
+  "category": "Physical",
+  "power": 80,
+  "accuracy": 100,
+  "contact": true,
+  "twoTurn": "dig",
+  "effects": [
+    {
+      "kind": "Damage"
+    }
+  ]
+}

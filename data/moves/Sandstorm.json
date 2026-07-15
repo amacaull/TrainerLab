@@ -1,0 +1,13 @@
+{
+  "name": "Sandstorm",
+  "type": "Rock",
+  "category": "Status",
+  "accuracy": 100,
+  "effects": [
+    {
+      "kind": "SetWeather",
+      "weather": "Sand"
+    }
+  ],
+  "selfOrField": true
+}

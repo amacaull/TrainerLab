@@ -1,0 +1,13 @@
+{
+  "name": "Hail",
+  "type": "Ice",
+  "category": "Status",
+  "accuracy": 100,
+  "effects": [
+    {
+      "kind": "SetWeather",
+      "weather": "Hail"
+    }
+  ],
+  "selfOrField": true
+}

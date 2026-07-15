@@ -1,0 +1,19 @@
+{
+  "name": "Defog",
+  "type": "Flying",
+  "category": "Status",
+  "accuracy": 100,
+  "effects": [
+    {
+      "kind": "StatChange",
+      "stat": "Evasion",
+      "delta": -1,
+      "target": "target"
+    },
+    {
+      "kind": "ClearHazards",
+      "scope": "both"
+    }
+  ],
+  "selfOrField": true
+}

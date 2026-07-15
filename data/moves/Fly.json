@@ -1,0 +1,14 @@
+{
+  "name": "Fly",
+  "type": "Flying",
+  "category": "Physical",
+  "power": 90,
+  "accuracy": 95,
+  "contact": true,
+  "twoTurn": "fly",
+  "effects": [
+    {
+      "kind": "Damage"
+    }
+  ]
+}

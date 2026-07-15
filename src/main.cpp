@@ -51,6 +51,8 @@ void printEvent(const BattleEvent &ev, const BattleState &state, const DataLoade
           std::cout << "    " << pokeName(e.user) << " uses " << e.moveName << "!\n";
         } else if constexpr (std::is_same_v<T, DamageDealtEvent>) {
           std::cout << "    " << pokeName(e.target) << " takes " << e.damage << " damage";
+          if (e.wasCrit)
+            std::cout << " (critical hit!)";
           if (e.wasStab)
             std::cout << " (STAB)";
           if (e.effectiveness == 0.0f)
@@ -80,10 +82,50 @@ void printEvent(const BattleEvent &ev, const BattleState &state, const DataLoade
         } else if constexpr (std::is_same_v<T, StatusCuredEvent>) {
           std::cout << "    " << pokeName(e.who) << " is no longer " << statusName(e.status)
                     << "\n";
+        } else if constexpr (std::is_same_v<T, SwitchedOutEvent>) {
+          std::cout << "    " << pokeName(e.who) << " withdraws!\n";
+        } else if constexpr (std::is_same_v<T, SwitchedInEvent>) {
+          std::cout << "    Go, " << pokeName(e.who) << "!\n";
+        } else if constexpr (std::is_same_v<T, AbilityTriggeredEvent>) {
+          std::cout << "    " << pokeName(e.who) << "'s " << e.ability << "!\n";
+        } else if constexpr (std::is_same_v<T, StatStageChangedEvent>) {
+          std::cout << "    " << pokeName(e.target) << (e.delta > 0 ? " gains " : " loses ")
+                    << (e.delta > 0 ? e.delta : -e.delta) << " stage(s)!\n";
+        } else if constexpr (std::is_same_v<T, StatChangeFailedEvent>) {
+          std::cout << "    " << pokeName(e.target) << "'s stat can't go "
+                    << (e.wasRaise ? "higher" : "lower") << "!\n";
+        } else if constexpr (std::is_same_v<T, MoveFailedEvent>) {
+          std::cout << "    " << pokeName(e.user) << "'s " << e.moveName << " failed!\n";
+        } else if constexpr (std::is_same_v<T, WeatherStartedEvent>) {
+          std::cout << "    Weather: " << weatherToString(e.weather) << " kicks in!\n";
+        } else if constexpr (std::is_same_v<T, WeatherEndedEvent>) {
+          std::cout << "    Weather: " << weatherToString(e.weather) << " subsided.\n";
+        } else if constexpr (std::is_same_v<T, WeatherDamageEvent>) {
+          std::cout << "    " << pokeName(e.target) << " is buffeted by the "
+                    << weatherToString(e.weather) << " (" << e.damage << ")\n";
+        } else if constexpr (std::is_same_v<T, HazardSetEvent>) {
+          std::cout << "    " << hazardToString(e.hazard) << " scattered on side " << e.side
+                    << " (layers: " << e.layers << ")\n";
+        } else if constexpr (std::is_same_v<T, HazardDamageEvent>) {
+          std::cout << "    " << pokeName(e.target) << " is hurt by " << hazardToString(e.hazard)
+                    << " (" << e.damage << ")\n";
+        } else if constexpr (std::is_same_v<T, HazardsClearedEvent>) {
+          std::cout << "    Hazards cleared on side " << e.side << "\n";
+        } else if constexpr (std::is_same_v<T, ToxicSpikesAbsorbedEvent>) {
+          std::cout << "    " << pokeName(e.who) << " absorbed the ToxicSpikes!\n";
+        } else if constexpr (std::is_same_v<T, HealedEvent>) {
+          std::cout << "    " << pokeName(e.who) << " recovers " << e.amount << " HP!\n";
+        } else if constexpr (std::is_same_v<T, RecoilDamageEvent>) {
+          std::cout << "    " << pokeName(e.who) << " is hurt in return (" << e.damage << ")\n";
+        } else if constexpr (std::is_same_v<T, ChargingEvent>) {
+          std::cout << "    " << pokeName(e.who) << " is charging " << e.moveName << "...\n";
+        } else if constexpr (std::is_same_v<T, ProtectedEvent>) {
+          std::cout << "    " << pokeName(e.who) << " protected itself!\n";
         } else if constexpr (std::is_same_v<T, MoveSkippedEvent>) {
-          const char *why = e.reason == SkipReason::Asleep   ? "is fast asleep"
-                            : e.reason == SkipReason::Frozen ? "is frozen solid"
-                                                             : "is fully paralyzed";
+          const char *why = e.reason == SkipReason::Asleep     ? "is fast asleep"
+                            : e.reason == SkipReason::Frozen   ? "is frozen solid"
+                            : e.reason == SkipReason::Flinched ? "flinched"
+                                                               : "is fully paralyzed";
           std::cout << "    " << pokeName(e.user) << " " << why << "!\n";
         }
       },
@@ -117,6 +159,9 @@ void runMatch(const Scenario &sc, const DataLoader &data, const BattleEngine &en
   std::cout << "    " << sp0.displayName << " vs " << sp1.displayName << "\n\n";
 
   MersenneRNG rng(sc.seed);
+  for (const auto &e : engine.startBattle(state, rng))
+    printEvent(e, state, data);
+
   int turn = 0;
   while (!state.isOver() && turn < sc.maxTurns) {
     ++turn;
@@ -138,6 +183,162 @@ void runMatch(const Scenario &sc, const DataLoader &data, const BattleEngine &en
   else
     std::cout << "unresolved after " << turn << " turns";
   std::cout << " (" << state.turn << " turn" << (state.turn > 1 ? "s" : "") << ")\n\n";
+}
+
+void runSwitchShowcase(const DataLoader &data, const BattleEngine &engine) {
+  BattleState state;
+  state.teams[0][0] = buildCombatant(data, "gyarados", 50, {"UTurn"});
+  state.teams[0][1] = buildCombatant(data, "machamp", 50, {"CloseCombat"});
+  state.teams[1][0] = buildCombatant(data, "blastoise", 50, {"Surf"});
+  state.teams[1][1] = buildCombatant(data, "snorlax", 50, {"BodySlam"});
+  state.team_size = {2, 2};
+  validateState(state, data);
+
+  std::cout << "=== Match 8: Intimidate lead, U-Turn pivot, KO replacement ===\n";
+  std::cout << "    Showcases: startBattle abilities, pivot switch, resolveReplacement\n";
+  std::cout << "    Gyarados+Machamp vs Blastoise+Snorlax\n\n";
+
+  MersenneRNG rng(7);
+  for (const auto &e : engine.startBattle(state, rng))
+    printEvent(e, state, data);
+
+  int turn = 0;
+  while (!state.isOver() && turn < 12) {
+    ++turn;
+    std::cout << "  Turn " << turn << "\n";
+    // Turn 1: Gyarados pivots into Machamp; then spam slot 0 on both sides.
+    Action a0 = (turn == 1) ? Action{UseMove{0, 1}} : Action{UseMove{0}};
+    Action a1 = UseMove{0};
+    auto events = engine.resolveTurn(state, a0, a1, rng);
+    for (const auto &e : events)
+      printEvent(e, state, data);
+
+    for (int side = 0; side < kSideCount; ++side) {
+      if (!state.isOver() && state.active(side).isFainted()) {
+        for (int i = 0; i < state.team_size[static_cast<size_t>(side)]; ++i) {
+          const BattlePokemon &p = state.teams[static_cast<size_t>(side)][static_cast<size_t>(i)];
+          if (i != state.activeIndex[static_cast<size_t>(side)] && !p.isFainted()) {
+            for (const auto &e : engine.resolveReplacement(state, side, i))
+              printEvent(e, state, data);
+            break;
+          }
+        }
+      }
+    }
+    std::cout << "\n";
+  }
+
+  std::cout << "  Outcome: side " << (state.sideHasLost(0) ? 1 : 0) << " wins\n\n";
+}
+
+void runFieldShowcase(const DataLoader &data, const BattleEngine &engine) {
+  BattleState state;
+  state.teams[0][0] = buildCombatant(data, "tyranitar", 50, {"StealthRock", "StoneEdge"});
+  state.teams[0][1] = buildCombatant(data, "scizor", 50, {"UTurn"});
+  state.teams[1][0] = buildCombatant(data, "politoed", 50, {"Surf"});
+  state.teams[1][1] = buildCombatant(data, "charizard", 50, {"Flamethrower"});
+  state.team_size = {2, 2};
+  validateState(state, data);
+
+  std::cout << "=== Match 9: weather war, Stealth Rock, sand chip ===\n";
+  std::cout << "    Showcases: Drizzle vs SandStream, hazards on switch, weather residuals\n";
+  std::cout << "    Tyranitar+Scizor vs Politoed+Charizard\n\n";
+
+  MersenneRNG rngStart(11);
+  for (const auto &e : engine.startBattle(state, rngStart))
+    printEvent(e, state, data);
+
+  struct TurnScript {
+    Action a0;
+    Action a1;
+  };
+  const TurnScript script[] = {
+      {UseMove{0}, UseMove{0}},      // Stealth Rock / Surf
+      {UseMove{1}, SwitchAction{1}}, // Stone Edge / Charizard eats the rocks
+      {SwitchAction{1}, UseMove{0}}, // Scizor comes in / Flamethrower (4x!)
+      {UseMove{0}, UseMove{0}},      // U-Turn or fallback / Flamethrower
+  };
+
+  MersenneRNG rng(11);
+  int turn = 0;
+  for (const auto &step : script) {
+    if (state.isOver())
+      break;
+    ++turn;
+    std::cout << "  Turn " << turn << "\n";
+    auto events = engine.resolveTurn(state, step.a0, step.a1, rng);
+    for (const auto &e : events)
+      printEvent(e, state, data);
+
+    for (int side = 0; side < kSideCount; ++side) {
+      if (!state.isOver() && state.active(side).isFainted()) {
+        for (int i = 0; i < state.team_size[static_cast<size_t>(side)]; ++i) {
+          const BattlePokemon &p = state.teams[static_cast<size_t>(side)][static_cast<size_t>(i)];
+          if (i != state.activeIndex[static_cast<size_t>(side)] && !p.isFainted()) {
+            for (const auto &e : engine.resolveReplacement(state, side, i))
+              printEvent(e, state, data);
+            break;
+          }
+        }
+      }
+    }
+    std::cout << "\n";
+  }
+}
+
+void runPhase89Showcase(const DataLoader &data, const BattleEngine &engine) {
+  BattleState state;
+  state.teams[0][0] = buildCombatant(data, "charizard", 50, {"SolarBeam", "Fly", "FlareBlitz"});
+  state.teams[0][1] = buildCombatant(data, "snorlax", 50, {"Rest", "BodySlam"});
+  state.teams[1][0] = buildCombatant(data, "blastoise", 50, {"Surf", "Protect"});
+  state.teams[1][1] = buildCombatant(data, "garchomp", 50, {"StoneEdge"});
+  state.team_size = {2, 2};
+  validateState(state, data);
+
+  std::cout << "=== Match 10: two-turn moves, Protect, Rest, recoil, crits ===\n";
+  std::cout << "    Showcases: SolarBeam charge, Fly invulnerability, Protect, Rest, Flare Blitz "
+               "recoil\n";
+  std::cout << "    Charizard+Snorlax vs Blastoise+Garchomp\n\n";
+
+  MersenneRNG rngStart(3);
+  for (const auto &e : engine.startBattle(state, rngStart))
+    printEvent(e, state, data);
+
+  struct TurnScript {
+    Action a0;
+    Action a1;
+  };
+  const TurnScript script[] = {
+      {UseMove{0}, UseMove{1}}, // SolarBeam charges / Blastoise Protects
+      {UseMove{0}, UseMove{0}}, // SolarBeam fires (super effective) / Surf
+      {UseMove{1}, UseMove{1}}, // Fly (up) / Protect whiffs on the airborne target
+      {UseMove{1}, UseMove{0}}, // Fly strikes / Surf
+  };
+
+  MersenneRNG rng(5);
+  int turn = 0;
+  for (const auto &step : script) {
+    if (state.isOver())
+      break;
+    ++turn;
+    std::cout << "  Turn " << turn << "\n";
+    for (const auto &e : engine.resolveTurn(state, step.a0, step.a1, rng))
+      printEvent(e, state, data);
+
+    for (int side = 0; side < kSideCount; ++side) {
+      if (!state.isOver() && state.active(side).isFainted()) {
+        for (int i = 0; i < state.team_size[static_cast<size_t>(side)]; ++i) {
+          const BattlePokemon &p = state.teams[static_cast<size_t>(side)][static_cast<size_t>(i)];
+          if (i != state.activeIndex[static_cast<size_t>(side)] && !p.isFainted()) {
+            for (const auto &e : engine.resolveReplacement(state, side, i))
+              printEvent(e, state, data);
+            break;
+          }
+        }
+      }
+    }
+    std::cout << "\n";
+  }
 }
 
 } // namespace
@@ -222,6 +423,9 @@ int main() {
     for (const auto &sc : scenarios) {
       runMatch(sc, data, engine);
     }
+    runSwitchShowcase(data, engine);
+    runFieldShowcase(data, engine);
+    runPhase89Showcase(data, engine);
 
     return 0;
   } catch (const std::exception &e) {

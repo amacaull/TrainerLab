@@ -1,5 +1,6 @@
 #pragma once
 
+#include "engine/field.hpp"
 #include "engine/pokemon.hpp"
 
 #include <array>
@@ -12,6 +13,9 @@ constexpr int kSideCount = 2;
 
 struct UseMove {
   int moveIndex;
+  // Pivot moves (U-Turn...): team index to switch to, declared upfront
+  // (ADR #20). -1 = auto (first healthy benched teammate).
+  int pivotTarget = -1;
 };
 
 struct SwitchAction {
@@ -28,6 +32,10 @@ struct BattleState {
   std::array<int, kSideCount> team_size{0, 0};
   std::array<int, kSideCount> activeIndex{0, 0};
   int turn = 0;
+
+  Weather weather = Weather::None;
+  int weather_turns_left = 0;
+  std::array<SideHazards, kSideCount> hazards{};
 
   const BattlePokemon &active(int side) const {
     return teams[static_cast<size_t>(side)]

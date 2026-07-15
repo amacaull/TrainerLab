@@ -4,8 +4,14 @@
   "category": "Special",
   "power": 90,
   "accuracy": 100,
-  "priority": 0,
   "effects": [
-    { "kind": "Damage" }
+    {
+      "kind": "Damage"
+    },
+    {
+      "kind": "ApplyStatus",
+      "status": "Burn",
+      "chance": 10
+    }
   ]
 }

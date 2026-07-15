@@ -1,0 +1,13 @@
+{
+  "name": "Recover",
+  "type": "Normal",
+  "category": "Status",
+  "accuracy": 0,
+  "effects": [
+    {
+      "kind": "Recovery",
+      "denominator": 2
+    }
+  ],
+  "selfOrField": true
+}

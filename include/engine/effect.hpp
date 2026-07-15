@@ -19,6 +19,13 @@ struct EffectContext {
   CombatantRef user;
   CombatantRef target;
   const Move &move;
+  int pivotTarget; // from UseMove; only read by PivotEffect
+  // Set by an effect (immunity, failed set...) to stop the remaining chain:
+  // Volt Switch vs a Ground type must not pivot, Rapid Spin blocked by a
+  // Ghost must not clear hazards (canon).
+  bool moveFailed = false;
+  // Actual HP removed by the last DamageEffect (recoil basis, Dragon Tail).
+  int lastDamageDealt = 0;
 };
 
 // To add a new effect: subclass Effect, register it in makeEffectFromJson

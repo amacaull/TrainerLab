@@ -1,0 +1,13 @@
+{
+  "name": "Spikes",
+  "type": "Ground",
+  "category": "Status",
+  "accuracy": 100,
+  "effects": [
+    {
+      "kind": "SetHazard",
+      "hazard": "Spikes"
+    }
+  ],
+  "selfOrField": true
+}

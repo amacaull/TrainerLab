@@ -1,0 +1,13 @@
+{
+  "name": "Protect",
+  "type": "Normal",
+  "category": "Status",
+  "accuracy": 0,
+  "priority": 4,
+  "effects": [
+    {
+      "kind": "Protect"
+    }
+  ],
+  "selfOrField": true
+}

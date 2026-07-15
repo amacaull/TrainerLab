@@ -1,11 +1,23 @@
 {
   "id": "venusaur",
   "displayName": "Venusaur",
+  "baseStats": {
+    "hp": 80,
+    "atk": 82,
+    "def": 83,
+    "specAtk": 100,
+    "specDef": 100,
+    "speed": 80
+  },
   "type1": "Grass",
   "type2": "Poison",
-  "baseStats": {
-    "hp": 80, "atk": 82, "def": 83, "specAtk": 100, "specDef": 100, "speed": 80
-  },
-  "ability": "overgrow",
-  "movepool": ["VineWhip", "SludgeBomb", "Earthquake", "Tackle"]
+  "ability": "Overgrow",
+  "movepool": [
+    "VineWhip",
+    "Spore",
+    "PoisonPowder",
+    "Toxic",
+    "Growl",
+    "SolarBeam"
+  ]
 }
