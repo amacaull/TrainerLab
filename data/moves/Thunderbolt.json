@@ -4,6 +4,7 @@
   "category": "Special",
   "power": 90,
   "accuracy": 100,
+  "pp": 15,
   "effects": [
     {
       "kind": "Damage"

@@ -5,7 +5,13 @@
   "power": 0,
   "accuracy": 100,
   "priority": 0,
+  "pp": 40,
   "effects": [
-    { "kind": "StatChange", "stat": "Atk", "delta": -1, "target": "target" }
+    {
+      "kind": "StatChange",
+      "stat": "Atk",
+      "delta": -1,
+      "target": "target"
+    }
   ]
 }

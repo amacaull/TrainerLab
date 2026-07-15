@@ -94,10 +94,12 @@ void DamageEffect::apply(EffectContext &ctx) const {
                    50.0f +
                2.0f;
 
-  bool stab = (move.type == attackerSp.type1 || move.type == attackerSp.type2);
+  // Lutte hits everything for neutral damage and never gets STAB (ADR #35).
+  bool stab = !move.typeless && (move.type == attackerSp.type1 || move.type == attackerSp.type2);
   float stabMul = stab ? 1.5f : 1.0f;
 
-  float typeMul = ctx.data.typeChart().effectiveness(move.type, defType1, defType2);
+  float typeMul =
+      move.typeless ? 1.0f : ctx.data.typeChart().effectiveness(move.type, defType1, defType2);
 
   float randMul = static_cast<float>(ctx.rng.rangeInt(85, 100)) / 100.0f;
 

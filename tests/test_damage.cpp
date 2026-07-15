@@ -16,8 +16,8 @@ TEST_CASE("Flamethrower on Venusaur is super-effective", "[damage]") {
   data.loadAll(BATTLE_ENGINE_DATA_DIR);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "charizard", 50, {"Flamethrower"});
-  state.teams[1][0] = buildCombatant(data, "venusaur", 50, {"VineWhip"});
+  state.teams[0][0] = buildCombatant(data, "charizard", 100, {"Flamethrower"});
+  state.teams[1][0] = buildCombatant(data, "venusaur", 100, {"VineWhip"});
   state.team_size = {1, 1};
 
   BattleEngine engine(data);
@@ -45,8 +45,8 @@ TEST_CASE("Charizard outspeeds Venusaur", "[order]") {
   data.loadAll(BATTLE_ENGINE_DATA_DIR);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "charizard", 50, {"Flamethrower"});
-  state.teams[1][0] = buildCombatant(data, "venusaur", 50, {"VineWhip"});
+  state.teams[0][0] = buildCombatant(data, "charizard", 100, {"Flamethrower"});
+  state.teams[1][0] = buildCombatant(data, "venusaur", 100, {"VineWhip"});
   state.team_size = {1, 1};
 
   BattleEngine engine(data);
@@ -67,8 +67,8 @@ TEST_CASE("Earthquake on Pikachu is super-effective (Ground vs Electric)", "[dam
   data.loadAll(BATTLE_ENGINE_DATA_DIR);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "garchomp", 50, {"Earthquake"});
-  state.teams[1][0] = buildCombatant(data, "pikachu", 50, {"QuickAttack"});
+  state.teams[0][0] = buildCombatant(data, "garchomp", 100, {"Earthquake"});
+  state.teams[1][0] = buildCombatant(data, "pikachu", 100, {"QuickAttack"});
   state.team_size = {1, 1};
 
   BattleEngine engine(data);
@@ -88,8 +88,8 @@ TEST_CASE("Immunity event emitted when type chart says 0x", "[damage][types]") {
   data.loadAll(BATTLE_ENGINE_DATA_DIR);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "pikachu", 50, {"QuickAttack"});
-  state.teams[1][0] = buildCombatant(data, "gengar", 50, {"ShadowBall"});
+  state.teams[0][0] = buildCombatant(data, "pikachu", 100, {"QuickAttack"});
+  state.teams[1][0] = buildCombatant(data, "gengar", 100, {"ShadowBall"});
   state.team_size = {1, 1};
 
   BattleEngine engine(data);

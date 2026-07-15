@@ -5,7 +5,11 @@
   "power": 0,
   "accuracy": 90,
   "priority": 0,
+  "pp": 20,
   "effects": [
-    { "kind": "ApplyStatus", "status": "Paralysis" }
+    {
+      "kind": "ApplyStatus",
+      "status": "Paralysis"
+    }
   ]
 }

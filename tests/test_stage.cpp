@@ -55,8 +55,8 @@ TEST_CASE("SwordsDance doubles physical damage next hit", "[stage][damage]") {
 
   auto hitDamage = [&](bool boosted) {
     BattleState state;
-    state.teams[0][0] = buildCombatant(data, "machamp", 50, {"CloseCombat"});
-    state.teams[1][0] = buildCombatant(data, "snorlax", 50, {"Tackle"});
+    state.teams[0][0] = buildCombatant(data, "machamp", 100, {"CloseCombat"});
+    state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"Tackle"});
     state.team_size = {1, 1};
     if (boosted)
       state.teams[0][0].stat_stages[static_cast<size_t>(StatIndex::Atk)] = 2;
@@ -79,8 +79,8 @@ TEST_CASE("StatChange effect raises the user's stage via SwordsDance", "[stage][
   data.loadAll(BATTLE_ENGINE_DATA_DIR);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "machamp", 50, {"SwordsDance"});
-  state.teams[1][0] = buildCombatant(data, "snorlax", 50, {"Tackle"});
+  state.teams[0][0] = buildCombatant(data, "machamp", 100, {"SwordsDance"});
+  state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"Tackle"});
   state.team_size = {1, 1};
 
   BattleEngine engine(data);
@@ -96,8 +96,8 @@ TEST_CASE("Growl lowers the target's Attack stage", "[stage][effect]") {
   data.loadAll(BATTLE_ENGINE_DATA_DIR);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "gengar", 50, {"Growl"});
-  state.teams[1][0] = buildCombatant(data, "machamp", 50, {"Tackle"});
+  state.teams[0][0] = buildCombatant(data, "gengar", 100, {"Growl"});
+  state.teams[1][0] = buildCombatant(data, "machamp", 100, {"Tackle"});
   state.team_size = {1, 1};
 
   BattleEngine engine(data);
@@ -113,8 +113,8 @@ TEST_CASE("Stage raise fails at +6 cap", "[stage][effect]") {
   data.loadAll(BATTLE_ENGINE_DATA_DIR);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "machamp", 50, {"SwordsDance"});
-  state.teams[1][0] = buildCombatant(data, "snorlax", 50, {"Tackle"});
+  state.teams[0][0] = buildCombatant(data, "machamp", 100, {"SwordsDance"});
+  state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"Tackle"});
   state.team_size = {1, 1};
   state.teams[0][0].stat_stages[static_cast<size_t>(StatIndex::Atk)] = 6;
 
@@ -134,8 +134,8 @@ TEST_CASE("Speed stage flips turn order", "[stage][order]") {
   // Snorlax (Spd 30 base) is far slower than Gengar (Spd 110 base).
   auto firstMover = [&](int snorlaxSpeStage) {
     BattleState state;
-    state.teams[0][0] = buildCombatant(data, "snorlax", 50, {"BodySlam"});
-    state.teams[1][0] = buildCombatant(data, "gengar", 50, {"ShadowBall"});
+    state.teams[0][0] = buildCombatant(data, "snorlax", 100, {"BodySlam"});
+    state.teams[1][0] = buildCombatant(data, "gengar", 100, {"ShadowBall"});
     state.team_size = {1, 1};
     state.teams[0][0].stat_stages[static_cast<size_t>(StatIndex::Spe)] = snorlaxSpeStage;
     FixedRNG rng(0.5f);
@@ -155,8 +155,8 @@ TEST_CASE("validateState rejects out-of-range stat stage", "[stage][validate]") 
   data.loadAll(BATTLE_ENGINE_DATA_DIR);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "machamp", 50, {"SwordsDance"});
-  state.teams[1][0] = buildCombatant(data, "snorlax", 50, {"Tackle"});
+  state.teams[0][0] = buildCombatant(data, "machamp", 100, {"SwordsDance"});
+  state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"Tackle"});
   state.team_size = {1, 1};
   state.activeIndex = {0, 0};
   state.teams[0][0].stat_stages[static_cast<size_t>(StatIndex::Atk)] = 7;
@@ -169,8 +169,8 @@ TEST_CASE("validateState accepts stages at the caps", "[stage][validate]") {
   data.loadAll(BATTLE_ENGINE_DATA_DIR);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "machamp", 50, {"SwordsDance"});
-  state.teams[1][0] = buildCombatant(data, "snorlax", 50, {"Tackle"});
+  state.teams[0][0] = buildCombatant(data, "machamp", 100, {"SwordsDance"});
+  state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"Tackle"});
   state.team_size = {1, 1};
   state.activeIndex = {0, 0};
   state.teams[0][0].stat_stages[static_cast<size_t>(StatIndex::Atk)] = kMaxStage;

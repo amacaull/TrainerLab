@@ -6,6 +6,7 @@
   "accuracy": 95,
   "contact": true,
   "twoTurn": "fly",
+  "pp": 15,
   "effects": [
     {
       "kind": "Damage"

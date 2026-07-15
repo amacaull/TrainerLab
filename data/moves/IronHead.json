@@ -5,6 +5,7 @@
   "power": 80,
   "accuracy": 100,
   "contact": true,
+  "pp": 15,
   "effects": [
     {
       "kind": "Damage"

@@ -8,7 +8,7 @@
 
 namespace engine {
 
-constexpr int kTeamSize = 3;
+constexpr int kTeamSize = 6; // 3v3 and 6v6 formats: team_size fills partially (ADR #36)
 constexpr int kSideCount = 2;
 
 struct UseMove {

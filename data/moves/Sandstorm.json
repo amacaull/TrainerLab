@@ -3,6 +3,7 @@
   "type": "Rock",
   "category": "Status",
   "accuracy": 100,
+  "pp": 10,
   "effects": [
     {
       "kind": "SetWeather",

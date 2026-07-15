@@ -5,6 +5,7 @@
   "accuracy": 0,
   "priority": -6,
   "bypassesProtect": true,
+  "pp": 20,
   "effects": [
     {
       "kind": "ForceSwitch"

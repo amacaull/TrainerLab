@@ -12,6 +12,8 @@
   "type1": "Fire",
   "type2": "Flying",
   "ability": "Blaze",
+  "nature": "Sérieux",
+  "poids": 90.5,
   "movepool": [
     "Flamethrower",
     "AirSlash",

@@ -11,6 +11,8 @@
   },
   "type1": "Normal",
   "ability": "ThickFat",
+  "nature": "Sérieux",
+  "poids": 460.0,
   "movepool": [
     "BodySlam",
     "Earthquake",

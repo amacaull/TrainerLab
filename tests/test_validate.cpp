@@ -17,8 +17,8 @@ namespace {
 
 BattleState makeValidState(const DataLoader &data) {
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "charizard", 50, {"Flamethrower"});
-  state.teams[1][0] = buildCombatant(data, "venusaur", 50, {"VineWhip"});
+  state.teams[0][0] = buildCombatant(data, "charizard", 100, {"Flamethrower"});
+  state.teams[1][0] = buildCombatant(data, "venusaur", 100, {"VineWhip"});
   state.team_size = {1, 1};
   state.activeIndex = {0, 0};
   return state;

@@ -11,6 +11,8 @@
   },
   "type1": "Electric",
   "ability": "Static",
+  "nature": "Sérieux",
+  "poids": 6.0,
   "movepool": [
     "Thunderbolt",
     "QuickAttack",

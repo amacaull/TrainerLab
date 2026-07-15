@@ -5,7 +5,11 @@
   "power": 0,
   "accuracy": 85,
   "priority": 0,
+  "pp": 15,
   "effects": [
-    { "kind": "ApplyStatus", "status": "Burn" }
+    {
+      "kind": "ApplyStatus",
+      "status": "Burn"
+    }
   ]
 }

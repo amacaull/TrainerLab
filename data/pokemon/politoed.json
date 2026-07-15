@@ -11,6 +11,8 @@
   },
   "type1": "Water",
   "ability": "Drizzle",
+  "nature": "Sérieux",
+  "poids": 33.9,
   "movepool": [
     "Surf",
     "BodySlam",

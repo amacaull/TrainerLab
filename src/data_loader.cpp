@@ -159,6 +159,10 @@ void DataLoader::loadMoves(const std::string &dir) {
     m.power = j.value("power", 0);
     m.accuracy = j.value("accuracy", 100);
     m.priority = j.value("priority", 0);
+    m.pp = j.at("pp").get<int>(); // mandatory: every move burns PP (ADR #35)
+    if (m.pp < 1 || m.pp > 64) {
+      throw std::runtime_error("Move '" + m.name + "' has invalid pp " + std::to_string(m.pp));
+    }
     m.makesContact = j.value("contact", false);
     m.highCrit = j.value("highCrit", false);
     m.bypassesProtect = j.value("bypassesProtect", false);
@@ -217,6 +221,32 @@ void DataLoader::loadSpecies(const std::string &dir) {
     s.type1 = typeFromString(j.at("type1").get<std::string>());
     s.type2 = j.contains("type2") ? typeFromString(j.at("type2").get<std::string>()) : s.type1;
     s.ability = j.value("ability", "");
+    s.nature = j.value("nature", std::string("Sérieux"));
+    if (natureByName(s.nature) == nullptr) {
+      throw std::runtime_error("Species '" + s.id + "' has unknown nature '" + s.nature + "'");
+    }
+    if (j.contains("evs")) {
+      const auto &ev = j.at("evs");
+      s.evs.hp = ev.value("hp", 0);
+      s.evs.atk = ev.value("atk", 0);
+      s.evs.def = ev.value("def", 0);
+      s.evs.specAtk = ev.value("specAtk", 0);
+      s.evs.specDef = ev.value("specDef", 0);
+      s.evs.speed = ev.value("speed", 0);
+      int total = 0;
+      for (int v : {s.evs.hp, s.evs.atk, s.evs.def, s.evs.specAtk, s.evs.specDef, s.evs.speed}) {
+        if (v < 0 || v > 252)
+          throw std::runtime_error("Species '" + s.id + "' has an EV outside [0, 252]");
+        total += v;
+      }
+      if (total > 510)
+        throw std::runtime_error("Species '" + s.id + "' has EV total " + std::to_string(total) +
+                                 " > 510");
+    }
+    s.weightKg = j.value("poids", 0.0);
+    if (s.weightKg < 0.0) {
+      throw std::runtime_error("Species '" + s.id + "' has negative weight");
+    }
 
     for (const auto &mv : j.at("movepool")) {
       s.movepool.push_back(mv.get<std::string>());

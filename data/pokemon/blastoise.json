@@ -11,6 +11,8 @@
   },
   "type1": "Water",
   "ability": "Torrent",
+  "nature": "Sérieux",
+  "poids": 85.5,
   "movepool": [
     "Surf",
     "BodySlam",

@@ -6,6 +6,7 @@
   "accuracy": 100,
   "twoTurn": "charge",
   "solarCharge": true,
+  "pp": 10,
   "effects": [
     {
       "kind": "Damage"

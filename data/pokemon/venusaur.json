@@ -12,6 +12,8 @@
   "type1": "Grass",
   "type2": "Poison",
   "ability": "Overgrow",
+  "nature": "Sérieux",
+  "poids": 100.0,
   "movepool": [
     "VineWhip",
     "Spore",

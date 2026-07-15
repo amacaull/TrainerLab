@@ -3,6 +3,7 @@
   "type": "Poison",
   "category": "Status",
   "accuracy": 100,
+  "pp": 20,
   "effects": [
     {
       "kind": "SetHazard",

@@ -6,6 +6,7 @@
   "accuracy": 100,
   "contact": true,
   "twoTurn": "dig",
+  "pp": 10,
   "effects": [
     {
       "kind": "Damage"

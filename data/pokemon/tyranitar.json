@@ -12,6 +12,8 @@
   "type1": "Rock",
   "type2": "Dark",
   "ability": "SandStream",
+  "nature": "Sérieux",
+  "poids": 202.0,
   "movepool": [
     "StoneEdge",
     "Earthquake",

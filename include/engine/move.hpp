@@ -24,12 +24,14 @@ struct Move {
   int power = 0;
   int accuracy = 100;
   int priority = 0;             // -7..+5
+  int pp = 0;                   // base PP = max PP (no PP Ups; ADR #35)
   bool makesContact = false;    // triggers Static / Rough Skin
   bool highCrit = false;        // +1 crit stage (Stone Edge...)
   bool bypassesProtect = false; // Whirlwind / Roar
   bool hitsDig = false;         // Earthquake: hits (and doubles on) Dig
   bool solarCharge = false;     // SolarBeam: no charge in sun, halved in bad weather
   bool blockedByProtect = true; // false for self/field moves (hazards, weather, recovery)
+  bool typeless = false;        // Lutte only: x1 vs everything, never STAB
   TwoTurn twoTurn = TwoTurn::None;
   std::vector<EffectPtr> effects;
 

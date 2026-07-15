@@ -5,7 +5,11 @@
   "power": 0,
   "accuracy": 75,
   "priority": 0,
+  "pp": 35,
   "effects": [
-    { "kind": "ApplyStatus", "status": "Poison" }
+    {
+      "kind": "ApplyStatus",
+      "status": "Poison"
+    }
   ]
 }

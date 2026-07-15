@@ -204,9 +204,9 @@ TEST_CASE("Rest fully heals, cures the old status and sleeps 2 turns outside the
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "snorlax", 50, {"Rest", "Tackle"});
-  state.teams[0][1] = buildCombatant(data, "machamp", 50, {"CloseCombat"});
-  state.teams[1][0] = buildCombatant(data, "venusaur", 50, {"Spore"});
+  state.teams[0][0] = buildCombatant(data, "snorlax", 100, {"Rest", "Tackle"});
+  state.teams[0][1] = buildCombatant(data, "machamp", 100, {"CloseCombat"});
+  state.teams[1][0] = buildCombatant(data, "venusaur", 100, {"Spore"});
   state.team_size = {2, 1};
 
   state.teams[0][0].currentHp = 30;
@@ -252,6 +252,8 @@ TEST_CASE("Evasion stages make 100-accuracy moves missable (ADR #18 resolved)",
       misses += countEvents<MissedEvent>(events);
       state.teams[0][0].currentHp = state.teams[0][0].stats.hp; // keep it going
       state.teams[1][0].currentHp = state.teams[1][0].stats.hp;
+      state.teams[0][0].pp[0] = data.moveByIndex(state.teams[0][0].move_ids[0]).pp;
+      state.teams[1][0].pp[0] = data.moveByIndex(state.teams[1][0].move_ids[0]).pp;
       state.teams[0][0].status = Status::None;
       state.teams[1][0].status = Status::None;
     }

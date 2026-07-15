@@ -5,6 +5,7 @@
 #include "engine/move.hpp"
 #include "engine/pokemon.hpp"
 #include "engine/status.hpp"
+#include "engine/struggle.hpp"
 #include "engine/switching.hpp"
 #include "engine/types.hpp"
 
@@ -21,6 +22,8 @@ namespace {
 int actionPriority(const Action &a, const DataLoader &data, const BattlePokemon &user) {
   if (std::holds_alternative<SwitchAction>(a))
     return 6;
+  if (!user.hasUsablePp())
+    return 0; // will be substituted with Lutte (ADR #35)
   const auto &useMove = std::get<UseMove>(a);
   int moveId = user.move_ids[static_cast<size_t>(useMove.moveIndex)];
   return data.moveByIndex(moveId).priority;
@@ -170,21 +173,35 @@ void BattleEngine::executeAction(BattleState &state, int side, const Action &act
       return;
     }
   }
-  int moveId;
+  int moveId = kNoMove;
   int pivotTarget = -1;
+  int ppSlot = -1; // slot to bill after the before-move gate; -1 = free
+  const Move *movePtr = nullptr;
   if (releasing) {
     moveId = user.charging_move_id;
     user.charging_move_id = kNoMove;
     user.invulnerable_state = 0; // comes down even if the release misses
+    movePtr = &data_.moveByIndex(moveId);
   } else {
     const auto &useMove = std::get<UseMove>(action);
-    moveId = user.move_ids[static_cast<size_t>(useMove.moveIndex)];
+    if (!user.hasUsablePp()) {
+      movePtr = &struggleMove(); // mandatory fallback, costs nothing (ADR #35)
+    } else {
+      ppSlot = useMove.moveIndex;
+      moveId = user.move_ids[static_cast<size_t>(ppSlot)];
+      movePtr = &data_.moveByIndex(moveId);
+    }
     pivotTarget = useMove.pivotTarget;
   }
-  const Move &move = data_.moveByIndex(moveId);
+  const Move &move = *movePtr;
 
   if (!passesBeforeMove(user, userRef, rng, events))
     return; // an interrupted charge is lost (already cleared above)
+
+  // PP burns when the move executes (ADR #35): a skipped turn doesn't pay,
+  // a miss or failure does; a two-turn move pays on its charge turn only.
+  if (ppSlot >= 0)
+    user.pp[static_cast<size_t>(ppSlot)] = std::max(0, user.pp[static_cast<size_t>(ppSlot)] - 1);
 
   int otherSide = 1 - side;
   CombatantRef targetRef{otherSide, state.activeIndex[static_cast<size_t>(otherSide)]};
@@ -268,10 +285,15 @@ void BattleEngine::checkAction(const BattleState &state, int side, const Action 
   }
 
   const auto &useMove = std::get<UseMove>(action);
+  if (!state.active(side).hasUsablePp())
+    return; // out of PP everywhere: the engine substitutes Lutte (ADR #35)
   if (useMove.moveIndex < 0 || useMove.moveIndex >= kMaxMovesPerPokemon)
     throw std::invalid_argument("resolveTurn: " + where + "moveIndex out of range");
   if (state.active(side).move_ids[static_cast<size_t>(useMove.moveIndex)] == kNoMove)
     throw std::invalid_argument("resolveTurn: " + where + "empty move slot " +
+                                std::to_string(useMove.moveIndex));
+  if (state.active(side).pp[static_cast<size_t>(useMove.moveIndex)] <= 0)
+    throw std::invalid_argument("resolveTurn: " + where + "no PP left in slot " +
                                 std::to_string(useMove.moveIndex));
   // pivotTarget is not checked here: it may become stale mid-turn (target
   // faints); PivotEffect re-validates and falls back to auto.

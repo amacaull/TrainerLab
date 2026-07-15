@@ -28,8 +28,8 @@ template <typename E> int countEvents(const EventLog &events) {
 // Side 0: setter + bench; side 1: entrant on a mined field via replacement.
 BattleState makeHazardField(const DataLoader &data, const char *entrant) {
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "snorlax", 50, {"Growl"});
-  state.teams[1][0] = buildCombatant(data, "machamp", 50, {"CloseCombat"});
+  state.teams[0][0] = buildCombatant(data, "snorlax", 100, {"Growl"});
+  state.teams[1][0] = buildCombatant(data, "machamp", 100, {"CloseCombat"});
   state.teams[1][1] = buildCombatant(data, entrant, 50, {"Tackle"});
   state.team_size = {1, 2};
   return state;
@@ -56,8 +56,8 @@ TEST_CASE("StealthRock sets once on the opposing side then fails", "[hazard]") {
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "tyranitar", 50, {"StealthRock"});
-  state.teams[1][0] = buildCombatant(data, "snorlax", 50, {"Tackle"});
+  state.teams[0][0] = buildCombatant(data, "tyranitar", 100, {"StealthRock"});
+  state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"Tackle"});
   state.team_size = {1, 1};
 
   FixedRNG rng(0.5f);
@@ -204,8 +204,8 @@ TEST_CASE("RapidSpin clears the user's side only", "[hazard]") {
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "blastoise", 50, {"RapidSpin"});
-  state.teams[1][0] = buildCombatant(data, "snorlax", 50, {"Tackle"});
+  state.teams[0][0] = buildCombatant(data, "blastoise", 100, {"RapidSpin"});
+  state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"Tackle"});
   state.team_size = {1, 1};
   state.hazards[0] = SideHazards{1, 2, 1};
   state.hazards[1] = SideHazards{1, 0, 0};
@@ -226,8 +226,8 @@ TEST_CASE("A Ghost blocks RapidSpin: no damage, no removal", "[hazard][immunity]
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "blastoise", 50, {"RapidSpin"});
-  state.teams[1][0] = buildCombatant(data, "gengar", 50, {"ShadowBall"});
+  state.teams[0][0] = buildCombatant(data, "blastoise", 100, {"RapidSpin"});
+  state.teams[1][0] = buildCombatant(data, "gengar", 100, {"ShadowBall"});
   state.team_size = {1, 1};
   state.hazards[0] = SideHazards{1, 0, 0};
 
@@ -244,9 +244,9 @@ TEST_CASE("VoltSwitch against a Ground type fails and does not pivot", "[hazard]
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "pikachu", 50, {"VoltSwitch"});
-  state.teams[0][1] = buildCombatant(data, "snorlax", 50, {"Tackle"});
-  state.teams[1][0] = buildCombatant(data, "garchomp", 50, {"DragonClaw"});
+  state.teams[0][0] = buildCombatant(data, "pikachu", 100, {"VoltSwitch"});
+  state.teams[0][1] = buildCombatant(data, "snorlax", 100, {"Tackle"});
+  state.teams[1][0] = buildCombatant(data, "garchomp", 100, {"DragonClaw"});
   state.team_size = {2, 1};
 
   FixedRNG rng(0.5f);
@@ -262,8 +262,8 @@ TEST_CASE("Defog clears both sides and stores the Evasion drop", "[hazard]") {
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "scizor", 50, {"Defog"});
-  state.teams[1][0] = buildCombatant(data, "snorlax", 50, {"Tackle"});
+  state.teams[0][0] = buildCombatant(data, "scizor", 100, {"Defog"});
+  state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"Tackle"});
   state.team_size = {1, 1};
   state.hazards[0] = SideHazards{1, 3, 0};
   state.hazards[1] = SideHazards{1, 0, 2};
@@ -283,8 +283,8 @@ TEST_CASE("validateState checks hazard layer bounds", "[hazard][validate]") {
   data.loadAll(BATTLE_ENGINE_DATA_DIR);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "snorlax", 50, {"Tackle"});
-  state.teams[1][0] = buildCombatant(data, "machamp", 50, {"CloseCombat"});
+  state.teams[0][0] = buildCombatant(data, "snorlax", 100, {"Tackle"});
+  state.teams[1][0] = buildCombatant(data, "machamp", 100, {"CloseCombat"});
   state.team_size = {1, 1};
   state.hazards[0] = SideHazards{1, 3, 2};
   REQUIRE_NOTHROW(validateState(state, data));

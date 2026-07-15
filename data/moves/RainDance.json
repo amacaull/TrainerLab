@@ -3,6 +3,7 @@
   "type": "Water",
   "category": "Status",
   "accuracy": 100,
+  "pp": 5,
   "effects": [
     {
       "kind": "SetWeather",

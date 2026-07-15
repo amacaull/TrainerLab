@@ -3,6 +3,7 @@
   "type": "Normal",
   "category": "Status",
   "accuracy": 0,
+  "pp": 5,
   "effects": [
     {
       "kind": "Recovery",

@@ -25,7 +25,7 @@ BattlePokemon buildCombatant(const DataLoader &data, const std::string &speciesN
 
   const Species &sp = data.speciesByIndex(p.species_id);
   p.level = level;
-  p.stats = computeStats(sp.baseStats, level);
+  p.stats = computeSpeciesStats(sp, level);
   p.currentHp = p.stats.hp;
 
   for (size_t i = 0; i < moveNames.size() && i < kMaxMovesPerPokemon; ++i) {
@@ -33,6 +33,7 @@ BattlePokemon buildCombatant(const DataLoader &data, const std::string &speciesN
     if (mid < 0)
       throw std::runtime_error("Unknown move: " + moveNames[i]);
     p.move_ids[i] = mid;
+    p.pp[i] = data.moveByIndex(mid).pp;
   }
   return p;
 }
@@ -187,10 +188,10 @@ void runMatch(const Scenario &sc, const DataLoader &data, const BattleEngine &en
 
 void runSwitchShowcase(const DataLoader &data, const BattleEngine &engine) {
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "gyarados", 50, {"UTurn"});
-  state.teams[0][1] = buildCombatant(data, "machamp", 50, {"CloseCombat"});
-  state.teams[1][0] = buildCombatant(data, "blastoise", 50, {"Surf"});
-  state.teams[1][1] = buildCombatant(data, "snorlax", 50, {"BodySlam"});
+  state.teams[0][0] = buildCombatant(data, "gyarados", 100, {"UTurn"});
+  state.teams[0][1] = buildCombatant(data, "machamp", 100, {"CloseCombat"});
+  state.teams[1][0] = buildCombatant(data, "blastoise", 100, {"Surf"});
+  state.teams[1][1] = buildCombatant(data, "snorlax", 100, {"BodySlam"});
   state.team_size = {2, 2};
   validateState(state, data);
 
@@ -233,10 +234,10 @@ void runSwitchShowcase(const DataLoader &data, const BattleEngine &engine) {
 
 void runFieldShowcase(const DataLoader &data, const BattleEngine &engine) {
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "tyranitar", 50, {"StealthRock", "StoneEdge"});
-  state.teams[0][1] = buildCombatant(data, "scizor", 50, {"UTurn"});
-  state.teams[1][0] = buildCombatant(data, "politoed", 50, {"Surf"});
-  state.teams[1][1] = buildCombatant(data, "charizard", 50, {"Flamethrower"});
+  state.teams[0][0] = buildCombatant(data, "tyranitar", 100, {"StealthRock", "StoneEdge"});
+  state.teams[0][1] = buildCombatant(data, "scizor", 100, {"UTurn"});
+  state.teams[1][0] = buildCombatant(data, "politoed", 100, {"Surf"});
+  state.teams[1][1] = buildCombatant(data, "charizard", 100, {"Flamethrower"});
   state.team_size = {2, 2};
   validateState(state, data);
 
@@ -288,10 +289,10 @@ void runFieldShowcase(const DataLoader &data, const BattleEngine &engine) {
 
 void runPhase89Showcase(const DataLoader &data, const BattleEngine &engine) {
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "charizard", 50, {"SolarBeam", "Fly", "FlareBlitz"});
-  state.teams[0][1] = buildCombatant(data, "snorlax", 50, {"Rest", "BodySlam"});
-  state.teams[1][0] = buildCombatant(data, "blastoise", 50, {"Surf", "Protect"});
-  state.teams[1][1] = buildCombatant(data, "garchomp", 50, {"StoneEdge"});
+  state.teams[0][0] = buildCombatant(data, "charizard", 100, {"SolarBeam", "Fly", "FlareBlitz"});
+  state.teams[0][1] = buildCombatant(data, "snorlax", 100, {"Rest", "BodySlam"});
+  state.teams[1][0] = buildCombatant(data, "blastoise", 100, {"Surf", "Protect"});
+  state.teams[1][1] = buildCombatant(data, "garchomp", 100, {"StoneEdge"});
   state.team_size = {2, 2};
   validateState(state, data);
 

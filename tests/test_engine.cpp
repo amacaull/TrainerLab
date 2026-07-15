@@ -15,8 +15,8 @@ TEST_CASE("Full battle ends in a KO", "[engine][integration]") {
   data.loadAll(BATTLE_ENGINE_DATA_DIR);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "charizard", 50, {"Flamethrower"});
-  state.teams[1][0] = buildCombatant(data, "venusaur", 50, {"VineWhip"});
+  state.teams[0][0] = buildCombatant(data, "charizard", 100, {"Flamethrower"});
+  state.teams[1][0] = buildCombatant(data, "venusaur", 100, {"VineWhip"});
   state.team_size = {1, 1};
 
   BattleEngine engine(data);

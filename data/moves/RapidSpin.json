@@ -4,6 +4,7 @@
   "category": "Physical",
   "power": 20,
   "accuracy": 100,
+  "pp": 40,
   "effects": [
     {
       "kind": "Damage"

@@ -3,6 +3,7 @@
   "type": "Normal",
   "category": "Status",
   "accuracy": 0,
+  "pp": 20,
   "effects": [
     {
       "kind": "StatChange",

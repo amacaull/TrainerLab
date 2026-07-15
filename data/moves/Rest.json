@@ -3,6 +3,7 @@
   "type": "Psychic",
   "category": "Status",
   "accuracy": 0,
+  "pp": 5,
   "effects": [
     {
       "kind": "Rest"

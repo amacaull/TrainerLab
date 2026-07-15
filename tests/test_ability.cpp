@@ -62,9 +62,9 @@ TEST_CASE("Intimidate lowers the opposing Attack on switch-in", "[ability][switc
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "snorlax", 50, {"BodySlam"});
-  state.teams[0][1] = buildCombatant(data, "gyarados", 50, {"UTurn"});
-  state.teams[1][0] = buildCombatant(data, "machamp", 50, {"CloseCombat"});
+  state.teams[0][0] = buildCombatant(data, "snorlax", 100, {"BodySlam"});
+  state.teams[0][1] = buildCombatant(data, "gyarados", 100, {"UTurn"});
+  state.teams[1][0] = buildCombatant(data, "machamp", 100, {"CloseCombat"});
   state.team_size = {2, 1};
 
   FixedRNG rng(0.5f);
@@ -80,9 +80,9 @@ TEST_CASE("Intimidate fires on a KO replacement", "[ability][replacement]") {
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "snorlax", 50, {"BodySlam"});
-  state.teams[0][1] = buildCombatant(data, "gyarados", 50, {"UTurn"});
-  state.teams[1][0] = buildCombatant(data, "machamp", 50, {"CloseCombat"});
+  state.teams[0][0] = buildCombatant(data, "snorlax", 100, {"BodySlam"});
+  state.teams[0][1] = buildCombatant(data, "gyarados", 100, {"UTurn"});
+  state.teams[1][0] = buildCombatant(data, "machamp", 100, {"CloseCombat"});
   state.team_size = {2, 1};
   state.teams[0][0].currentHp = 0;
 
@@ -98,8 +98,8 @@ TEST_CASE("startBattle fires the leads' switch-in abilities", "[ability]") {
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "gyarados", 50, {"UTurn"});
-  state.teams[1][0] = buildCombatant(data, "machamp", 50, {"CloseCombat"});
+  state.teams[0][0] = buildCombatant(data, "gyarados", 100, {"UTurn"});
+  state.teams[1][0] = buildCombatant(data, "machamp", 100, {"CloseCombat"});
   state.team_size = {1, 1};
 
   FixedRNG srng(0.5f);
@@ -115,8 +115,8 @@ TEST_CASE("Intimidate at the -6 cap emits StatChangeFailed", "[ability][stage]")
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "gyarados", 50, {"UTurn"});
-  state.teams[1][0] = buildCombatant(data, "machamp", 50, {"CloseCombat"});
+  state.teams[0][0] = buildCombatant(data, "gyarados", 100, {"UTurn"});
+  state.teams[1][0] = buildCombatant(data, "machamp", 100, {"CloseCombat"});
   state.team_size = {1, 1};
   state.teams[1][0].stat_stages[static_cast<size_t>(StatIndex::Atk)] = -6;
 
@@ -137,8 +137,8 @@ TEST_CASE("Levitate voids Ground moves entirely", "[ability][immunity]") {
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "garchomp", 50, {"Earthquake", "DragonClaw"});
-  state.teams[1][0] = buildCombatant(data, "gengar", 50, {"ShadowBall"});
+  state.teams[0][0] = buildCombatant(data, "garchomp", 100, {"Earthquake", "DragonClaw"});
+  state.teams[1][0] = buildCombatant(data, "gengar", 100, {"ShadowBall"});
   state.team_size = {1, 1};
 
   int gengarHp = state.teams[1][0].currentHp;
@@ -172,7 +172,7 @@ TEST_CASE("Pinch abilities boost same-type damage at 1/3 HP", "[ability][damage]
   auto hitDamage = [&](const Case &c, bool pinched) {
     BattleState state;
     state.teams[0][0] = buildCombatant(data, c.species, 50, {c.move});
-    state.teams[1][0] = buildCombatant(data, "snorlax", 50, {"Tackle"});
+    state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"Tackle"});
     state.team_size = {1, 1};
     if (pinched)
       state.teams[0][0].currentHp = state.teams[0][0].stats.hp / 3;
@@ -199,8 +199,8 @@ TEST_CASE("Pinch abilities are inert above 1/3 HP and on off-type moves", "[abil
 
   auto hitDamage = [&](const char *move, int hpFraction) {
     BattleState state;
-    state.teams[0][0] = buildCombatant(data, "charizard", 50, {move});
-    state.teams[1][0] = buildCombatant(data, "snorlax", 50, {"Tackle"});
+    state.teams[0][0] = buildCombatant(data, "charizard", 100, {move});
+    state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"Tackle"});
     state.team_size = {1, 1};
     if (hpFraction > 0)
       state.teams[0][0].currentHp = state.teams[0][0].stats.hp / hpFraction;

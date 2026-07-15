@@ -5,7 +5,10 @@
   "power": 80,
   "accuracy": 100,
   "priority": 0,
+  "pp": 15,
   "effects": [
-    { "kind": "Damage" }
+    {
+      "kind": "Damage"
+    }
   ]
 }

@@ -11,6 +11,8 @@
   },
   "type1": "Fighting",
   "ability": "Guts",
+  "nature": "Sérieux",
+  "poids": 130.0,
   "movepool": [
     "CloseCombat",
     "StoneEdge",

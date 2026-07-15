@@ -47,6 +47,7 @@ add_library(battle_engine_lib STATIC
     src/switching.cpp
     src/ability.cpp
     src/engine.cpp
+    src/struggle.cpp
     src/effects/effect.cpp
     src/effects/damage.cpp
     src/effects/apply_status.cpp

@@ -32,6 +32,11 @@ struct Species {
   std::string ability;
   std::vector<std::string> movepool;
 
+  // Fixed set data (ADR #33): stats are always computed from these.
+  std::string nature = "Sérieux";
+  Stats evs;             // 0-252 per stat, sum <= 510 (validated at load)
+  double weightKg = 0.0; // consumed by weight-based moves (phase 14)
+
   bool isDualType() const { return type1 != type2; }
 };
 
@@ -43,6 +48,7 @@ struct BattlePokemon {
   Stats stats;
   int currentHp = 0;
   std::array<int, kMaxMovesPerPokemon> move_ids{kNoMove, kNoMove, kNoMove, kNoMove};
+  std::array<int, kMaxMovesPerPokemon> pp{}; // per-slot PP left; 0 for empty slots
   Status status = Status::None;
   int status_turns = 0;         // Sleep: turns left asleep. Toxic: damage ramp counter.
   int sleep_self_inflicted = 0; // Rest sleep: exempt from Sleep Clause (ADR #28)
@@ -58,6 +64,18 @@ struct BattlePokemon {
 
   bool isFainted() const { return currentHp <= 0; }
   bool isEmpty() const { return species_id == kNoSpecies; }
+
+  // No slot left to fight with: the engine substitutes Lutte (ADR #35).
+  bool hasUsablePp() const {
+    for (int i = 0; i < kMaxMovesPerPokemon; ++i)
+      if (move_ids[static_cast<size_t>(i)] != kNoMove && pp[static_cast<size_t>(i)] > 0)
+        return true;
+    return false;
+  }
 };
+
+// Stats from the species' locked nature/EVs (ADR #33). The nature is
+// validated at load time, so an unknown name here is a programming error.
+Stats computeSpeciesStats(const Species &sp, int level);
 
 } // namespace engine

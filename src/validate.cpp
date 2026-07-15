@@ -37,11 +37,20 @@ void validatePokemon(const BattlePokemon &p, const DataLoader &data, int side, i
   }
   for (int k = 0; k < kMaxMovesPerPokemon; ++k) {
     int mid = p.move_ids[static_cast<size_t>(k)];
-    if (mid == kNoMove)
+    if (mid == kNoMove) {
+      if (p.pp[static_cast<size_t>(k)] != 0) {
+        fail(where.str() + ": pp[" + std::to_string(k) + "] must be 0 on an empty slot");
+      }
       continue;
+    }
     if (!data.isValidMoveId(mid)) {
       fail(where.str() + ": move_ids[" + std::to_string(k) + "] invalid (" + std::to_string(mid) +
            "), catalog size: " + std::to_string(data.moveCount()));
+    }
+    int maxPp = data.moveByIndex(mid).pp;
+    if (p.pp[static_cast<size_t>(k)] < 0 || p.pp[static_cast<size_t>(k)] > maxPp) {
+      fail(where.str() + ": pp[" + std::to_string(k) + "] out of range [0, " +
+           std::to_string(maxPp) + "], got " + std::to_string(p.pp[static_cast<size_t>(k)]));
     }
   }
 

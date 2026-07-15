@@ -12,6 +12,8 @@
   "type1": "Water",
   "type2": "Flying",
   "ability": "Intimidate",
+  "nature": "Sérieux",
+  "poids": 235.0,
   "movepool": [
     "Surf",
     "BodySlam",

@@ -49,7 +49,7 @@ TEST_CASE("SetWeather starts the weather for 5 turns; same weather fails", "[wea
   BattleEngine engine(data);
 
   auto state = makeDuel(data, "politoed", "RainDance", "snorlax", "Tackle");
-  state.teams[0][0] = buildCombatant(data, "snorlax", 50, {"RainDance"}); // no Drizzle side effect
+  state.teams[0][0] = buildCombatant(data, "snorlax", 100, {"RainDance"}); // no Drizzle side effect
   FixedRNG rng(0.5f);
 
   auto t1 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
@@ -208,9 +208,9 @@ TEST_CASE("SandStream and Drizzle set their weather on switch-in", "[weather][ab
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "snorlax", 50, {"Tackle"});
-  state.teams[0][1] = buildCombatant(data, "tyranitar", 50, {"StoneEdge"});
-  state.teams[1][0] = buildCombatant(data, "machamp", 50, {"CloseCombat"});
+  state.teams[0][0] = buildCombatant(data, "snorlax", 100, {"Tackle"});
+  state.teams[0][1] = buildCombatant(data, "tyranitar", 100, {"StoneEdge"});
+  state.teams[1][0] = buildCombatant(data, "machamp", 100, {"CloseCombat"});
   state.team_size = {2, 1};
 
   FixedRNG rng(0.5f);
@@ -226,8 +226,8 @@ TEST_CASE("startBattle: the slower weather ability wins the war", "[weather][abi
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "tyranitar", 50, {"StoneEdge"}); // 66 speed
-  state.teams[1][0] = buildCombatant(data, "politoed", 50, {"Surf"});       // 75 speed
+  state.teams[0][0] = buildCombatant(data, "tyranitar", 100, {"StoneEdge"}); // 66 speed
+  state.teams[1][0] = buildCombatant(data, "politoed", 100, {"Surf"});       // 75 speed
   state.team_size = {1, 1};
 
   FixedRNG srng(0.5f);
@@ -244,9 +244,9 @@ TEST_CASE("Weather ability is silent if its weather is already up", "[weather][a
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "snorlax", 50, {"Tackle"});
-  state.teams[0][1] = buildCombatant(data, "politoed", 50, {"Surf"});
-  state.teams[1][0] = buildCombatant(data, "machamp", 50, {"CloseCombat"});
+  state.teams[0][0] = buildCombatant(data, "snorlax", 100, {"Tackle"});
+  state.teams[0][1] = buildCombatant(data, "politoed", 100, {"Surf"});
+  state.teams[1][0] = buildCombatant(data, "machamp", 100, {"CloseCombat"});
   state.team_size = {2, 1};
   state.weather = Weather::Rain;
   state.weather_turns_left = 5;
