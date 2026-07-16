@@ -9,7 +9,7 @@
 **Tests** : Catch2 v3
 **Données** : JSON (nlohmann/json)
 **Niveau de combat** : 100 (ADR #33)
-**Dernière MAJ** : 2026-07-15 (phase 10 stats/PP/Lutte/6v6 terminée : 150/150 tests, démo déterministe OK)
+**Dernière MAJ** : 2026-07-16 (phase 11 objets terminée : 167/167 tests, démo déterministe OK ; ADR #45)
 
 ---
 
@@ -149,13 +149,13 @@ Branche : `feat/battle-engine-stats-overhaul`. Design validé avec Alex le 2026-
 - ✅ +10 tests dédiés dans `test_phase10.cpp` (facturation PP à l'exécution / tour sauté gratuit / raté et échec payants / charge seule payante, substitution Lutte + sans-type prouvé contre Spectre + recul 25% PV max, slot à 0 PP rejeté par `checkAction`, invariants PP de `validateState`, 6v6 complet, stats depuis nature/EVs) — **150/150**
 - ✅ ADRs #32-44 consignés dans ce fichier (fait à la rédaction, à cocher au merge)
 
-### Phase 11 — Objets tenus  ⬜
+### Phase 11 — Objets tenus  ✅
 
 Branche : `feat/battle-engine-items`. Architecture calquée sur les talents (ADR #34) : interface `Item` à hooks virtuels no-op, singletons const stateless, registry `itemByName`, état par-combat dans le POD.
 
-- ⬜ Interface `Item` + registry ; champ `objet` dans le JSON espèce (lock par espèce, pas de choix joueur) ; les Méga n'ont pas d'objet (champ absent)
-- ⬜ POD : `item_id` (`kNoItem = -1`), `item_consumed` (0/1), `locked_move_id` (`kNoMove` = pas de verrou) dans `BattlePokemon`
-- ⬜ **Les 12 objets du roster** :
+- ✅ Interface `Item` + registry ; champ `objet` dans le JSON espèce (lock par espèce, pas de choix joueur) ; les Méga n'ont pas d'objet (champ absent)
+- ✅ POD : `item_id` (`kNoItem = -1`), `item_consumed` (0/1), `locked_move_id` (`kNoMove` = pas de verrou) dans `BattlePokemon`
+- ✅ **Les 12 objets du roster** :
   - `OrbeVie` — dégâts ×1,3, recul 10% PV max après une attaque qui touche
   - `Restes` — soin 1/16 en fin de tour
   - `Detritus` — soin 1/16 si type Poison, dégâts 1/8 sinon, fin de tour
@@ -167,11 +167,14 @@ Branche : `feat/battle-engine-items`. Architecture calquée sur les talents (ADR
   - `DesPipes` — les multi-coups tapent 4-5 fois (plancher, branché en phase 14 avec les multi-hits)
   - `Massue` — Atk ×2 (le lock par espèce règle la restriction canon à Ossatueur)
   - `Lumargile` — Voile Aurore dure 8 tours au lieu de 5 (branché en phase 12)
-- ⬜ Interactions inverses posées comme hooks : retrait d'objet (pour Sabotage), présence d'objet requise (pour Poltergeist), blocage de baie (pour Cœur de Coq) — les moves/talents consommateurs arrivent en phases 13-14
-- ⬜ Verrou Choix : reset au switch ; un verrou sur un slot à 0 PP force Lutte
-- ⬜ Persistance au switch : `item_consumed` et objet retiré persistent (une Ceinture utilisée ne revient pas) ; `locked_move_id` reset
-- ⬜ `validateState` : `item_id` valide-ou-`kNoItem`, `locked_move_id` cohérent avec les slots, flags 0/1
-- ⬜ Events : `ItemTriggered`, `ItemConsumed`, `ItemKnockedOff`
+- ✅ Interactions inverses posées comme hooks : retrait d'objet (pour Sabotage), présence d'objet requise (pour Poltergeist), blocage de baie (pour Cœur de Coq) — les moves/talents consommateurs arrivent en phases 13-14
+- ✅ Verrou Choix : reset au switch ; un verrou sur un slot à 0 PP force Lutte
+- ✅ Persistance au switch : `item_consumed` et objet retiré persistent (une Ceinture utilisée ne revient pas) ; `locked_move_id` reset
+- ✅ `validateState` : `item_id` valide-ou-`kNoItem`, `locked_move_id` cohérent avec les slots, flags 0/1
+- ✅ Events : `ItemTriggered`, `ItemConsumed`, `ItemKnockedOff` (posé pour Sabotage), plus `ItemDamage` (Orbe Vie, Détritus)
+- ✅ Ordre canon vérifié par test d'ordre d'events : météo → soins d'objets → résiduels de statut → orbes (les Restes soignent avant le tick de poison ; la brûlure d'Orbe Flamme ne tape qu'au tour suivant)
+- ✅ Baie Sitrus branchée sur *tous* les points d'application de dégâts (attaque, hazards à l'entrée, chip météo, résiduels, recul, Lutte)
+- ✅ +17 tests dans `test_phase11.cpp`, dont l'intégration signature **Cran + Orbe Flamme** (le combo Bétochef, testé sur Machamp) — **167/167**
 
 ### Phase 12 — Field : neige gen 9, terrain Électrique, Voile Aurore  ⬜
 
@@ -304,6 +307,7 @@ Branche : `feat/battle-engine-roster-content`.
 | 42 | **Règles d'équipe : Species Clause + max 1 Méga + max 1 légendaire** | dans `validateTeam` (moteur), exposée au FFI pour le teambuilder Rust ; flag `legendaire` en JSON, liste officielle à fournir par l'équipe | 2026-07-15 |
 | 43 | **Zoroark d'Hisui sans talent ; Illusion et Distorsion reportées en fin de projet** | Illusion = problème de protocole (events qui mentent au front), complexe pour peu ; Distorsion : aucun porteur dans le roster, ajout additif trivial plus tard ; validation « tout talent référencé existe » assouplie pour tolérer le champ vide | 2026-07-15 |
 | 44 | **Le roster final (49 espèces) remplace le contenu de test en phase 14** | tests réécrits de zéro sur le contenu final (décision Alex) ; anciennes espèces/moves supprimés au même moment ; d'ici là les tests existants sont recalibrés phase par phase pour garder la règle « tout vert à chaque merge » | 2026-07-15 |
+| 45 | **Catalogue d'objets indexé en code, ordre d'enregistrement gelé** | contrairement aux talents (impliqués par l'espèce), `item_id` vit dans le POD et traversera le FFI : il faut des indices stables ; les objets sont des singletons enregistrés dans un ordre fixe (append-only) dans `item.cpp`, le `DataLoader` expose `findItemId`/`isValidItemId` comme façade, cohérent ADR #12 ; ajouter un objet = une classe + une ligne d'enregistrement | 2026-07-16 |
 
 ---
 

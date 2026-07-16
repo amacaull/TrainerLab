@@ -13,6 +13,7 @@ namespace engine {
 constexpr int kMaxMovesPerPokemon = 4;
 constexpr int kNoMove = -1;
 constexpr int kNoSpecies = -1;
+constexpr int kNoItem = -1;
 
 // Boostable stats, stable ordering for the stat_stages array.
 // Atk..Spe drive damage/speed; Accuracy/Evasion are stored and clamped now
@@ -32,8 +33,9 @@ struct Species {
   std::string ability;
   std::vector<std::string> movepool;
 
-  // Fixed set data (ADR #33): stats are always computed from these.
+  // Fixed set data (ADR #33/#34): stats and held item are locked per species.
   std::string nature = "Sérieux";
+  std::string item;      // empty = no held item (Megas, test fixtures)
   Stats evs;             // 0-252 per stat, sum <= 510 (validated at load)
   double weightKg = 0.0; // consumed by weight-based moves (phase 14)
 
@@ -49,6 +51,9 @@ struct BattlePokemon {
   int currentHp = 0;
   std::array<int, kMaxMovesPerPokemon> move_ids{kNoMove, kNoMove, kNoMove, kNoMove};
   std::array<int, kMaxMovesPerPokemon> pp{}; // per-slot PP left; 0 for empty slots
+  int item_id = kNoItem;                     // index into the item catalog (ADR #45)
+  int item_consumed = 0;                     // eaten berry / spent sash: persists across switches
+  int locked_move_id = kNoMove;              // Choice lock: move forced until switch-out
   Status status = Status::None;
   int status_turns = 0;         // Sleep: turns left asleep. Toxic: damage ramp counter.
   int sleep_self_inflicted = 0; // Rest sleep: exempt from Sleep Clause (ADR #28)

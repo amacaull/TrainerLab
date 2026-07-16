@@ -4,6 +4,7 @@
 #include "engine/effect.hpp"
 #include "engine/effects/damage.hpp"
 #include "engine/events.hpp"
+#include "engine/item.hpp"
 #include "engine/pokemon.hpp"
 
 #include <algorithm>
@@ -28,6 +29,8 @@ public:
     ctx.events.emplace_back(RecoilDamageEvent{ctx.user, damage});
     if (user.isFainted())
       ctx.events.emplace_back(FaintedEvent{ctx.user});
+    else
+      itemHpCheck(ctx.state, ctx.data, ctx.user, ctx.events);
   }
   const char *name() const override { return "StruggleRecoil"; }
 };

@@ -1,5 +1,7 @@
 #include "engine/effects/recoil.hpp"
 
+#include "engine/item.hpp"
+
 #include "engine/battle_state.hpp"
 
 #include <algorithm>
@@ -19,6 +21,8 @@ void RecoilEffect::apply(EffectContext &ctx) const {
   ctx.events.emplace_back(RecoilDamageEvent{ctx.user, damage});
   if (user.isFainted())
     ctx.events.emplace_back(FaintedEvent{ctx.user});
+  else
+    itemHpCheck(ctx.state, ctx.data, ctx.user, ctx.events);
 }
 
 } // namespace engine

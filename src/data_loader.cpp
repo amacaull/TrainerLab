@@ -15,6 +15,7 @@
 #include "engine/effects/set_weather.hpp"
 #include "engine/effects/stat_change.hpp"
 #include "engine/field.hpp"
+#include "engine/item.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -247,6 +248,10 @@ void DataLoader::loadSpecies(const std::string &dir) {
     if (s.weightKg < 0.0) {
       throw std::runtime_error("Species '" + s.id + "' has negative weight");
     }
+    s.item = j.value("objet", std::string(""));
+    if (!s.item.empty() && findItemIdByName(s.item) < 0) {
+      throw std::runtime_error("Species '" + s.id + "' references unknown item '" + s.item + "'");
+    }
 
     for (const auto &mv : j.at("movepool")) {
       s.movepool.push_back(mv.get<std::string>());
@@ -296,5 +301,9 @@ int DataLoader::findSpeciesId(const std::string &id) const {
   auto it = species_id_to_index_.find(id);
   return (it == species_id_to_index_.end()) ? -1 : it->second;
 }
+
+int DataLoader::findItemId(const std::string &name) const { return findItemIdByName(name); }
+
+bool DataLoader::isValidItemId(int id) const { return id >= 0 && id < itemCount(); }
 
 } // namespace engine

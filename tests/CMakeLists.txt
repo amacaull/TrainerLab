@@ -14,6 +14,7 @@ add_executable(battle_engine_tests
     test_phase8.cpp
     test_phase9.cpp
     test_phase10.cpp
+    test_phase11.cpp
 )
 
 target_link_libraries(battle_engine_tests PRIVATE battle_engine_lib Catch2::Catch2WithMain)

@@ -3,6 +3,7 @@
 #include "engine/ability.hpp"
 #include "engine/battle_state.hpp"
 #include "engine/data_loader.hpp"
+#include "engine/item.hpp"
 #include "engine/status.hpp"
 #include "engine/types.hpp"
 
@@ -52,6 +53,10 @@ void dealHazardDamage(BattlePokemon &in, CombatantRef ref, HazardKind kind, int 
 // Canon application order on entry: Stealth Rock, Spikes, Toxic Spikes.
 void applyEntryHazards(BattleState &state, const DataLoader &data, int side, EventLog &events) {
   BattlePokemon &in = state.active(side);
+  if (const Item *item = heldItem(in)) {
+    if (item->ignoresHazards()) // GrossesBottes: full entry-hazard immunity
+      return;
+  }
   const Species &sp = data.speciesByIndex(in.species_id);
   SideHazards &hz = state.hazards[static_cast<size_t>(side)];
   CombatantRef ref{side, state.activeIndex[static_cast<size_t>(side)]};
@@ -104,6 +109,7 @@ void performSwitch(BattleState &state, const DataLoader &data, int side, int new
   out.protect_chain = 0;
   out.charging_move_id = kNoMove;
   out.invulnerable_state = 0;
+  out.locked_move_id = kNoMove; // the Choice lock ends when the holder leaves
 
   CombatantRef outRef{side, state.activeIndex[static_cast<size_t>(side)]};
   events.emplace_back(SwitchedOutEvent{outRef});
@@ -117,6 +123,8 @@ void performSwitch(BattleState &state, const DataLoader &data, int side, int new
   // A Pokemon that faints to hazards never gets its ability off (canon).
   if (state.active(side).isFainted())
     return;
+
+  itemHpCheck(state, data, inRef, events); // hazard chip can pop a BaieSitrus
 
   const Species &sp = data.speciesByIndex(state.active(side).species_id);
   if (const Ability *ability = abilityByName(sp.ability)) {

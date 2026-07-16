@@ -2,6 +2,7 @@
 
 #include "engine/ability.hpp"
 #include "engine/effect.hpp"
+#include "engine/item.hpp"
 #include "engine/move.hpp"
 #include "engine/pokemon.hpp"
 #include "engine/status.hpp"
@@ -18,11 +19,31 @@ namespace engine {
 
 namespace {
 
+// The Choice lock only binds while the choice item is still in hand: a
+// consumed or knocked-off item releases it (canon).
+bool choiceLockActive(const BattlePokemon &p) {
+  if (p.locked_move_id == kNoMove)
+    return false;
+  const Item *item = heldItem(p);
+  return item != nullptr && item->locksMove();
+}
+
+// Lutte fallback test (ADR #35), lock-aware: a locked Pokemon whose locked
+// slot ran dry can only Struggle, whatever the other slots hold.
+bool canUseAnyMove(const BattlePokemon &p) {
+  if (!choiceLockActive(p))
+    return p.hasUsablePp();
+  for (int i = 0; i < kMaxMovesPerPokemon; ++i)
+    if (p.move_ids[static_cast<size_t>(i)] == p.locked_move_id && p.pp[static_cast<size_t>(i)] > 0)
+      return true;
+  return false;
+}
+
 // Switch actions take priority over moves (+6 brackets above any move).
 int actionPriority(const Action &a, const DataLoader &data, const BattlePokemon &user) {
   if (std::holds_alternative<SwitchAction>(a))
     return 6;
-  if (!user.hasUsablePp())
+  if (!canUseAnyMove(user))
     return 0; // will be substituted with Lutte (ADR #35)
   const auto &useMove = std::get<UseMove>(a);
   int moveId = user.move_ids[static_cast<size_t>(useMove.moveIndex)];
@@ -31,6 +52,8 @@ int actionPriority(const Action &a, const DataLoader &data, const BattlePokemon 
 
 int effectiveSpeed(const BattlePokemon &p) {
   float mul = stageMultiplier(p.stat_stages[static_cast<size_t>(StatIndex::Spe)]);
+  if (const Item *item = heldItem(p)) // MouchoirChoix x1.5: changes turn order
+    mul *= item->statMultiplier(StatIndex::Spe);
   int spd = static_cast<int>(static_cast<float>(p.stats.speed) * mul);
   if (p.status == Status::Paralysis)
     spd /= 2;
@@ -104,9 +127,11 @@ void applyWeatherChip(BattleState &state, const DataLoader &data, int side, Even
   events.emplace_back(WeatherDamageEvent{ref, state.weather, damage});
   if (p.isFainted())
     events.emplace_back(FaintedEvent{ref});
+  else
+    itemHpCheck(state, data, ref, events);
 }
 
-void applyResidual(BattleState &state, int side, EventLog &events) {
+void applyResidual(BattleState &state, const DataLoader &data, int side, EventLog &events) {
   BattlePokemon &p = state.active(side);
   if (p.isFainted())
     return;
@@ -133,6 +158,22 @@ void applyResidual(BattleState &state, int side, EventLog &events) {
   events.emplace_back(StatusDamageEvent{ref, p.status, damage});
   if (p.isFainted())
     events.emplace_back(FaintedEvent{ref});
+  else
+    itemHpCheck(state, data, ref, events);
+}
+
+// Item hooks in the residual window, faster side first (canon order:
+// weather chip, then item heals, then status damage, then the orbs).
+void applyItemHook(BattleState &state, const DataLoader &data, int side, EventLog &events,
+                   void (Item::*hook)(ItemContext &) const) {
+  BattlePokemon &p = state.active(side);
+  if (p.isFainted())
+    return;
+  if (const Item *item = heldItem(p)) {
+    CombatantRef ref{side, state.activeIndex[static_cast<size_t>(side)]};
+    ItemContext ctx{state, data, events, ref};
+    (item->*hook)(ctx);
+  }
 }
 
 } // namespace
@@ -184,7 +225,7 @@ void BattleEngine::executeAction(BattleState &state, int side, const Action &act
     movePtr = &data_.moveByIndex(moveId);
   } else {
     const auto &useMove = std::get<UseMove>(action);
-    if (!user.hasUsablePp()) {
+    if (!canUseAnyMove(user)) {
       movePtr = &struggleMove(); // mandatory fallback, costs nothing (ADR #35)
     } else {
       ppSlot = useMove.moveIndex;
@@ -200,8 +241,14 @@ void BattleEngine::executeAction(BattleState &state, int side, const Action &act
 
   // PP burns when the move executes (ADR #35): a skipped turn doesn't pay,
   // a miss or failure does; a two-turn move pays on its charge turn only.
-  if (ppSlot >= 0)
+  if (ppSlot >= 0) {
     user.pp[static_cast<size_t>(ppSlot)] = std::max(0, user.pp[static_cast<size_t>(ppSlot)] - 1);
+    // Choice items lock onto the first move actually used, hit or miss.
+    if (const Item *item = heldItem(user)) {
+      if (item->locksMove() && user.locked_move_id == kNoMove)
+        user.locked_move_id = moveId;
+    }
+  }
 
   int otherSide = 1 - side;
   CombatantRef targetRef{otherSide, state.activeIndex[static_cast<size_t>(otherSide)]};
@@ -264,6 +311,17 @@ void BattleEngine::executeAction(BattleState &state, int side, const Action &act
     if (ctx.moveFailed)
       break; // immunity or failed set: the rest of the chain doesn't run
   }
+
+  // Orbe Vie bills its 10% after a move that dealt damage. Slot-addressed
+  // via userRef: correct even if a pivot already moved the user to the bench.
+  if (ctx.lastDamageDealt > 0) {
+    const BattlePokemon &mover =
+        state.teams[static_cast<size_t>(userRef.side)][static_cast<size_t>(userRef.teamIndex)];
+    if (const Item *item = heldItem(mover)) {
+      ItemContext ictx{state, data_, events, userRef};
+      item->onAfterDamagingMove(ictx);
+    }
+  }
 }
 
 void BattleEngine::checkAction(const BattleState &state, int side, const Action &action) const {
@@ -285,8 +343,9 @@ void BattleEngine::checkAction(const BattleState &state, int side, const Action 
   }
 
   const auto &useMove = std::get<UseMove>(action);
-  if (!state.active(side).hasUsablePp())
-    return; // out of PP everywhere: the engine substitutes Lutte (ADR #35)
+  const BattlePokemon &actor = state.active(side);
+  if (!canUseAnyMove(actor))
+    return; // out of PP (lock included): the engine substitutes Lutte (ADR #35)
   if (useMove.moveIndex < 0 || useMove.moveIndex >= kMaxMovesPerPokemon)
     throw std::invalid_argument("resolveTurn: " + where + "moveIndex out of range");
   if (state.active(side).move_ids[static_cast<size_t>(useMove.moveIndex)] == kNoMove)
@@ -295,6 +354,9 @@ void BattleEngine::checkAction(const BattleState &state, int side, const Action 
   if (state.active(side).pp[static_cast<size_t>(useMove.moveIndex)] <= 0)
     throw std::invalid_argument("resolveTurn: " + where + "no PP left in slot " +
                                 std::to_string(useMove.moveIndex));
+  if (choiceLockActive(actor) &&
+      actor.move_ids[static_cast<size_t>(useMove.moveIndex)] != actor.locked_move_id)
+    throw std::invalid_argument("resolveTurn: " + where + "choice-locked into another move");
   // pivotTarget is not checked here: it may become stale mid-turn (target
   // faints); PivotEffect re-validates and falls back to auto.
 }
@@ -360,11 +422,25 @@ EventLog BattleEngine::resolveTurn(BattleState &state, const Action &a0, const A
     }
   }
 
+  // Item heals before the status ticks (Restes/Detritus, canon order).
+  if (!state.isOver()) {
+    int first = fasterSide(state, rng);
+    applyItemHook(state, data_, first, events, &Item::onResidual);
+    applyItemHook(state, data_, 1 - first, events, &Item::onResidual);
+  }
+
   // End-of-turn residuals (burn/poison/toxic), faster side first.
   if (!state.isOver()) {
     int first = fasterSide(state, rng);
-    applyResidual(state, first, events);
-    applyResidual(state, 1 - first, events);
+    applyResidual(state, data_, first, events);
+    applyResidual(state, data_, 1 - first, events);
+  }
+
+  // Status orbs activate last: an OrbeFlamme burn only ticks next turn.
+  if (!state.isOver()) {
+    int first = fasterSide(state, rng);
+    applyItemHook(state, data_, first, events, &Item::onTurnEnd);
+    applyItemHook(state, data_, 1 - first, events, &Item::onTurnEnd);
   }
 
   // Volatile upkeep: flinch and Roost last one turn; a turn without a

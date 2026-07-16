@@ -4,6 +4,7 @@
 
 #include "engine/battle_state.hpp"
 #include "engine/data_loader.hpp"
+#include "engine/item.hpp"
 #include "engine/status.hpp"
 
 #include <sstream>
@@ -51,6 +52,27 @@ void validatePokemon(const BattlePokemon &p, const DataLoader &data, int side, i
     if (p.pp[static_cast<size_t>(k)] < 0 || p.pp[static_cast<size_t>(k)] > maxPp) {
       fail(where.str() + ": pp[" + std::to_string(k) + "] out of range [0, " +
            std::to_string(maxPp) + "], got " + std::to_string(p.pp[static_cast<size_t>(k)]));
+    }
+  }
+
+  if (p.item_id != kNoItem && !data.isValidItemId(p.item_id)) {
+    fail(where.str() + ": invalid item_id " + std::to_string(p.item_id) +
+         " (catalog size: " + std::to_string(itemCount()) + ")");
+  }
+  if (p.item_consumed != 0 && p.item_consumed != 1) {
+    fail(where.str() + ": item_consumed must be 0 or 1");
+  }
+  if (p.item_consumed == 1 && p.item_id == kNoItem) {
+    fail(where.str() + ": item_consumed set without an item");
+  }
+  if (p.locked_move_id != kNoMove) {
+    bool known = false;
+    for (int k = 0; k < kMaxMovesPerPokemon; ++k)
+      if (p.move_ids[static_cast<size_t>(k)] == p.locked_move_id)
+        known = true;
+    if (!known) {
+      fail(where.str() + ": locked_move_id " + std::to_string(p.locked_move_id) +
+           " matches none of the holder's moves");
     }
   }
 

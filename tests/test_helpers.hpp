@@ -21,6 +21,7 @@ inline BattlePokemon buildCombatant(const DataLoader &data, const std::string &s
   p.level = level;
   p.stats = computeSpeciesStats(sp, level);
   p.currentHp = p.stats.hp;
+  p.item_id = sp.item.empty() ? kNoItem : data.findItemId(sp.item);
 
   for (size_t i = 0; i < moveNames.size() && i < kMaxMovesPerPokemon; ++i) {
     int mid = data.findMoveId(moveNames[i]);

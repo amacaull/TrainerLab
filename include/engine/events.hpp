@@ -146,6 +146,28 @@ struct RecoilDamageEvent {
   int damage;
 };
 
+struct ItemTriggeredEvent {
+  CombatantRef who;
+  std::string itemName;
+};
+
+struct ItemConsumedEvent {
+  CombatantRef who;
+  std::string itemName;
+};
+
+struct ItemDamageEvent {
+  CombatantRef who;
+  std::string itemName;
+  int damage;
+};
+
+// Posed for Sabotage (phase 14): the item is stripped from its holder.
+struct ItemKnockedOffEvent {
+  CombatantRef who;
+  std::string itemName;
+};
+
 // First turn of a two-turn move (Fly, Dig, SolarBeam charge).
 struct ChargingEvent {
   CombatantRef who;
@@ -163,7 +185,8 @@ using BattleEvent =
                  AbilityTriggeredEvent, MoveFailedEvent, WeatherStartedEvent, WeatherEndedEvent,
                  WeatherDamageEvent, HazardSetEvent, HazardDamageEvent, HazardsClearedEvent,
                  ToxicSpikesAbsorbedEvent, HealedEvent, RecoilDamageEvent, ChargingEvent,
-                 ProtectedEvent>;
+                 ProtectedEvent, ItemTriggeredEvent, ItemConsumedEvent, ItemDamageEvent,
+                 ItemKnockedOffEvent>;
 using EventLog = std::vector<BattleEvent>;
 
 } // namespace engine

@@ -3,6 +3,7 @@
 #include "engine/ability.hpp"
 #include "engine/battle_state.hpp"
 #include "engine/data_loader.hpp"
+#include "engine/item.hpp"
 #include "engine/move.hpp"
 #include "engine/pokemon.hpp"
 #include "engine/rng.hpp"
@@ -80,6 +81,12 @@ void DamageEffect::apply(EffectContext &ctx) const {
   float effAtk = static_cast<float>(atkStat) * atkMul;
   float effDef = static_cast<float>(defStat) * defMul;
 
+  // Held items modify the stat itself, after stages (Choix x1.5, Massue x2).
+  if (const Item *atkItem = heldItem(attacker))
+    effAtk *= atkItem->statMultiplier(atkIdx);
+  if (const Item *defItem = heldItem(defender))
+    effDef *= defItem->statMultiplier(defIdx);
+
   // Sandstorm: Rock types get SpD x1.5 (canon gen 4+, kept by Showdown).
   if (ctx.state.weather == Weather::Sand && move.category == MoveCategory::Special &&
       (defType1 == Type::Rock || defType2 == Type::Rock))
@@ -134,6 +141,10 @@ void DamageEffect::apply(EffectContext &ctx) const {
 
   float critMul = crit ? 1.5f : 1.0f;
 
+  // Orbe Vie x1.3 on the attacker's damaging moves.
+  const Item *attackerItem = heldItem(attacker);
+  float itemMul = attackerItem ? attackerItem->damageMultiplier() : 1.0f;
+
   // Earthquake reaches a target hiding underground and hits twice as hard;
   // SolarBeam is halved by any non-sun active weather (canon, ADR #29).
   float situationMul = 1.0f;
@@ -143,7 +154,7 @@ void DamageEffect::apply(EffectContext &ctx) const {
     situationMul *= 0.5f;
 
   float total = base * stabMul * typeMul * randMul * burnMul * abilityMul * defAbilityMul *
-                critMul * situationMul * weatherMul;
+                critMul * situationMul * weatherMul * itemMul;
   int damage = std::max(1, static_cast<int>(std::floor(total)));
   if (typeMul == 0.0f) {
     damage = 0;
@@ -152,11 +163,22 @@ void DamageEffect::apply(EffectContext &ctx) const {
     ctx.moveFailed = true;
   }
 
+  // CeintureForce intercepts a lethal hit taken at full HP (ADR #34).
+  if (damage >= defender.currentHp) {
+    if (const Item *defItem = heldItem(defender)) {
+      ItemContext ictx{ctx.state, ctx.data, ctx.events, ctx.target};
+      damage = defItem->adjustLethalDamage(ictx, damage);
+    }
+  }
+
   int hpBefore = defender.currentHp;
   defender.currentHp = std::max(0, defender.currentHp - damage);
   ctx.lastDamageDealt = hpBefore - defender.currentHp;
 
   ctx.events.emplace_back(DamageDealtEvent{ctx.target, damage, typeMul, stab, crit});
+
+  if (ctx.lastDamageDealt > 0)
+    itemHpCheck(ctx.state, ctx.data, ctx.target, ctx.events); // BaieSitrus & co
 
   // Contact punishment fires even if the holder goes down (canon).
   if (ctx.lastDamageDealt > 0) {

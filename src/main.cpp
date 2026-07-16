@@ -27,6 +27,7 @@ BattlePokemon buildCombatant(const DataLoader &data, const std::string &speciesN
   p.level = level;
   p.stats = computeSpeciesStats(sp, level);
   p.currentHp = p.stats.hp;
+  p.item_id = sp.item.empty() ? kNoItem : data.findItemId(sp.item);
 
   for (size_t i = 0; i < moveNames.size() && i < kMaxMovesPerPokemon; ++i) {
     int mid = data.findMoveId(moveNames[i]);
@@ -116,6 +117,13 @@ void printEvent(const BattleEvent &ev, const BattleState &state, const DataLoade
           std::cout << "    " << pokeName(e.who) << " absorbed the ToxicSpikes!\n";
         } else if constexpr (std::is_same_v<T, HealedEvent>) {
           std::cout << "    " << pokeName(e.who) << " recovers " << e.amount << " HP!\n";
+        } else if constexpr (std::is_same_v<T, ItemTriggeredEvent>) {
+          std::cout << "    " << pokeName(e.who) << "'s " << e.itemName << " activates!\n";
+        } else if constexpr (std::is_same_v<T, ItemConsumedEvent>) {
+          std::cout << "    " << pokeName(e.who) << " used up its " << e.itemName << "!\n";
+        } else if constexpr (std::is_same_v<T, ItemDamageEvent>) {
+          std::cout << "    " << pokeName(e.who) << " is hurt by its " << e.itemName << " ("
+                    << e.damage << ")\n";
         } else if constexpr (std::is_same_v<T, RecoilDamageEvent>) {
           std::cout << "    " << pokeName(e.who) << " is hurt in return (" << e.damage << ")\n";
         } else if constexpr (std::is_same_v<T, ChargingEvent>) {
