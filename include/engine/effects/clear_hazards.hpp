@@ -1,6 +1,6 @@
 #pragma once
 
-#include "engine/effect.hpp"
+#include "engine/effects/effect.hpp"
 
 namespace engine {
 

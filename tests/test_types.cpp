@@ -1,5 +1,5 @@
-#include "engine/data_loader.hpp"
-#include "engine/types.hpp"
+#include "engine/core/data_loader.hpp"
+#include "engine/model/types.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 

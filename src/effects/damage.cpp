@@ -1,13 +1,13 @@
 #include "engine/effects/damage.hpp"
 
-#include "engine/ability.hpp"
-#include "engine/battle_state.hpp"
-#include "engine/data_loader.hpp"
-#include "engine/item.hpp"
-#include "engine/move.hpp"
-#include "engine/pokemon.hpp"
-#include "engine/rng.hpp"
-#include "engine/types.hpp"
+#include "engine/abilities/ability.hpp"
+#include "engine/core/battle_state.hpp"
+#include "engine/core/data_loader.hpp"
+#include "engine/core/rng.hpp"
+#include "engine/items/item.hpp"
+#include "engine/model/move.hpp"
+#include "engine/model/pokemon.hpp"
+#include "engine/model/types.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -132,16 +132,13 @@ void DamageEffect::apply(EffectContext &ctx) const {
       weatherMul = 0.5f;
   }
 
-  // Attacker ability (Blaze/Torrent/Overgrow/Swarm pinch, Guts).
   float abilityMul = atkAbility ? atkAbility->damageMultiplier(move, attacker) : 1.0f;
 
-  // Defender ability (Thick Fat halves Fire/Ice).
   const Ability *defAbility = abilityByName(defenderSp.ability);
   float defAbilityMul = defAbility ? defAbility->incomingDamageMultiplier(move) : 1.0f;
 
   float critMul = crit ? 1.5f : 1.0f;
 
-  // Orbe Vie x1.3 on the attacker's damaging moves.
   const Item *attackerItem = heldItem(attacker);
   float itemMul = attackerItem ? attackerItem->damageMultiplier() : 1.0f;
 
@@ -178,7 +175,7 @@ void DamageEffect::apply(EffectContext &ctx) const {
   ctx.events.emplace_back(DamageDealtEvent{ctx.target, damage, typeMul, stab, crit});
 
   if (ctx.lastDamageDealt > 0)
-    itemHpCheck(ctx.state, ctx.data, ctx.target, ctx.events); // BaieSitrus & co
+    itemHpCheck(ctx.state, ctx.data, ctx.target, ctx.events);
 
   // Contact punishment fires even if the holder goes down (canon).
   if (ctx.lastDamageDealt > 0) {

@@ -1,6 +1,6 @@
 #include "engine/effects/secondary.hpp"
 
-#include "engine/rng.hpp"
+#include "engine/core/rng.hpp"
 
 namespace engine {
 

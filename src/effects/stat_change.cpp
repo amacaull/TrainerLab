@@ -1,6 +1,6 @@
 #include "engine/effects/stat_change.hpp"
 
-#include "engine/battle_state.hpp"
+#include "engine/core/battle_state.hpp"
 
 #include <algorithm>
 

@@ -1,7 +1,7 @@
 #include "engine/effects/pivot.hpp"
 
-#include "engine/battle_state.hpp"
-#include "engine/switching.hpp"
+#include "engine/core/battle_state.hpp"
+#include "engine/core/switching.hpp"
 
 namespace engine {
 

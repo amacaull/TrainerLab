@@ -1,7 +1,7 @@
 #pragma once
 
-#include "engine/effect.hpp"
-#include "engine/pokemon.hpp"
+#include "engine/effects/effect.hpp"
+#include "engine/model/pokemon.hpp"
 
 namespace engine {
 

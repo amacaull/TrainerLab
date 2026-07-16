@@ -1,8 +1,8 @@
 #include "engine/effects/protect.hpp"
 
-#include "engine/battle_state.hpp"
-#include "engine/move.hpp"
-#include "engine/rng.hpp"
+#include "engine/core/battle_state.hpp"
+#include "engine/core/rng.hpp"
+#include "engine/model/move.hpp"
 
 #include <cmath>
 

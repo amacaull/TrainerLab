@@ -1,7 +1,7 @@
 #include "engine/effects/set_weather.hpp"
 
-#include "engine/battle_state.hpp"
-#include "engine/move.hpp"
+#include "engine/core/battle_state.hpp"
+#include "engine/model/move.hpp"
 
 namespace engine {
 

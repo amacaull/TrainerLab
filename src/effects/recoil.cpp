@@ -1,8 +1,8 @@
 #include "engine/effects/recoil.hpp"
 
-#include "engine/item.hpp"
+#include "engine/items/item.hpp"
 
-#include "engine/battle_state.hpp"
+#include "engine/core/battle_state.hpp"
 
 #include <algorithm>
 

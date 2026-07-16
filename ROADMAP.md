@@ -9,7 +9,7 @@
 **Tests** : Catch2 v3
 **Données** : JSON (nlohmann/json)
 **Niveau de combat** : 100 (ADR #33)
-**Dernière MAJ** : 2026-07-16 (phase 11 objets terminée : 167/167 tests, démo déterministe OK ; ADR #45)
+**Dernière MAJ** : 2026-07-16 (réorganisation de l'arborescence en domaines — ADR #46 ; phase 11 objets terminée : 167/167 tests)
 
 ---
 
@@ -81,7 +81,8 @@ Contenu final : **49 espèces** (roster équipe du 2026-07-15, méta « chill co
 5. **Le moteur ne connaît aucune attaque par son nom.** Il connaît des effets. *Unique exception : Lutte (Struggle), qui est une règle du jeu et non du contenu (ADR #35).*
 6. **Les talents et objets sont des listeners sur des événements du moteur.** Pas de switch géant. Singletons const stateless ; l'état par-combat vit dans le POD.
 7. **Toute donnée de jeu vit en JSON.** Code = règles génériques ; JSON = contenu. Le moteur charge ses JSON au démarrage (côté C++, transparent pour Rust). Les tables de règles (natures, multiplicateurs de stages) vivent en code.
-8. **IDs internes ASCII, affichage français.** Fichiers et IDs en PascalCase français sans accent ni séparateur (`OmbrePortee.json`) ; le français correct et accentué vit dans `displayName` (« Ombre Portée »). Le moteur, le FFI et l'IA ne manipulent que les IDs (ADR #40).
+8. **Arborescence en domaines, miroir strict include/src** (ADR #46) : `model/` (vocabulaire du jeu), `core/` (orchestration et état), `effects/`, `abilities/`, `items/` — les deux dernières sont des dossiers pour absorber l'éclatement en fichiers par familles des phases 13-14. La démo vit dans `demo/`, hors des sources de la lib. Les tests sont nommés par domaine (`test_items.cpp`), jamais par phase.
+9. **IDs internes ASCII, affichage français.** Fichiers et IDs en PascalCase français sans accent ni séparateur (`OmbrePortee.json`) ; le français correct et accentué vit dans `displayName` (« Ombre Portée »). Le moteur, le FFI et l'IA ne manipulent que les IDs (ADR #40).
 
 ---
 
@@ -308,6 +309,7 @@ Branche : `feat/battle-engine-roster-content`.
 | 43 | **Zoroark d'Hisui sans talent ; Illusion et Distorsion reportées en fin de projet** | Illusion = problème de protocole (events qui mentent au front), complexe pour peu ; Distorsion : aucun porteur dans le roster, ajout additif trivial plus tard ; validation « tout talent référencé existe » assouplie pour tolérer le champ vide | 2026-07-15 |
 | 44 | **Le roster final (49 espèces) remplace le contenu de test en phase 14** | tests réécrits de zéro sur le contenu final (décision Alex) ; anciennes espèces/moves supprimés au même moment ; d'ici là les tests existants sont recalibrés phase par phase pour garder la règle « tout vert à chaque merge » | 2026-07-15 |
 | 45 | **Catalogue d'objets indexé en code, ordre d'enregistrement gelé** | contrairement aux talents (impliqués par l'espèce), `item_id` vit dans le POD et traversera le FFI : il faut des indices stables ; les objets sont des singletons enregistrés dans un ordre fixe (append-only) dans `item.cpp`, le `DataLoader` expose `findItemId`/`isValidItemId` comme façade, cohérent ADR #12 ; ajouter un objet = une classe + une ligne d'enregistrement | 2026-07-16 |
+| 46 | **Arborescence par domaines : `model/` `core/` `effects/` `abilities/` `items/`, miroir include/src, démo dans `demo/`, tests nommés par domaine** | 24 headers à plat devenaient illisibles et les phases 13-14 vont tripler le volume (47 talents, ~110 moves) ; réorganiser avant l'afflux plutôt qu'après ; refactor pur, zéro logique, 167/167 comme preuve | 2026-07-16 |
 
 ---
 

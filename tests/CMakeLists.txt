@@ -6,15 +6,15 @@ add_executable(battle_engine_tests
     test_catalog.cpp
     test_validate.cpp
     test_status.cpp
-    test_stage.cpp
+    test_stages.cpp
     test_switch.cpp
-    test_ability.cpp
+    test_abilities.cpp
     test_weather.cpp
-    test_hazard.cpp
-    test_phase8.cpp
-    test_phase9.cpp
-    test_phase10.cpp
-    test_phase11.cpp
+    test_hazards.cpp
+    test_accuracy_crits.cpp
+    test_protect_multiturn.cpp
+    test_pp_struggle.cpp
+    test_items.cpp
 )
 
 target_link_libraries(battle_engine_tests PRIVATE battle_engine_lib Catch2::Catch2WithMain)

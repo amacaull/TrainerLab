@@ -1,10 +1,10 @@
 #include "engine/effects/apply_status.hpp"
 
-#include "engine/battle_state.hpp"
-#include "engine/data_loader.hpp"
-#include "engine/move.hpp"
-#include "engine/pokemon.hpp"
-#include "engine/rng.hpp"
+#include "engine/core/battle_state.hpp"
+#include "engine/core/data_loader.hpp"
+#include "engine/core/rng.hpp"
+#include "engine/model/move.hpp"
+#include "engine/model/pokemon.hpp"
 
 namespace engine {
 

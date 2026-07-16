@@ -1,8 +1,8 @@
 #include "engine/effects/recovery.hpp"
 
-#include "engine/battle_state.hpp"
-#include "engine/move.hpp"
-#include "engine/status.hpp"
+#include "engine/core/battle_state.hpp"
+#include "engine/model/move.hpp"
+#include "engine/model/status.hpp"
 
 #include <algorithm>
 

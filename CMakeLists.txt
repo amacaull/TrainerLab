@@ -33,22 +33,25 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(Catch2)
 
 add_library(battle_engine_lib STATIC
-    src/types.cpp
-    src/stats.cpp
-    src/status.cpp
-    src/move.cpp
-    src/pokemon.cpp
-    src/events.cpp
-    src/battle_state.cpp
-    src/validate.cpp
-    src/rng.cpp
-    src/data_loader.cpp
-    src/field.cpp
-    src/switching.cpp
-    src/ability.cpp
-    src/item.cpp
-    src/engine.cpp
-    src/struggle.cpp
+    # model: le vocabulaire du jeu (structs, tables, enums)
+    src/model/types.cpp
+    src/model/stats.cpp
+    src/model/status.cpp
+    src/model/move.cpp
+    src/model/pokemon.cpp
+    src/model/field.cpp
+    # core: orchestration et etat
+    src/core/events.cpp
+    src/core/battle_state.cpp
+    src/core/validate.cpp
+    src/core/rng.cpp
+    src/core/data_loader.cpp
+    src/core/switching.cpp
+    src/core/engine.cpp
+    src/core/struggle.cpp
+    # familles extensibles
+    src/abilities/ability.cpp
+    src/items/item.cpp
     src/effects/effect.cpp
     src/effects/damage.cpp
     src/effects/apply_status.cpp
@@ -73,7 +76,7 @@ target_compile_definitions(battle_engine_lib PUBLIC
     BATTLE_ENGINE_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data"
 )
 
-add_executable(battle_engine_demo src/main.cpp)
+add_executable(battle_engine_demo demo/main.cpp)
 target_link_libraries(battle_engine_demo PRIVATE battle_engine_lib)
 
 enable_testing()

@@ -1,5 +1,5 @@
-#include "engine/data_loader.hpp"
-#include "engine/pokemon.hpp"
+#include "engine/core/data_loader.hpp"
+#include "engine/model/pokemon.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 

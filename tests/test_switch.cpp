@@ -1,11 +1,11 @@
-#include "test_helpers.hpp"
+#include "helpers.hpp"
 
-#include "engine/battle_state.hpp"
-#include "engine/data_loader.hpp"
-#include "engine/engine.hpp"
-#include "engine/rng.hpp"
-#include "engine/status.hpp"
-#include "engine/switching.hpp"
+#include "engine/core/battle_state.hpp"
+#include "engine/core/data_loader.hpp"
+#include "engine/core/engine.hpp"
+#include "engine/core/rng.hpp"
+#include "engine/core/switching.hpp"
+#include "engine/model/status.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -173,8 +173,8 @@ TEST_CASE("resolveReplacement performs a free switch", "[switch][replacement]") 
 
   REQUIRE(switchedInTo(events, 0, 1));
   REQUIRE(state.activeIndex[0] == 1);
-  REQUIRE(state.turn == turnBefore);                   // no turn consumed
-  REQUIRE(state.teams[1][0].currentHp == blastoiseHp); // opponent does not act
+  REQUIRE(state.turn == turnBefore);
+  REQUIRE(state.teams[1][0].currentHp == blastoiseHp);
 }
 
 TEST_CASE("resolveReplacement rejects a non-fainted active or invalid target",

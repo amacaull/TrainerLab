@@ -1,11 +1,11 @@
-#include "test_helpers.hpp"
+#include "helpers.hpp"
 
-#include "engine/battle_state.hpp"
-#include "engine/data_loader.hpp"
-#include "engine/engine.hpp"
-#include "engine/rng.hpp"
-#include "engine/status.hpp"
-#include "engine/validate.hpp"
+#include "engine/core/battle_state.hpp"
+#include "engine/core/data_loader.hpp"
+#include "engine/core/engine.hpp"
+#include "engine/core/rng.hpp"
+#include "engine/core/validate.hpp"
+#include "engine/model/status.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 

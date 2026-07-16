@@ -1,4 +1,4 @@
-#include "engine/stats.hpp"
+#include "engine/model/stats.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "engine/effect.hpp"
-#include "engine/status.hpp"
+#include "engine/effects/effect.hpp"
+#include "engine/model/status.hpp"
 
 namespace engine {
 
