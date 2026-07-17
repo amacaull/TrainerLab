@@ -1,5 +1,7 @@
 #include "engine/effects/apply_status.hpp"
 
+#include "engine/core/switching.hpp"
+
 #include "engine/core/battle_state.hpp"
 #include "engine/core/data_loader.hpp"
 #include "engine/core/rng.hpp"
@@ -41,7 +43,11 @@ void ApplyStatusEffect::apply(EffectContext &ctx) const {
   // phase 8 freeze secondaries).
   bool sunBlocksFreeze = (status_ == Status::Freeze && ctx.state.weather == Weather::Sun);
 
-  if (chartImmune || sunBlocksFreeze || target.status != Status::None ||
+  // Electric Terrain keeps grounded Pokemon awake (ADR #38).
+  bool terrainBlocksSleep =
+      (status_ == Status::Sleep && ctx.state.terrain == Terrain::Electric && isGrounded(sp));
+
+  if (chartImmune || sunBlocksFreeze || terrainBlocksSleep || target.status != Status::None ||
       typeImmuneToStatus(status_, sp) ||
       (status_ == Status::Sleep && sideHasSleeper(ctx.state, ctx.target.side))) {
     ctx.events.emplace_back(StatusFailedEvent{ctx.target, status_});

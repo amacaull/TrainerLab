@@ -33,15 +33,6 @@ namespace {
 
 bool hasType(const Species &sp, Type t) { return sp.type1 == t || sp.type2 == t; }
 
-// Grounded = not Flying-type and not Levitate. Sand/hail don't care; only
-// Spikes and Toxic Spikes do (Stealth Rock hits everyone, canon).
-bool isGrounded(const Species &sp) {
-  if (hasType(sp, Type::Flying))
-    return false;
-  const Ability *ab = abilityByName(sp.ability);
-  return !(ab && std::string_view(ab->name()) == "Levitate");
-}
-
 void dealHazardDamage(BattlePokemon &in, CombatantRef ref, HazardKind kind, int damage,
                       EventLog &events) {
   in.currentHp = std::max(0, in.currentHp - damage);
@@ -131,6 +122,13 @@ void performSwitch(BattleState &state, const DataLoader &data, int side, int new
     AbilityContext ctx{state, data, events, inRef};
     ability->onSwitchIn(ctx);
   }
+}
+
+bool isGrounded(const Species &sp) {
+  if (sp.type1 == Type::Flying || sp.type2 == Type::Flying)
+    return false;
+  const Ability *ab = abilityByName(sp.ability);
+  return !(ab && std::string_view(ab->name()) == "Levitate");
 }
 
 } // namespace engine

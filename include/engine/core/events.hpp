@@ -146,6 +146,23 @@ struct RecoilDamageEvent {
   int damage;
 };
 
+struct TerrainStartedEvent { // posed for phase 13 (Createur Electrik)
+  Terrain terrain;
+};
+
+struct TerrainEndedEvent {
+  Terrain terrain;
+};
+
+struct ScreenStartedEvent {
+  int side;
+  int turns;
+};
+
+struct ScreenEndedEvent {
+  int side;
+};
+
 struct ItemTriggeredEvent {
   CombatantRef who;
   std::string itemName;
@@ -186,7 +203,8 @@ using BattleEvent =
                  WeatherDamageEvent, HazardSetEvent, HazardDamageEvent, HazardsClearedEvent,
                  ToxicSpikesAbsorbedEvent, HealedEvent, RecoilDamageEvent, ChargingEvent,
                  ProtectedEvent, ItemTriggeredEvent, ItemConsumedEvent, ItemDamageEvent,
-                 ItemKnockedOffEvent>;
+                 ItemKnockedOffEvent, TerrainStartedEvent, TerrainEndedEvent, ScreenStartedEvent,
+                 ScreenEndedEvent>;
 using EventLog = std::vector<BattleEvent>;
 
 } // namespace engine

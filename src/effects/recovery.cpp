@@ -1,5 +1,8 @@
 #include "engine/effects/recovery.hpp"
 
+#include "engine/core/data_loader.hpp"
+#include "engine/core/switching.hpp"
+
 #include "engine/core/battle_state.hpp"
 #include "engine/model/move.hpp"
 #include "engine/model/status.hpp"
@@ -36,7 +39,10 @@ void RestEffect::apply(EffectContext &ctx) const {
       ctx.state.teams[static_cast<size_t>(ctx.user.side)][static_cast<size_t>(ctx.user.teamIndex)];
   if (user.isFainted())
     return;
-  if (user.currentHp >= user.stats.hp || user.status == Status::Sleep) {
+  // Electric Terrain also blocks the self-sleep of a grounded user (canon).
+  bool terrainBlocks = ctx.state.terrain == Terrain::Electric &&
+                       isGrounded(ctx.data.speciesByIndex(user.species_id));
+  if (user.currentHp >= user.stats.hp || user.status == Status::Sleep || terrainBlocks) {
     ctx.events.emplace_back(MoveFailedEvent{ctx.user, ctx.move.name});
     ctx.moveFailed = true;
     return;

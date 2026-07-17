@@ -7,7 +7,7 @@
   "effects": [
     {
       "kind": "SetWeather",
-      "weather": "Hail"
+      "weather": "Snow"
     }
   ],
   "selfOrField": true

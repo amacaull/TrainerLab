@@ -12,6 +12,7 @@
 #include "engine/effects/recovery.hpp"
 #include "engine/effects/secondary.hpp"
 #include "engine/effects/set_hazard.hpp"
+#include "engine/effects/set_screen.hpp"
 #include "engine/effects/set_weather.hpp"
 #include "engine/effects/stat_change.hpp"
 #include "engine/items/item.hpp"
@@ -66,6 +67,8 @@ EffectPtr makeEffectFromJson(const json &j) {
   }
   if (kind == "Pivot")
     return std::make_unique<PivotEffect>();
+  if (kind == "SetScreen")
+    return std::make_unique<SetScreenEffect>();
   if (kind == "SetWeather")
     return std::make_unique<SetWeatherEffect>(
         weatherFromString(j.at("weather").get<std::string>()));
@@ -161,6 +164,11 @@ void DataLoader::loadMoves(const std::string &dir) {
     m.accuracy = j.value("accuracy", 100);
     m.priority = j.value("priority", 0);
     m.pp = j.at("pp").get<int>(); // mandatory: every move burns PP (ADR #35)
+    if (j.contains("accuracyInWeather")) {
+      for (const auto &[w, acc] : j.at("accuracyInWeather").items()) {
+        m.accuracyInWeather.emplace_back(weatherFromString(w), acc.get<int>());
+      }
+    }
     if (m.pp < 1 || m.pp > 64) {
       throw std::runtime_error("Move '" + m.name + "' has invalid pp " + std::to_string(m.pp));
     }

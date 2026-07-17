@@ -4,6 +4,7 @@
 #include "engine/core/battle_state.hpp"
 #include "engine/core/data_loader.hpp"
 #include "engine/core/rng.hpp"
+#include "engine/core/switching.hpp"
 #include "engine/items/item.hpp"
 #include "engine/model/move.hpp"
 #include "engine/model/pokemon.hpp"
@@ -92,6 +93,11 @@ void DamageEffect::apply(EffectContext &ctx) const {
       (defType1 == Type::Rock || defType2 == Type::Rock))
     effDef *= 1.5f;
 
+  // Snow (gen 9): Ice types get Def x1.5 — the physical mirror (ADR #37).
+  if (ctx.state.weather == Weather::Snow && move.category == MoveCategory::Physical &&
+      (defType1 == Type::Ice || defType2 == Type::Ice))
+    effDef *= 1.5f;
+
   // Damage formula (gen 5+):
   //   base = floor( ((2*level/5 + 2) * power * Atk/Def) / 50 ) + 2
   // Then: STAB (x1.5), type effectiveness, random 0.85..1.0.
@@ -142,6 +148,18 @@ void DamageEffect::apply(EffectContext &ctx) const {
   const Item *attackerItem = heldItem(attacker);
   float itemMul = attackerItem ? attackerItem->damageMultiplier() : 1.0f;
 
+  // Electric Terrain boosts grounded attackers' Electric moves (gen 8+ value).
+  float terrainMul = 1.0f;
+  if (ctx.state.terrain == Terrain::Electric && move.type == Type::Electric &&
+      isGrounded(attackerSp))
+    terrainMul = 1.3f;
+
+  // Voile Aurore halves both categories on the protected side; crits punch
+  // through the screen (canon, ADR #39).
+  float screenMul = 1.0f;
+  if (ctx.state.aurora_veil_turns[static_cast<size_t>(ctx.target.side)] > 0 && !crit)
+    screenMul = 0.5f;
+
   // Earthquake reaches a target hiding underground and hits twice as hard;
   // SolarBeam is halved by any non-sun active weather (canon, ADR #29).
   float situationMul = 1.0f;
@@ -151,7 +169,7 @@ void DamageEffect::apply(EffectContext &ctx) const {
     situationMul *= 0.5f;
 
   float total = base * stabMul * typeMul * randMul * burnMul * abilityMul * defAbilityMul *
-                critMul * situationMul * weatherMul * itemMul;
+                critMul * situationMul * weatherMul * itemMul * terrainMul * screenMul;
   int damage = std::max(1, static_cast<int>(std::floor(total)));
   if (typeMul == 0.0f) {
     damage = 0;

@@ -1,0 +1,21 @@
+{
+  "name": "Blizzard",
+  "type": "Ice",
+  "category": "Special",
+  "power": 110,
+  "accuracy": 70,
+  "pp": 5,
+  "accuracyInWeather": {
+    "Snow": 0
+  },
+  "effects": [
+    {
+      "kind": "Damage"
+    },
+    {
+      "kind": "ApplyStatus",
+      "status": "Freeze",
+      "chance": 10
+    }
+  ]
+}

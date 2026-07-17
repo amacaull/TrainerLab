@@ -107,7 +107,7 @@ bool passesBeforeMove(BattlePokemon &user, const CombatantRef &ref, RNG &rng, Ev
   }
 }
 
-// Sand chips everything but Rock/Ground/Steel; hail everything but Ice.
+// Only sand chips (Rock/Ground/Steel immune); snow does not chip (ADR #37).
 void applyWeatherChip(BattleState &state, const DataLoader &data, int side, EventLog &events) {
   BattlePokemon &p = state.active(side);
   if (p.isFainted())
@@ -115,10 +115,7 @@ void applyWeatherChip(BattleState &state, const DataLoader &data, int side, Even
 
   const Species &sp = data.speciesByIndex(p.species_id);
   auto hasType = [&sp](Type t) { return sp.type1 == t || sp.type2 == t; };
-  if (state.weather == Weather::Sand &&
-      (hasType(Type::Rock) || hasType(Type::Ground) || hasType(Type::Steel)))
-    return;
-  if (state.weather == Weather::Hail && hasType(Type::Ice))
+  if (hasType(Type::Rock) || hasType(Type::Ground) || hasType(Type::Steel))
     return;
 
   int damage = std::max(1, p.stats.hp / kWeatherChipDenom);
@@ -284,12 +281,15 @@ void BattleEngine::executeAction(BattleState &state, int side, const Action &act
 
   // Accuracy: accuracy <= 0 never misses; stages use the (3+n)/3 table on
   // the combined stage (user Acc - target Eva), clamped (ADR #18 resolved).
-  if (move.accuracy > 0) {
+  int accuracy = move.accuracy;
+  for (const auto &[w, acc] : move.accuracyInWeather)
+    if (w == state.weather)
+      accuracy = acc; // 0 = never miss under this weather (Blizzard in snow)
+  if (accuracy > 0) {
     int combined = user.stat_stages[static_cast<size_t>(StatIndex::Accuracy)] -
                    target.stat_stages[static_cast<size_t>(StatIndex::Evasion)];
     combined = std::clamp(combined, kMinStage, kMaxStage);
-    int effAcc =
-        static_cast<int>(static_cast<float>(move.accuracy) * accuracyStageMultiplier(combined));
+    int effAcc = static_cast<int>(static_cast<float>(accuracy) * accuracyStageMultiplier(combined));
     if (effAcc < 100 && !rng.chancePct(effAcc)) {
       events.emplace_back(MissedEvent{userRef, move.name});
       return;
@@ -415,10 +415,20 @@ EventLog BattleEngine::resolveTurn(BattleState &state, const Action &a0, const A
       events.emplace_back(WeatherEndedEvent{state.weather});
       state.weather = Weather::None;
       state.weather_turns_left = 0;
-    } else if (state.weather == Weather::Sand || state.weather == Weather::Hail) {
+    } else if (state.weather == Weather::Sand) {
       int first = fasterSide(state, rng);
       applyWeatherChip(state, data_, first, events);
       applyWeatherChip(state, data_, 1 - first, events);
+    }
+  }
+
+  // Terrain ticks like the weather, right after it (ADR #38).
+  if (!state.isOver() && state.terrain != Terrain::None) {
+    state.terrain_turns_left -= 1;
+    if (state.terrain_turns_left <= 0) {
+      events.emplace_back(TerrainEndedEvent{state.terrain});
+      state.terrain = Terrain::None;
+      state.terrain_turns_left = 0;
     }
   }
 
@@ -441,6 +451,16 @@ EventLog BattleEngine::resolveTurn(BattleState &state, const Action &a0, const A
     int first = fasterSide(state, rng);
     applyItemHook(state, data_, first, events, &Item::onTurnEnd);
     applyItemHook(state, data_, 1 - first, events, &Item::onTurnEnd);
+  }
+
+  // Screens count down last (ADR #39).
+  for (int side = 0; side < kSideCount; ++side) {
+    int &veil = state.aurora_veil_turns[static_cast<size_t>(side)];
+    if (veil > 0) {
+      veil -= 1;
+      if (veil == 0)
+        events.emplace_back(ScreenEndedEvent{side});
+    }
   }
 
   // Volatile upkeep: flinch and Roost last one turn; a turn without a

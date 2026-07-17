@@ -9,7 +9,7 @@
 **Tests** : Catch2 v3
 **Données** : JSON (nlohmann/json)
 **Niveau de combat** : 100 (ADR #33)
-**Dernière MAJ** : 2026-07-16 (réorganisation de l'arborescence en domaines — ADR #46 ; phase 11 objets terminée : 167/167 tests)
+**Dernière MAJ** : 2026-07-16 (phase 12 field terminée : neige gen 9, terrain Électrique, Voile Aurore — 179/179 tests, démo déterministe OK)
 
 ---
 
@@ -177,16 +177,20 @@ Branche : `feat/battle-engine-items`. Architecture calquée sur les talents (ADR
 - ✅ Baie Sitrus branchée sur *tous* les points d'application de dégâts (attaque, hazards à l'entrée, chip météo, résiduels, recul, Lutte)
 - ✅ +17 tests dans `test_phase11.cpp`, dont l'intégration signature **Cran + Orbe Flamme** (le combo Bétochef, testé sur Machamp) — **167/167**
 
-### Phase 12 — Field : neige gen 9, terrain Électrique, Voile Aurore  ⬜
+### Phase 12 — Field : neige gen 9, terrain Électrique, Voile Aurore  ✅
 
 Branche : `feat/battle-engine-field`.
 
-- ⬜ **Grêle → Neige** (ADR #37) : même slot dans l'enum `Weather`, règles gen 9 — pas de chip, Déf ×1,5 pour les types Glace, Blizzard 100% de précision sous neige ; Alerte Neige la posera en phase 13, Baigne Neige inchangé dans son principe
-- ⬜ **Terrain Électrique** (ADR #38) : `terrain`/`terrain_turns_left` dans `BattleState`, façon météo, 5 tours ; Électrik ×1,3 pour les attaquants **au sol**, immunité sommeil pour les Pokémon au sol ; pas de généralisation aux autres terrains
-- ⬜ Notion de **grounded** partagée (déjà implicite pour les hazards/TSpikes) : extraite en helper unique, consommée par terrain, Spikes, TSpikes, et Lévitation
-- ⬜ **Voile Aurore** (ADR #39) : état d'écran **par camp** dans `BattleState` (`aurora_veil_turns[2]`), dégâts physiques ET spéciaux ×0,5 sur le camp protégé, 5 tours (8 avec Lumargile), activable uniquement sous neige, pas de stacking ; les crits l'ignorent (canon)
-- ⬜ `validateState` : bornes terrain/écrans, cohérence compteurs/état
-- ⬜ Events : `TerrainStarted`, `TerrainEnded`, `ScreenStarted`, `ScreenEnded`
+- ✅ **Grêle → Neige** (ADR #37) : même slot dans l'enum `Weather`, règles gen 9 — pas de chip, Déf ×1,5 pour les types Glace, Blizzard 100% de précision sous neige ; Alerte Neige la posera en phase 13, Baigne Neige inchangé dans son principe
+- ✅ **Terrain Électrique** (ADR #38) : `terrain`/`terrain_turns_left` dans `BattleState`, façon météo, 5 tours ; Électrik ×1,3 pour les attaquants **au sol**, immunité sommeil pour les Pokémon au sol ; pas de généralisation aux autres terrains
+- ✅ Notion de **grounded** partagée (déjà implicite pour les hazards/TSpikes) : extraite en helper unique, consommée par terrain, Spikes, TSpikes, et Lévitation
+- ✅ **Voile Aurore** (ADR #39) : état d'écran **par camp** dans `BattleState` (`aurora_veil_turns[2]`), dégâts physiques ET spéciaux ×0,5 sur le camp protégé, 5 tours (8 avec Lumargile), activable uniquement sous neige, pas de stacking ; les crits l'ignorent (canon)
+- ✅ `validateState` : bornes terrain/écrans, cohérence compteurs/état
+- ✅ Events : `TerrainStarted` (posé pour la phase 13), `TerrainEnded`, `ScreenStarted`, `ScreenEnded`
+- ✅ Précision météo-dépendante **générique** : champ JSON `accuracyInWeather` (`{"Snow": 0}` = infaillible sous neige) — Tonnerre/Vent Violent en phase 14 seront du pur JSON
+- ✅ Repos échoue pour un utilisateur au sol sous terrain Électrique (canon) ; Lumargile devient un vrai objet (hook `screenDuration`, 5 → 8 tours)
+- ✅ Fixtures : `Blizzard.json`, `VoileAurore.json` et l'espèce `Mammochon.json` (Glace/Sol, Isograisse) créés **directement sous leur nom français final** (ADR #40) — premiers fichiers du roster définitif ; catalogue de test : 13 espèces, 47 moves
+- ✅ +12 tests dans `test_field.cpp` (premier fichier de la convention post-refactor) — **179/179**
 
 ### Phase 13 — Talents du roster  ⬜
 

@@ -131,7 +131,7 @@ TEST_CASE("Sand chips 1/16 on non Rock/Ground/Steel only", "[weather][residual]"
   REQUIRE(state.teams[1][0].currentHp == ttarHp);
 }
 
-TEST_CASE("Garchomp (Ground) and Scizor (Steel) shrug off sand; hail spares no one here",
+TEST_CASE("Garchomp (Ground) and Scizor (Steel) shrug off sand; snow never chips",
           "[weather][residual]") {
   DataLoader data;
   data.loadAll(BATTLE_ENGINE_DATA_DIR);
@@ -149,8 +149,9 @@ TEST_CASE("Garchomp (Ground) and Scizor (Steel) shrug off sand; hail spares no o
 
   REQUIRE(chip("garchomp", Weather::Sand) == 0);
   REQUIRE(chip("scizor", Weather::Sand) == 0);
-  REQUIRE(chip("gengar", Weather::Sand) > 0);   // Levitate does NOT protect
-  REQUIRE(chip("garchomp", Weather::Hail) > 0); // no Ice types in the roster
+  REQUIRE(chip("gengar", Weather::Sand) > 0); // Levitate does NOT protect
+  REQUIRE(chip("garchomp", Weather::Snow) == 0);
+  REQUIRE(chip("pikachu", Weather::Snow) == 0);
 }
 
 TEST_CASE("Weather chip resolves before status residuals", "[weather][residual]") {
@@ -280,7 +281,7 @@ TEST_CASE("validateState checks weather fields", "[weather][validate]") {
     REQUIRE_THROWS_AS(validateState(state, data), std::invalid_argument);
   }
   SECTION("valid active weather") {
-    state.weather = Weather::Hail;
+    state.weather = Weather::Snow;
     state.weather_turns_left = 5;
     REQUIRE_NOTHROW(validateState(state, data));
   }

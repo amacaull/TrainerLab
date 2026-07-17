@@ -1,10 +1,12 @@
 #pragma once
 
 #include "engine/effects/effect.hpp"
+#include "engine/model/field.hpp"
 #include "engine/model/types.hpp"
 
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace engine {
@@ -23,8 +25,11 @@ struct Move {
   MoveCategory category = MoveCategory::Physical;
   int power = 0;
   int accuracy = 100;
-  int priority = 0;             // -7..+5
-  int pp = 0;                   // base PP = max PP (no PP Ups; ADR #35)
+  int priority = 0; // -7..+5
+  int pp = 0;       // base PP = max PP (no PP Ups; ADR #35)
+  // Weather-dependent accuracy overrides (0 = never miss): Blizzard under
+  // snow now, Thunder/Hurricane under rain and sun in phase 14 — data only.
+  std::vector<std::pair<Weather, int>> accuracyInWeather;
   bool makesContact = false;    // triggers Static / Rough Skin
   bool highCrit = false;        // +1 crit stage (Stone Edge...)
   bool bypassesProtect = false; // Whirlwind / Roar

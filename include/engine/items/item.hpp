@@ -54,6 +54,9 @@ public:
 
   // Choice items: the holder is locked into its first move until it leaves.
   virtual bool locksMove() const { return false; }
+
+  // Screen duration set by this holder (Lumargile: 5 -> 8 turns).
+  virtual int screenDuration(int base) const { return base; }
 };
 
 // Indexed catalog (ADR #45): registration order in item.cpp is frozen —

@@ -15,6 +15,7 @@ add_executable(battle_engine_tests
     test_protect_multiturn.cpp
     test_pp_struggle.cpp
     test_items.cpp
+    test_field.cpp
 )
 
 target_link_libraries(battle_engine_tests PRIVATE battle_engine_lib Catch2::Catch2WithMain)

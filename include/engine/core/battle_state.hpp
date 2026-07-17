@@ -35,6 +35,9 @@ struct BattleState {
 
   Weather weather = Weather::None;
   int weather_turns_left = 0;
+  Terrain terrain = Terrain::None;
+  int terrain_turns_left = 0;
+  std::array<int, 2> aurora_veil_turns{0, 0}; // per side; 0 = no screen (ADR #39)
   std::array<SideHazards, kSideCount> hazards{};
 
   const BattlePokemon &active(int side) const {

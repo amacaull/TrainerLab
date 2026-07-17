@@ -20,4 +20,8 @@ bool isValidSwitchTarget(const BattleState &state, int side, int teamIndex);
 // First healthy benched teammate, or -1 if none (used by Pivot auto-target).
 int firstHealthyBenched(const BattleState &state, int side);
 
+// Grounded = not Flying-type and not Levitate. Shared by Spikes, Toxic
+// Spikes and Electric Terrain (Stealth Rock hits everyone, canon).
+bool isGrounded(const Species &sp);
+
 } // namespace engine

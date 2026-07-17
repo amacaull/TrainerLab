@@ -4,11 +4,14 @@
 
 namespace engine {
 
-enum class Weather : int { None = 0, Rain, Sun, Sand, Hail, Count };
+enum class Weather : int { None = 0, Rain, Sun, Sand, Snow, Count };
+
+// One terrain in the whole roster (ADR #38): no speculative generalization.
+enum class Terrain : int { None = 0, Electric, Count };
 
 // Fixed duration; no held items in scope (Damp Rock etc. would push to 8).
 constexpr int kWeatherDuration = 5;
-constexpr int kWeatherChipDenom = 16; // Sand/Hail residual: 1/16 max HP
+constexpr int kWeatherChipDenom = 16; // Sand residual: 1/16 max HP (snow does not chip)
 
 enum class HazardKind : int { StealthRock = 0, Spikes, ToxicSpikes, Count };
 

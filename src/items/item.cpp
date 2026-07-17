@@ -138,8 +138,13 @@ public:
   bool ignoresHazards() const override { return true; }
 };
 
-// Registered now, wired later: DesPipes by the multi-hit engine (phase 14),
-// Lumargile by Voile Aurore (phase 12).
+class Lumargile final : public Item {
+public:
+  const char *name() const override { return "Lumargile"; }
+  int screenDuration(int base) const override { return base + 3; } // 5 -> 8
+};
+
+// Registered now, wired by the multi-hit engine in phase 14.
 class InertItem final : public Item {
 public:
   explicit InertItem(const char *itemName) : name_(itemName) {}
@@ -163,7 +168,7 @@ const std::array<const Item *, 13> kItems = {
     new GrossesBottes,                               // 9
     new InertItem("DesPipes"),                       // 10
     new Massue,                                      // 11
-    new InertItem("Lumargile"),                      // 12
+    new Lumargile,                                   // 12
 };
 
 } // namespace

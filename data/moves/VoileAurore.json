@@ -1,0 +1,13 @@
+{
+  "name": "VoileAurore",
+  "type": "Ice",
+  "category": "Status",
+  "accuracy": 0,
+  "pp": 20,
+  "effects": [
+    {
+      "kind": "SetScreen"
+    }
+  ],
+  "selfOrField": true
+}

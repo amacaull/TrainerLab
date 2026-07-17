@@ -14,8 +14,8 @@ const char *weatherToString(Weather w) {
     return "Sun";
   case Weather::Sand:
     return "Sand";
-  case Weather::Hail:
-    return "Hail";
+  case Weather::Snow:
+    return "Snow";
   default:
     return "?";
   }
@@ -28,8 +28,8 @@ Weather weatherFromString(const std::string &s) {
     return Weather::Sun;
   if (s == "Sand")
     return Weather::Sand;
-  if (s == "Hail")
-    return Weather::Hail;
+  if (s == "Snow")
+    return Weather::Snow;
   throw std::invalid_argument("weatherFromString: unknown weather '" + s + "'");
 }
 
@@ -54,6 +54,23 @@ HazardKind hazardFromString(const std::string &s) {
   if (s == "ToxicSpikes")
     return HazardKind::ToxicSpikes;
   throw std::invalid_argument("hazardFromString: unknown hazard '" + s + "'");
+}
+
+const char *terrainName(Terrain t) {
+  switch (t) {
+  case Terrain::Electric:
+    return "Electric";
+  default:
+    return "None";
+  }
+}
+
+Terrain terrainFromString(const std::string &s) {
+  if (s == "Electric")
+    return Terrain::Electric;
+  if (s == "None")
+    return Terrain::None;
+  throw std::invalid_argument("Unknown terrain: " + s);
 }
 
 } // namespace engine

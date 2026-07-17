@@ -59,6 +59,7 @@ add_library(battle_engine_lib STATIC
     src/effects/pivot.cpp
     src/effects/set_weather.cpp
     src/effects/set_hazard.cpp
+    src/effects/set_screen.cpp
     src/effects/clear_hazards.cpp
     src/effects/secondary.cpp
     src/effects/flinch.cpp

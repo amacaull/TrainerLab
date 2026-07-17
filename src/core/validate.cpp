@@ -127,6 +127,21 @@ void validateState(const BattleState &state, const DataLoader &data) {
   if (state.weather != Weather::None && state.weather_turns_left > kWeatherDuration)
     fail("weather_turns_left exceeds the maximum duration");
 
+  if (state.terrain < Terrain::None || state.terrain >= Terrain::Count)
+    fail("terrain has an invalid enum value");
+  if (state.terrain_turns_left < 0)
+    fail("terrain_turns_left is negative");
+  if (state.terrain == Terrain::None && state.terrain_turns_left != 0)
+    fail("terrain_turns_left must be 0 when terrain is None");
+  if (state.terrain != Terrain::None && state.terrain_turns_left > kWeatherDuration)
+    fail("terrain_turns_left exceeds the maximum duration");
+
+  for (int side = 0; side < kSideCount; ++side) {
+    int veil = state.aurora_veil_turns[static_cast<size_t>(side)];
+    if (veil < 0 || veil > 8) // 5 turns, 8 with Lumargile (ADR #39)
+      fail("aurora_veil_turns out of range [0, 8] on side " + std::to_string(side));
+  }
+
   for (int side = 0; side < kSideCount; ++side) {
     const SideHazards &hz = state.hazards[static_cast<size_t>(side)];
     if (hz.stealth_rock < 0 || hz.stealth_rock > kMaxStealthRock)
