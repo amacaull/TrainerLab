@@ -5,6 +5,7 @@
   "power": 75,
   "accuracy": 95,
   "pp": 15,
+  "slicing": true,
   "effects": [
     {
       "kind": "Damage"

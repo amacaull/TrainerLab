@@ -1,4 +1,4 @@
-#include "engine/abilities/ability.hpp"
+#include "engine/abilities/registration.hpp"
 
 #include "engine/core/battle_state.hpp"
 #include "engine/core/data_loader.hpp"
@@ -50,7 +50,7 @@ public:
       return;
     ctx.events.emplace_back(AbilityTriggeredEvent{ctx.self, name()});
     CombatantRef foeRef{foeSide, ctx.state.activeIndex[static_cast<size_t>(foeSide)]};
-    applyStatStageDelta(foe, foeRef, StatIndex::Atk, -1, ctx.events);
+    applyOpposingStatDrop(ctx.state, ctx.data, foeRef, StatIndex::Atk, -1, ctx.events);
   }
 };
 
@@ -62,7 +62,7 @@ public:
   const char *name() const override { return name_; }
 
   void onSwitchIn(AbilityContext &ctx) const override {
-    if (ctx.state.weather == weather_)
+    if (ctx.state.weather == weather_ || ctx.state.weather == Weather::StrongWinds)
       return;
     ctx.events.emplace_back(AbilityTriggeredEvent{ctx.self, name()});
     ctx.state.weather = weather_;
@@ -164,23 +164,49 @@ const Ability *abilityByName(std::string_view name) {
   static const Guts guts;
   static const RoughSkin roughSkin;
 
-  static const std::unordered_map<std::string_view, const Ability *> registry = {
-      {"Blaze", &blaze},
-      {"Torrent", &torrent},
-      {"Overgrow", &overgrow},
-      {"Swarm", &swarm},
-      {"SandStream", &sandStream},
-      {"Drizzle", &drizzle},
-      {"Levitate", &levitate},
-      {"Intimidate", &intimidate},
-      {"Static", &static_},
-      {"ThickFat", &thickFat},
-      {"Guts", &guts},
-      {"RoughSkin", &roughSkin},
-  };
+  static const AbilityMap registry = [] {
+    AbilityMap map = {
+        {"Blaze", &blaze},
+        {"Torrent", &torrent},
+        {"Overgrow", &overgrow},
+        {"Swarm", &swarm},
+        {"SandStream", &sandStream},
+        {"Drizzle", &drizzle},
+        {"Levitate", &levitate},
+        {"Intimidate", &intimidate},
+        {"Static", &static_},
+        {"ThickFat", &thickFat},
+        {"Guts", &guts},
+        {"RoughSkin", &roughSkin},
+    };
+    registerDamageModAbilities(map);
+    registerImmunityAbilities(map);
+    registerWeatherAbilities(map);
+    registerSwitchHookAbilities(map);
+    registerTriggerAbilities(map);
+    return map;
+  }();
 
-  auto it = registry.find(name);
+  auto it = registry.find(std::string(name));
   return (it == registry.end()) ? nullptr : it->second;
+}
+
+const Ability *abilityOf(const DataLoader &data, const BattlePokemon &p) {
+  if (p.isEmpty())
+    return nullptr;
+  return abilityByName(data.speciesByIndex(p.species_id).ability);
+}
+
+void abilityHpCheck(BattleState &state, const DataLoader &data, const CombatantRef &who,
+                    int hpBefore, bool fromDirectHit, EventLog &events) {
+  BattlePokemon &p = state.teams[static_cast<size_t>(who.side)][static_cast<size_t>(who.teamIndex)];
+  int half = p.stats.hp / 2;
+  if (p.isFainted() || hpBefore <= half || p.currentHp > half)
+    return; // no crossing this time
+  if (const Ability *ability = abilityOf(data, p)) {
+    AbilityContext ctx{state, data, events, who};
+    ability->onHalfHpCrossed(ctx, fromDirectHit);
+  }
 }
 
 } // namespace engine

@@ -125,12 +125,12 @@ TEST_CASE("Two-turn moves pay on the charge turn only", "[phase10][pp]") {
   REQUIRE(state.teams[0][0].pp[0] == 14);
 }
 
-TEST_CASE("Out of PP everywhere: the engine substitutes Lutte", "[phase10][struggle]") {
+TEST_CASE("Out of PP everywhere: the engine substitutes Struggle", "[phase10][struggle]") {
   DataLoader data;
   data.loadAll(BATTLE_ENGINE_DATA_DIR);
   BattleEngine engine(data);
 
-  // Normal vs Ghost: Tackle would bounce off Gengar (0x). Lutte is typeless
+  // Normal vs Ghost: Tackle would bounce off Gengar (0x). Struggle is typeless
   // and connects for neutral damage, with a flat 25% max-HP recoil.
   auto state = makeDuel(data, "snorlax", {"Tackle"}, "gengar", {"SwordsDance"});
   state.teams[0][0].pp[0] = 0;
@@ -141,7 +141,7 @@ TEST_CASE("Out of PP everywhere: the engine substitutes Lutte", "[phase10][strug
   bool usedStruggle = false;
   for (const auto &ev : events)
     if (auto *e = std::get_if<MoveUsedEvent>(&ev))
-      if (e->user.side == 0 && e->moveName == "Lutte")
+      if (e->user.side == 0 && e->moveName == "Struggle")
         usedStruggle = true;
   REQUIRE(usedStruggle);
 
@@ -207,7 +207,7 @@ TEST_CASE("Species stats come from the locked nature and EVs", "[phase10][stats]
   data.loadAll(BATTLE_ENGINE_DATA_DIR);
 
   const Species &sp = data.speciesByIndex(data.findSpeciesId("charizard"));
-  REQUIRE(sp.nature == "Sérieux");
+  REQUIRE(sp.nature == "Serious");
   Stats s = computeSpeciesStats(sp, 100);
   REQUIRE(s.hp == 297);
   REQUIRE(s.specAtk == 254);

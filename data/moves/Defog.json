@@ -4,6 +4,7 @@
   "category": "Status",
   "accuracy": 100,
   "pp": 15,
+  "reflectable": true,
   "effects": [
     {
       "kind": "StatChange",
@@ -13,7 +14,8 @@
     },
     {
       "kind": "ClearHazards",
-      "scope": "both"
+      "scope": "both",
+      "clearScreens": true
     }
   ],
   "selfOrField": true

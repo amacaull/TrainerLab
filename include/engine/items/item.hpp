@@ -26,7 +26,7 @@ public:
   virtual ~Item() = default;
   virtual const char *name() const = 0;
 
-  // Stat multiplier applied after stages (Choice items, Massue).
+  // Stat multiplier applied after stages (Choice items, ThickClub).
   virtual float statMultiplier(StatIndex) const { return 1.0f; }
 
   // Outgoing damage multiplier on damaging moves (Orbe Vie).
@@ -35,27 +35,27 @@ public:
   // After the holder's damaging move connected (Orbe Vie recoil).
   virtual void onAfterDamagingMove(ItemContext &) const {}
 
-  // End of turn, before status residuals (Restes, Detritus) — canon order:
+  // End of turn, before status residuals (Leftovers, BlackSludge) — canon order:
   // Leftovers heals before the poison ticks.
   virtual void onResidual(ItemContext &) const {}
 
-  // End of turn, after all residuals (OrbeFlamme) — canon: the orb's burn
+  // End of turn, after all residuals (FlameOrb) — canon: the orb's burn
   // only starts dealing damage on the next turn.
   virtual void onTurnEnd(ItemContext &) const {}
 
-  // Called after any HP drop (move, hazard, chip, residual): BaieSitrus.
+  // Called after any HP drop (move, hazard, chip, residual): SitrusBerry.
   virtual void onHpChanged(ItemContext &) const {}
 
-  // Lethal-hit interception (CeintureForce). Returns the adjusted damage.
+  // Lethal-hit interception (FocusSash). Returns the adjusted damage.
   virtual int adjustLethalDamage(ItemContext &, int damage) const { return damage; }
 
-  // GrossesBottes: entry hazards don't apply at all.
+  // HeavyDutyBoots: entry hazards don't apply at all.
   virtual bool ignoresHazards() const { return false; }
 
   // Choice items: the holder is locked into its first move until it leaves.
   virtual bool locksMove() const { return false; }
 
-  // Screen duration set by this holder (Lumargile: 5 -> 8 turns).
+  // Screen duration set by this holder (LightClay: 5 -> 8 turns).
   virtual int screenDuration(int base) const { return base; }
 };
 
@@ -68,7 +68,7 @@ int itemCount();
 // The item actually in hand: nullptr if none, consumed, or knocked off.
 const Item *heldItem(const BattlePokemon &p);
 
-// Fires the holder's HP-threshold hook (BaieSitrus). Call after every
+// Fires the holder's HP-threshold hook (SitrusBerry). Call after every
 // damage application site so berries trigger on any crossing, not just
 // direct hits.
 void itemHpCheck(BattleState &state, const DataLoader &data, const CombatantRef &holder,

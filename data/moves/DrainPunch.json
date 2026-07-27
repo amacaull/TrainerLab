@@ -1,0 +1,18 @@
+{
+  "name": "DrainPunch",
+  "type": "Fighting",
+  "category": "Physical",
+  "power": 75,
+  "accuracy": 100,
+  "pp": 10,
+  "contact": true,
+  "punch": true,
+  "effects": [
+    {
+      "kind": "Damage"
+    },
+    {
+      "kind": "Drain"
+    }
+  ]
+}

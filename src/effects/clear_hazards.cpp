@@ -16,6 +16,15 @@ void ClearHazardsEffect::apply(EffectContext &ctx) const {
   clearSide(ctx.user.side);
   if (bothSides_)
     clearSide(1 - ctx.user.side);
+
+  if (clearScreens_) {
+    for (int side = 0; side < kSideCount; ++side) {
+      if (ctx.state.aurora_veil_turns[static_cast<size_t>(side)] > 0) {
+        ctx.state.aurora_veil_turns[static_cast<size_t>(side)] = 0;
+        ctx.events.emplace_back(ScreenEndedEvent{side});
+      }
+    }
+  }
 }
 
 } // namespace engine

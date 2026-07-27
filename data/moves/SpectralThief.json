@@ -1,0 +1,17 @@
+{
+  "name": "SpectralThief",
+  "type": "Ghost",
+  "category": "Physical",
+  "power": 90,
+  "accuracy": 100,
+  "pp": 5,
+  "contact": true,
+  "effects": [
+    {
+      "kind": "StealBoosts"
+    },
+    {
+      "kind": "Damage"
+    }
+  ]
+}

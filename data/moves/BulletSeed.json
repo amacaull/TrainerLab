@@ -1,0 +1,18 @@
+{
+  "name": "BulletSeed",
+  "type": "Grass",
+  "category": "Physical",
+  "power": 25,
+  "accuracy": 100,
+  "pp": 30,
+  "bulletproof": true,
+  "multiHit": {
+    "min": 2,
+    "max": 5
+  },
+  "effects": [
+    {
+      "kind": "MultiHit"
+    }
+  ]
+}

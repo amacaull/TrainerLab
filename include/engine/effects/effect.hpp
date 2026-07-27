@@ -26,6 +26,8 @@ struct EffectContext {
   bool moveFailed = false;
   // Actual HP removed by the last DamageEffect (recoil basis, Dragon Tail).
   int lastDamageDealt = 0;
+  int powerOverride = 0;  // MultiHit escalating powers (TripleAxel); 0 = move.power
+  int multiHitIndex = -1; // >= 0 while inside a MultiHit loop (Disguise pops one hit)
 };
 
 // To add a new effect: subclass Effect, register it in makeEffectFromJson

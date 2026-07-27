@@ -10,6 +10,14 @@ namespace engine {
 void applyStatStageDelta(BattlePokemon &mon, CombatantRef ref, StatIndex stat, int delta,
                          EventLog &events);
 
+// Every stat drop inflicted by an opponent routes through here: ClearBody
+// blocks it, Defiant answers it with +2 Atk. Shared by StatChangeEffect
+// and Intimidate.
+struct BattleState;
+class DataLoader;
+void applyOpposingStatDrop(BattleState &state, const DataLoader &data, CombatantRef targetRef,
+                           StatIndex stat, int delta, EventLog &events);
+
 // Adjusts one stat stage on either the user or the target, clamped to
 // [-6, +6]. Target defaults to the move's target; self-boosts (Swords Dance)
 // set affectsUser. Emits StatStageChanged (or StatChangeFailed at the cap).

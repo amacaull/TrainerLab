@@ -1,0 +1,20 @@
+{
+  "name": "FakeOut",
+  "type": "Normal",
+  "category": "Physical",
+  "power": 40,
+  "accuracy": 100,
+  "pp": 10,
+  "priority": 3,
+  "contact": true,
+  "firstTurnOnly": true,
+  "effects": [
+    {
+      "kind": "Damage"
+    },
+    {
+      "kind": "Flinch",
+      "chance": 100
+    }
+  ]
+}

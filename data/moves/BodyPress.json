@@ -1,0 +1,15 @@
+{
+  "name": "BodyPress",
+  "type": "Fighting",
+  "category": "Physical",
+  "power": 80,
+  "accuracy": 100,
+  "pp": 10,
+  "contact": true,
+  "offenseStat": "Def",
+  "effects": [
+    {
+      "kind": "Damage"
+    }
+  ]
+}

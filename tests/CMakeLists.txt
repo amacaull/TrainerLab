@@ -16,6 +16,7 @@ add_executable(battle_engine_tests
     test_pp_struggle.cpp
     test_items.cpp
     test_field.cpp
+    test_move_mechanics.cpp
 )
 
 target_link_libraries(battle_engine_tests PRIVATE battle_engine_lib Catch2::Catch2WithMain)

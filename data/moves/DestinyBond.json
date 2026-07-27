@@ -1,0 +1,13 @@
+{
+  "name": "DestinyBond",
+  "type": "Ghost",
+  "category": "Status",
+  "accuracy": 0,
+  "pp": 5,
+  "selfOrField": true,
+  "effects": [
+    {
+      "kind": "DestinyBond"
+    }
+  ]
+}

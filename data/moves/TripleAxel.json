@@ -1,0 +1,22 @@
+{
+  "name": "TripleAxel",
+  "type": "Ice",
+  "category": "Physical",
+  "power": 20,
+  "accuracy": 90,
+  "pp": 10,
+  "contact": true,
+  "multiHit": {
+    "powers": [
+      20,
+      40,
+      60
+    ],
+    "perHitAccuracy": true
+  },
+  "effects": [
+    {
+      "kind": "MultiHit"
+    }
+  ]
+}

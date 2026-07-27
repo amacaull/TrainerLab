@@ -89,6 +89,23 @@ void applyEntryHazards(BattleState &state, const DataLoader &data, int side, Eve
 void performSwitch(BattleState &state, const DataLoader &data, int side, int newIndex,
                    EventLog &events) {
   BattlePokemon &out = state.active(side);
+
+  CombatantRef exitingRef{side, state.activeIndex[static_cast<size_t>(side)]};
+  if (const Ability *outAbility = abilityOf(data, out)) {
+    // Regenerator / NaturalCure fire only if the holder walks out standing.
+    if (!out.isFainted()) {
+      AbilityContext actx{state, data, events, exitingRef};
+      outAbility->onSwitchOut(actx);
+    }
+    // Souffle Delta is presence-bound: it clears when its holder leaves,
+    // faint included (ADR #47).
+    if (std::string_view(outAbility->name()) == "DeltaStream" &&
+        state.weather == Weather::StrongWinds) {
+      events.emplace_back(WeatherEndedEvent{state.weather});
+      state.weather = Weather::None;
+      state.weather_turns_left = 0;
+    }
+  }
   // Canon: stat stages and the Toxic ramp counter reset on switch-out;
   // sleep turns and every status itself persist.
   out.stat_stages = {};
@@ -97,10 +114,14 @@ void performSwitch(BattleState &state, const DataLoader &data, int side, int new
   out.flinched = 0;
   out.roosted = 0;
   out.protected_now = 0;
+  out.protect_contact_status = 0;
+  out.destiny_bond_active = 0;
+  out.last_move_id = kNoMove;
   out.protect_chain = 0;
   out.charging_move_id = kNoMove;
   out.invulnerable_state = 0;
   out.locked_move_id = kNoMove; // the Choice lock ends when the holder leaves
+  out.flash_fire_active = 0;    // FlashFire's boost dies with the exit
 
   CombatantRef outRef{side, state.activeIndex[static_cast<size_t>(side)]};
   events.emplace_back(SwitchedOutEvent{outRef});
@@ -109,6 +130,8 @@ void performSwitch(BattleState &state, const DataLoader &data, int side, int new
   CombatantRef inRef{side, newIndex};
   events.emplace_back(SwitchedInEvent{inRef});
 
+  int hpBeforeHazards = state.active(side).currentHp;
+  state.active(side).turns_on_field = 0; // opens the FakeOut window
   applyEntryHazards(state, data, side, events);
 
   // A Pokemon that faints to hazards never gets its ability off (canon).
@@ -116,6 +139,12 @@ void performSwitch(BattleState &state, const DataLoader &data, int side, int new
     return;
 
   itemHpCheck(state, data, inRef, events);
+  abilityHpCheck(state, data, inRef, hpBeforeHazards, false, events);
+
+  // EmergencyExit may have swapped again from hazard damage: the nested
+  // performSwitch already ran the full entry sequence for the newcomer.
+  if (state.activeIndex[static_cast<size_t>(side)] != newIndex)
+    return;
 
   const Species &sp = data.speciesByIndex(state.active(side).species_id);
   if (const Ability *ability = abilityByName(sp.ability)) {

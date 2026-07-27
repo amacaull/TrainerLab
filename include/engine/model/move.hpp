@@ -14,7 +14,7 @@ namespace engine {
 enum class MoveCategory { Physical, Special, Status };
 
 // Two-turn moves; Fly and Dig grant semi-invulnerability during the charge.
-enum class TwoTurn : int { None = 0, Charge, Fly, Dig };
+enum class TwoTurn : int { None = 0, Charge, Fly, Dig, Disappear };
 
 MoveCategory categoryFromString(std::string_view s);
 std::string_view categoryName(MoveCategory c);
@@ -27,6 +27,27 @@ struct Move {
   int accuracy = 100;
   int priority = 0; // -7..+5
   int pp = 0;       // base PP = max PP (no PP Ups; ADR #35)
+  // --- Phase 14 mechanic fields (all data-driven, default = canon-neutral) ---
+  // Damage stat plumbing: category picks atk/spa vs def/spd unless overridden.
+  StatIndex offenseStat = StatIndex::Count; // Count = default by category (BodyPress: Def)
+  StatIndex defenseStat = StatIndex::Count; // Psyshock: special move vs physical Def
+  bool useTargetOffense = false;            // FoulPlay: the target's Atk swings
+  bool boostedByTargetItem = false;         // KnockOff: x1.5 if the target holds something
+  // Usability gates, checked by the engine before anything rolls.
+  bool firstTurnOnly = false;              // FakeOut / FirstImpression
+  bool failsIfTargetNotAttacking = false;  // SuckerPunch
+  bool requiresTargetItem = false;         // Poltergeist
+  bool usableWhileAsleep = false;          // SleepTalk (bypasses the sleep skip)
+  bool thawsUser = false;                  // Scald / FlareBlitz
+  bool hitsFly = false;                    // Hurricane reaches airborne targets
+  Type alwaysHitsIfUserType = Type::Count; // Toxic from a Poison-type never misses
+  // Multi-hit: minHits==0 = single hit. Escalating powers (TripleAxel) in
+  // hitPowers; perHitAccuracy retests each hit; LoadedDice raises the floor.
+  int minHits = 0;
+  int maxHits = 0;
+  bool perHitAccuracy = false;
+  std::vector<int> hitPowers;
+
   // Weather-dependent accuracy overrides (0 = never miss): Blizzard under
   // snow now, Thunder/Hurricane under rain and sun in phase 14 — data only.
   std::vector<std::pair<Weather, int>> accuracyInWeather;
@@ -36,7 +57,11 @@ struct Move {
   bool hitsDig = false;         // Earthquake: hits (and doubles on) Dig
   bool solarCharge = false;     // SolarBeam: no charge in sun, halved in bad weather
   bool blockedByProtect = true; // false for self/field moves (hazards, weather, recovery)
-  bool typeless = false;        // Lutte only: x1 vs everything, never STAB
+  bool typeless = false;        // Struggle only: x1 vs everything, never STAB
+  bool punch = false;           // IronFist x1.2
+  bool slicing = false;         // Sharpness x1.5
+  bool bulletproof = false;     // voided by Bulletproof
+  bool reflectable = false;     // bounced by MagicBounce (Showdown's flag)
   TwoTurn twoTurn = TwoTurn::None;
   std::vector<EffectPtr> effects;
 

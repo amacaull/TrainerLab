@@ -1,0 +1,16 @@
+{
+  "name": "MachPunch",
+  "type": "Fighting",
+  "category": "Physical",
+  "power": 40,
+  "accuracy": 100,
+  "pp": 30,
+  "priority": 1,
+  "contact": true,
+  "punch": true,
+  "effects": [
+    {
+      "kind": "Damage"
+    }
+  ]
+}

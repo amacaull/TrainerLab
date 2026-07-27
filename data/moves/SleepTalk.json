@@ -1,0 +1,14 @@
+{
+  "name": "SleepTalk",
+  "type": "Normal",
+  "category": "Status",
+  "accuracy": 0,
+  "pp": 10,
+  "selfOrField": true,
+  "usableWhileAsleep": true,
+  "effects": [
+    {
+      "kind": "SleepTalk"
+    }
+  ]
+}

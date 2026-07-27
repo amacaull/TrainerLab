@@ -9,8 +9,8 @@ TEST_CASE("DataLoader: catalog sizes match expected content", "[catalog]") {
   DataLoader data;
   data.loadAll(BATTLE_ENGINE_DATA_DIR);
 
-  REQUIRE(data.speciesCount() == 13); // +Mammochon (phase 12 fixture, roster-final name)
-  REQUIRE(data.moveCount() == 47);    // +Blizzard, +VoileAurore
+  REQUIRE(data.speciesCount() == 13); // +Mamoswine (phase 12 fixture, roster-final name)
+  REQUIRE(data.moveCount() == 77);    // +Blizzard, +AuroraVeil
 }
 
 TEST_CASE("DataLoader: lookup by name returns valid id, miss returns -1", "[catalog]") {

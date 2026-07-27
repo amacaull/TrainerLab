@@ -1,0 +1,16 @@
+{
+  "name": "DragonDarts",
+  "type": "Dragon",
+  "category": "Physical",
+  "power": 50,
+  "accuracy": 100,
+  "pp": 10,
+  "multiHit": {
+    "count": 2
+  },
+  "effects": [
+    {
+      "kind": "MultiHit"
+    }
+  ]
+}

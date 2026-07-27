@@ -33,8 +33,8 @@ private:
   std::array<int, 2> computeOrder(const BattleState &state, const Action &a0, const Action &a1,
                                   RNG &rng) const;
 
-  void executeAction(BattleState &state, int side, const Action &action, RNG &rng,
-                     EventLog &events) const;
+  void executeAction(BattleState &state, int side, const Action &action, const Action *otherAction,
+                     bool targetAlreadyActed, RNG &rng, EventLog &events) const;
 
   const DataLoader &data_;
 };

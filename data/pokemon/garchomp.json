@@ -12,8 +12,8 @@
   "type1": "Dragon",
   "type2": "Ground",
   "ability": "RoughSkin",
-  "nature": "Sérieux",
-  "poids": 95.0,
+  "nature": "Serious",
+  "weight": 95.0,
   "movepool": [
     "Earthquake",
     "DragonClaw",

@@ -4,6 +4,7 @@
   "category": "Status",
   "accuracy": 100,
   "pp": 20,
+  "reflectable": true,
   "effects": [
     {
       "kind": "SetHazard",

@@ -10,18 +10,18 @@ namespace {
 
 // 0=atk 1=def 2=specAtk 3=specDef 4=speed
 const std::unordered_map<std::string, Nature> kNatures = {
-    {"Hardi", {}},       {"Docile", {}},     {"Sérieux", {}},     {"Pudique", {}},
-    {"Bizarre", {}},
+    {"Hardy", {}},      {"Docile", {}},      {"Serious", {}},     {"Bashful", {}},
+    {"Quirky", {}},
 
-    {"Solo", {0, 1}},    {"Brave", {0, 4}},  {"Rigide", {0, 2}},  {"Mauvais", {0, 3}},
+    {"Lonely", {0, 1}}, {"Brave", {0, 4}},   {"Adamant", {0, 2}}, {"Naughty", {0, 3}},
 
-    {"Assuré", {1, 0}},  {"Relax", {1, 4}},  {"Malin", {1, 2}},   {"Lâche", {1, 3}},
+    {"Bold", {1, 0}},   {"Relaxed", {1, 4}}, {"Impish", {1, 2}},  {"Lax", {1, 3}},
 
-    {"Modeste", {2, 0}}, {"Doux", {2, 1}},   {"Discret", {2, 4}}, {"Foufou", {2, 3}},
+    {"Modest", {2, 0}}, {"Mild", {2, 1}},    {"Quiet", {2, 4}},   {"Rash", {2, 3}},
 
-    {"Calme", {3, 0}},   {"Gentil", {3, 1}}, {"Malpoli", {3, 4}}, {"Prudent", {3, 2}},
+    {"Calm", {3, 0}},   {"Gentle", {3, 1}},  {"Sassy", {3, 4}},   {"Careful", {3, 2}},
 
-    {"Timide", {4, 0}},  {"Pressé", {4, 1}}, {"Jovial", {4, 2}},  {"Naïf", {4, 3}},
+    {"Timid", {4, 0}},  {"Hasty", {4, 1}},   {"Jolly", {4, 2}},   {"Naive", {4, 3}},
 };
 
 } // namespace

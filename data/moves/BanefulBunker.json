@@ -1,0 +1,15 @@
+{
+  "name": "BanefulBunker",
+  "type": "Poison",
+  "category": "Status",
+  "accuracy": 0,
+  "pp": 10,
+  "priority": 4,
+  "selfOrField": true,
+  "effects": [
+    {
+      "kind": "Protect",
+      "contactStatus": "Poison"
+    }
+  ]
+}

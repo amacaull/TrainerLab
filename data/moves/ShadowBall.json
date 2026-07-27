@@ -6,6 +6,7 @@
   "accuracy": 100,
   "priority": 0,
   "pp": 15,
+  "bulletproof": true,
   "effects": [
     {
       "kind": "Damage"

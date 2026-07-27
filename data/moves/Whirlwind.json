@@ -6,6 +6,7 @@
   "priority": -6,
   "bypassesProtect": true,
   "pp": 20,
+  "reflectable": true,
   "effects": [
     {
       "kind": "ForceSwitch"

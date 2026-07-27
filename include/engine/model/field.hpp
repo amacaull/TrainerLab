@@ -4,7 +4,9 @@
 
 namespace engine {
 
-enum class Weather : int { None = 0, Rain, Sun, Sand, Snow, Count };
+// StrongWinds (Souffle Delta) is presence-bound: no countdown, normal
+// setters fail against it, cleared when its holder leaves (ADR #47).
+enum class Weather : int { None = 0, Rain, Sun, Sand, Snow, StrongWinds, Count };
 
 // One terrain in the whole roster (ADR #38): no speculative generalization.
 enum class Terrain : int { None = 0, Electric, Count };

@@ -6,6 +6,7 @@
   "accuracy": 85,
   "priority": 0,
   "pp": 15,
+  "reflectable": true,
   "effects": [
     {
       "kind": "ApplyStatus",

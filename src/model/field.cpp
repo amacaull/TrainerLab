@@ -16,6 +16,8 @@ const char *weatherToString(Weather w) {
     return "Sand";
   case Weather::Snow:
     return "Snow";
+  case Weather::StrongWinds:
+    return "StrongWinds";
   default:
     return "?";
   }

@@ -1,0 +1,18 @@
+{
+  "name": "BitterBlade",
+  "type": "Fire",
+  "category": "Physical",
+  "power": 90,
+  "accuracy": 100,
+  "pp": 10,
+  "contact": true,
+  "slicing": true,
+  "effects": [
+    {
+      "kind": "Damage"
+    },
+    {
+      "kind": "Drain"
+    }
+  ]
+}

@@ -67,7 +67,7 @@ TEST_CASE("Snow: Ice types get Def x1.5, special side untouched (ADR #37)", "[fi
   BattleEngine engine(data);
 
   auto hit = [&](const char *move, bool snow) {
-    auto state = makeDuel(data, "machamp", {move}, "Mammochon", {"Tackle"});
+    auto state = makeDuel(data, "machamp", {move}, "Mamoswine", {"Tackle"});
     if (snow)
       setSnow(state);
     FixedRNG rng(0.99f);
@@ -103,7 +103,7 @@ TEST_CASE("Blizzard never misses under snow (accuracyInWeather)", "[field][snow]
   BattleEngine engine(data);
 
   auto run = [&](bool snow) {
-    auto state = makeDuel(data, "Mammochon", {"Blizzard"}, "snorlax", {"Growl"});
+    auto state = makeDuel(data, "Mamoswine", {"Blizzard"}, "snorlax", {"Growl"});
     if (snow)
       setSnow(state);
     MissRNG rng; // every accuracy roll fails: only a never-miss connects
@@ -202,7 +202,7 @@ TEST_CASE("Voile Aurore needs snow and refuses to stack (ADR #39)", "[field][scr
   data.loadAll(BATTLE_ENGINE_DATA_DIR);
   BattleEngine engine(data);
 
-  auto state = makeDuel(data, "Mammochon", {"VoileAurore"}, "machamp", {"SwordsDance"});
+  auto state = makeDuel(data, "Mamoswine", {"AuroraVeil"}, "machamp", {"SwordsDance"});
   FixedRNG rng(0.99f);
 
   // No snow: the screen refuses to go up.
@@ -251,14 +251,14 @@ TEST_CASE("Voile Aurore halves both categories; crits punch through", "[field][s
   REQUIRE(critVeil == crit);
 }
 
-TEST_CASE("Voile Aurore lasts 8 turns when the setter holds Lumargile", "[field][screen]") {
+TEST_CASE("Voile Aurore lasts 8 turns when the setter holds LightClay", "[field][screen]") {
   DataLoader data;
   data.loadAll(BATTLE_ENGINE_DATA_DIR);
   BattleEngine engine(data);
 
-  auto state = makeDuel(data, "Mammochon", {"VoileAurore"}, "machamp", {"SwordsDance"});
+  auto state = makeDuel(data, "Mamoswine", {"AuroraVeil"}, "machamp", {"SwordsDance"});
   setSnow(state);
-  state.teams[0][0].item_id = data.findItemId("Lumargile");
+  state.teams[0][0].item_id = data.findItemId("LightClay");
   FixedRNG rng(0.99f);
 
   auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);

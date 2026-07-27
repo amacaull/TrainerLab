@@ -1,0 +1,16 @@
+{
+  "name": "FirstImpression",
+  "type": "Bug",
+  "category": "Physical",
+  "power": 90,
+  "accuracy": 100,
+  "pp": 10,
+  "priority": 2,
+  "contact": true,
+  "firstTurnOnly": true,
+  "effects": [
+    {
+      "kind": "Damage"
+    }
+  ]
+}

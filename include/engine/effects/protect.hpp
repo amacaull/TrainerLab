@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/effects/effect.hpp"
+#include "engine/model/status.hpp"
 
 namespace engine {
 
@@ -9,8 +10,12 @@ namespace engine {
 // where Protect did not connect (ADR #30).
 class ProtectEffect : public Effect {
 public:
+  explicit ProtectEffect(Status contactStatus = Status::None) : contactStatus_(contactStatus) {}
   void apply(EffectContext &ctx) const override;
   const char *name() const override { return "Protect"; }
+
+private:
+  Status contactStatus_; // BanefulBunker: applied to contact attackers
 };
 
 } // namespace engine

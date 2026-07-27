@@ -28,7 +28,7 @@ bool choiceLockActive(const BattlePokemon &p) {
   return item != nullptr && item->locksMove();
 }
 
-// Lutte fallback test (ADR #35), lock-aware: a locked Pokemon whose locked
+// Struggle fallback test (ADR #35), lock-aware: a locked Pokemon whose locked
 // slot ran dry can only Struggle, whatever the other slots hold.
 bool canUseAnyMove(const BattlePokemon &p) {
   if (!choiceLockActive(p))
@@ -44,16 +44,23 @@ int actionPriority(const Action &a, const DataLoader &data, const BattlePokemon 
   if (std::holds_alternative<SwitchAction>(a))
     return 6;
   if (!canUseAnyMove(user))
-    return 0; // will be substituted with Lutte (ADR #35)
+    return 0; // will be substituted with Struggle (ADR #35)
   const auto &useMove = std::get<UseMove>(a);
   int moveId = user.move_ids[static_cast<size_t>(useMove.moveIndex)];
-  return data.moveByIndex(moveId).priority;
+  const Move &move = data.moveByIndex(moveId);
+  int boost = 0;
+  if (const Ability *ability = abilityByName(data.speciesByIndex(user.species_id).ability))
+    boost = ability->priorityBoost(move); // Prankster: +1 on Status moves
+  return move.priority + boost;
 }
 
-int effectiveSpeed(const BattlePokemon &p) {
+int effectiveSpeed(const BattleState &state, int side, const DataLoader &data) {
+  const BattlePokemon &p = state.active(side);
   float mul = stageMultiplier(p.stat_stages[static_cast<size_t>(StatIndex::Spe)]);
-  if (const Item *item = heldItem(p)) // MouchoirChoix x1.5: changes turn order
+  if (const Item *item = heldItem(p)) // ChoiceScarf x1.5: changes turn order
     mul *= item->statMultiplier(StatIndex::Spe);
+  if (const Ability *ability = abilityOf(data, p))
+    mul *= ability->speedMultiplier(state); // SwiftSwim & co: x2 under their weather
   int spd = static_cast<int>(static_cast<float>(p.stats.speed) * mul);
   if (p.status == Status::Paralysis)
     spd /= 2;
@@ -61,9 +68,9 @@ int effectiveSpeed(const BattlePokemon &p) {
 }
 
 // Speed ties are broken randomly (ADR #31).
-int fasterSide(const BattleState &state, RNG &rng) {
-  int s0 = effectiveSpeed(state.active(0));
-  int s1 = effectiveSpeed(state.active(1));
+int fasterSide(const BattleState &state, const DataLoader &data, RNG &rng) {
+  int s0 = effectiveSpeed(state, 0, data);
+  int s1 = effectiveSpeed(state, 1, data);
   if (s0 != s1)
     return (s0 > s1) ? 0 : 1;
   return rng.chance(0.5f) ? 0 : 1;
@@ -71,7 +78,8 @@ int fasterSide(const BattleState &state, RNG &rng) {
 
 // Sleep/freeze/paralysis gate. Returns true if the user can act this turn;
 // handles the wake-up and thaw transitions (mutates status counters).
-bool passesBeforeMove(BattlePokemon &user, const CombatantRef &ref, RNG &rng, EventLog &events) {
+bool passesBeforeMove(BattlePokemon &user, const CombatantRef &ref, const Move &move, RNG &rng,
+                      EventLog &events) {
   if (user.flinched != 0) {
     user.flinched = 0;
     events.emplace_back(MoveSkippedEvent{ref, SkipReason::Flinched});
@@ -81,6 +89,8 @@ bool passesBeforeMove(BattlePokemon &user, const CombatantRef &ref, RNG &rng, Ev
   case Status::Sleep:
     if (user.status_turns > 0) {
       user.status_turns -= 1;
+      if (move.usableWhileAsleep)
+        return true; // SleepTalk: acts while the counter keeps ticking
       events.emplace_back(MoveSkippedEvent{ref, SkipReason::Asleep});
       return false;
     }
@@ -89,6 +99,11 @@ bool passesBeforeMove(BattlePokemon &user, const CombatantRef &ref, RNG &rng, Ev
     events.emplace_back(StatusCuredEvent{ref, Status::Sleep});
     return true;
   case Status::Freeze:
+    if (move.thawsUser) { // Scald / FlareBlitz melt their own user
+      user.status = Status::None;
+      events.emplace_back(StatusCuredEvent{ref, Status::Freeze});
+      return true;
+    }
     if (rng.chance(kThawChance)) {
       user.status = Status::None;
       events.emplace_back(StatusCuredEvent{ref, Status::Freeze});
@@ -118,14 +133,17 @@ void applyWeatherChip(BattleState &state, const DataLoader &data, int side, Even
   if (hasType(Type::Rock) || hasType(Type::Ground) || hasType(Type::Steel))
     return;
 
+  int hpBefore = p.currentHp;
   int damage = std::max(1, p.stats.hp / kWeatherChipDenom);
   p.currentHp = std::max(0, p.currentHp - damage);
   CombatantRef ref{side, state.activeIndex[static_cast<size_t>(side)]};
   events.emplace_back(WeatherDamageEvent{ref, state.weather, damage});
-  if (p.isFainted())
+  if (p.isFainted()) {
     events.emplace_back(FaintedEvent{ref});
-  else
+  } else {
     itemHpCheck(state, data, ref, events);
+    abilityHpCheck(state, data, ref, hpBefore, false, events);
+  }
 }
 
 void applyResidual(BattleState &state, const DataLoader &data, int side, EventLog &events) {
@@ -150,13 +168,16 @@ void applyResidual(BattleState &state, const DataLoader &data, int side, EventLo
     return;
   }
 
+  int hpBefore = p.currentHp;
   p.currentHp = std::max(0, p.currentHp - damage);
   CombatantRef ref{side, state.activeIndex[static_cast<size_t>(side)]};
   events.emplace_back(StatusDamageEvent{ref, p.status, damage});
-  if (p.isFainted())
+  if (p.isFainted()) {
     events.emplace_back(FaintedEvent{ref});
-  else
+  } else {
     itemHpCheck(state, data, ref, events);
+    abilityHpCheck(state, data, ref, hpBefore, false, events);
+  }
 }
 
 // Item hooks in the residual window, faster side first (canon order:
@@ -189,11 +210,12 @@ std::array<int, 2> BattleEngine::computeOrder(const BattleState &state, const Ac
   if (p0 != p1)
     return (p0 > p1) ? std::array<int, 2>{0, 1} : std::array<int, 2>{1, 0};
 
-  int first = fasterSide(state, rng);
+  int first = fasterSide(state, data_, rng);
   return {first, 1 - first};
 }
 
-void BattleEngine::executeAction(BattleState &state, int side, const Action &action, RNG &rng,
+void BattleEngine::executeAction(BattleState &state, int side, const Action &action,
+                                 const Action *otherAction, bool targetAlreadyActed, RNG &rng,
                                  EventLog &events) const {
   if (state.active(side).isFainted())
     return;
@@ -233,13 +255,22 @@ void BattleEngine::executeAction(BattleState &state, int side, const Action &act
   }
   const Move &move = *movePtr;
 
-  if (!passesBeforeMove(user, userRef, rng, events))
+  if (!passesBeforeMove(user, userRef, move, rng, events))
     return; // an interrupted charge is lost (already cleared above)
 
   // PP burns when the move executes (ADR #35): a skipped turn doesn't pay,
   // a miss or failure does; a two-turn move pays on its charge turn only.
   if (ppSlot >= 0) {
-    user.pp[static_cast<size_t>(ppSlot)] = std::max(0, user.pp[static_cast<size_t>(ppSlot)] - 1);
+    int bill = 1;
+    // Pressure: targeting its holder costs one extra PP.
+    const BattlePokemon &foe = state.active(1 - side);
+    if (!foe.isFainted() && (move.blockedByProtect || move.bypassesProtect)) {
+      if (const Ability *foeAbility = abilityOf(data_, foe)) {
+        if (foeAbility->pressuresPP())
+          bill = 2;
+      }
+    }
+    user.pp[static_cast<size_t>(ppSlot)] = std::max(0, user.pp[static_cast<size_t>(ppSlot)] - bill);
     // Choice items lock onto the first move actually used, hit or miss.
     if (const Item *item = heldItem(user)) {
       if (item->locksMove() && user.locked_move_id == kNoMove)
@@ -255,27 +286,83 @@ void BattleEngine::executeAction(BattleState &state, int side, const Action &act
       !(move.solarCharge && state.weather == Weather::Sun)) {
     events.emplace_back(ChargingEvent{userRef, move.name});
     user.charging_move_id = moveId;
-    user.invulnerable_state = (move.twoTurn == TwoTurn::Fly)   ? 1
-                              : (move.twoTurn == TwoTurn::Dig) ? 2
-                                                               : 0;
+    user.invulnerable_state = (move.twoTurn == TwoTurn::Fly)         ? 1
+                              : (move.twoTurn == TwoTurn::Dig)       ? 2
+                              : (move.twoTurn == TwoTurn::Disappear) ? 3
+                                                                     : 0;
     return;
   }
 
   events.emplace_back(MoveUsedEvent{userRef, move.name});
+  user.destiny_bond_active = 0; // the bond holds until the next action only
 
   const BattlePokemon &target = state.active(otherSide);
 
+  // Usability gates (phase 14) — the PP is already paid (canon).
+  if (move.firstTurnOnly && user.turns_on_field > 0) {
+    events.emplace_back(MoveFailedEvent{userRef, move.name});
+    return;
+  }
+  if (move.requiresTargetItem && heldItem(target) == nullptr) {
+    events.emplace_back(MoveFailedEvent{userRef, move.name});
+    return;
+  }
+  if (move.failsIfTargetNotAttacking) {
+    // SuckerPunch: the target must be about to throw a damaging move.
+    bool targetAttacking = false;
+    if (!targetAlreadyActed && otherAction != nullptr) {
+      if (const auto *foeMove = std::get_if<UseMove>(otherAction)) {
+        const BattlePokemon &foe = state.active(otherSide);
+        if (!canUseAnyMove(foe)) {
+          targetAttacking = true; // Struggle is very much an attack
+        } else {
+          int foeMoveId = foe.move_ids[static_cast<size_t>(foeMove->moveIndex)];
+          targetAttacking = data_.moveByIndex(foeMoveId).category != MoveCategory::Status;
+        }
+      }
+    }
+    if (!targetAttacking) {
+      events.emplace_back(MoveFailedEvent{userRef, move.name});
+      return;
+    }
+  }
+
+  // MagicBounce: a reflectable move re-runs with the roles swapped and
+  // skips Protect and accuracy (canon). A bounced Piege de Roc lands on
+  // the original setter's side.
+  bool bounced = false;
+  if (move.reflectable && !target.isFainted()) {
+    if (const Ability *targetAbility = abilityOf(data_, target)) {
+      if (targetAbility->bouncesStatusMoves()) {
+        events.emplace_back(AbilityTriggeredEvent{targetRef, targetAbility->name()});
+        std::swap(userRef, targetRef);
+        bounced = true;
+      }
+    }
+  }
+
   // Semi-invulnerable target: automatic miss, unless Earthquake digs it out.
   bool digReached = target.invulnerable_state == 2 && move.hitsDig;
-  if (target.invulnerable_state != 0 && !digReached && move.category != MoveCategory::Status) {
+  bool flyReached = target.invulnerable_state == 1 && move.hitsFly;
+  if (!bounced && target.invulnerable_state != 0 && !digReached && !flyReached &&
+      move.category != MoveCategory::Status) {
     events.emplace_back(MissedEvent{userRef, move.name});
     return;
   }
 
   // Protect blocks moves aimed at the target; self/field moves pass and
   // Whirlwind bypasses (ADR #30).
-  if (target.protected_now != 0 && move.blockedByProtect && !move.bypassesProtect) {
+  if (!bounced && target.protected_now != 0 && move.blockedByProtect && !move.bypassesProtect) {
     events.emplace_back(ProtectedEvent{targetRef});
+    // BanefulBunker: a contact attacker walks into the status.
+    if (move.makesContact && target.protect_contact_status != 0) {
+      Status status = static_cast<Status>(target.protect_contact_status);
+      const Species &userSp = data_.speciesByIndex(user.species_id);
+      if (user.status == Status::None && !typeImmuneToStatus(status, userSp)) {
+        user.status = status;
+        events.emplace_back(StatusAppliedEvent{userRef, status});
+      }
+    }
     return;
   }
 
@@ -285,7 +372,12 @@ void BattleEngine::executeAction(BattleState &state, int side, const Action &act
   for (const auto &[w, acc] : move.accuracyInWeather)
     if (w == state.weather)
       accuracy = acc; // 0 = never miss under this weather (Blizzard in snow)
-  if (accuracy > 0) {
+  if (move.alwaysHitsIfUserType != Type::Count) {
+    const Species &userSp = data_.speciesByIndex(user.species_id);
+    if (userSp.type1 == move.alwaysHitsIfUserType || userSp.type2 == move.alwaysHitsIfUserType)
+      accuracy = 0; // Toxic thrown by a Poison-type never misses
+  }
+  if (!bounced && accuracy > 0) {
     int combined = user.stat_stages[static_cast<size_t>(StatIndex::Accuracy)] -
                    target.stat_stages[static_cast<size_t>(StatIndex::Evasion)];
     combined = std::clamp(combined, kMinStage, kMaxStage);
@@ -296,12 +388,18 @@ void BattleEngine::executeAction(BattleState &state, int side, const Action &act
     }
   }
 
-  // Defender ability can void the move entirely (Levitate vs Ground).
-  const Species &targetSp = data_.speciesByIndex(state.active(otherSide).species_id);
-  if (const Ability *targetAbility = abilityByName(targetSp.ability)) {
-    if (targetAbility->immuneToMove(move)) {
-      events.emplace_back(AbilityTriggeredEvent{targetRef, targetAbility->name()});
-      return;
+  // Defender ability can void the move entirely (Levitate vs Ground),
+  // with its absorption side effect (VoltAbsorb, LightningRod, FlashFire).
+  {
+    const BattlePokemon &effTarget =
+        state.teams[static_cast<size_t>(targetRef.side)][static_cast<size_t>(targetRef.teamIndex)];
+    if (const Ability *targetAbility = abilityOf(data_, effTarget)) {
+      if (targetAbility->immuneToMove(move)) {
+        events.emplace_back(AbilityTriggeredEvent{targetRef, targetAbility->name()});
+        AbilityContext actx{state, data_, events, targetRef};
+        targetAbility->onMoveAbsorbed(actx);
+        return;
+      }
     }
   }
 
@@ -312,14 +410,30 @@ void BattleEngine::executeAction(BattleState &state, int side, const Action &act
       break; // immunity or failed set: the rest of the chain doesn't run
   }
 
-  // Orbe Vie bills its 10% after a move that dealt damage. Slot-addressed
-  // via userRef: correct even if a pivot already moved the user to the bench.
+  {
+    BattlePokemon &mover =
+        state.teams[static_cast<size_t>(userRef.side)][static_cast<size_t>(userRef.teamIndex)];
+    mover.last_move_id = moveId; // Struggle leaves kNoMove: it never chains anything
+  }
+
+  // Post-hit window, slot-addressed via userRef (correct even if a pivot
+  // already moved the user to the bench): Orbe Vie recoil, Magician theft,
+  // Moxie on a KO.
   if (ctx.lastDamageDealt > 0) {
     const BattlePokemon &mover =
         state.teams[static_cast<size_t>(userRef.side)][static_cast<size_t>(userRef.teamIndex)];
     if (const Item *item = heldItem(mover)) {
       ItemContext ictx{state, data_, events, userRef};
       item->onAfterDamagingMove(ictx);
+    }
+    const BattlePokemon &struck =
+        state.teams[static_cast<size_t>(targetRef.side)][static_cast<size_t>(targetRef.teamIndex)];
+    if (const Ability *moverAbility = abilityOf(data_, mover)) {
+      AbilityContext actx{state, data_, events, userRef};
+      if (!struck.isFainted())
+        moverAbility->onAfterDamagingMove(actx, targetRef);
+      if (struck.isFainted() && !mover.isFainted())
+        moverAbility->onAfterKO(actx);
     }
   }
 }
@@ -345,7 +459,7 @@ void BattleEngine::checkAction(const BattleState &state, int side, const Action 
   const auto &useMove = std::get<UseMove>(action);
   const BattlePokemon &actor = state.active(side);
   if (!canUseAnyMove(actor))
-    return; // out of PP (lock included): the engine substitutes Lutte (ADR #35)
+    return; // out of PP (lock included): the engine substitutes Struggle (ADR #35)
   if (useMove.moveIndex < 0 || useMove.moveIndex >= kMaxMovesPerPokemon)
     throw std::invalid_argument("resolveTurn: " + where + "moveIndex out of range");
   if (state.active(side).move_ids[static_cast<size_t>(useMove.moveIndex)] == kNoMove)
@@ -363,7 +477,7 @@ void BattleEngine::checkAction(const BattleState &state, int side, const Action 
 
 EventLog BattleEngine::startBattle(BattleState &state, RNG &rng) const {
   EventLog events;
-  int first = fasterSide(state, rng);
+  int first = fasterSide(state, data_, rng);
   for (int side : {first, 1 - first}) {
     CombatantRef ref{side, state.activeIndex[static_cast<size_t>(side)]};
     const Species &sp = data_.speciesByIndex(state.active(side).species_id);
@@ -401,22 +515,25 @@ EventLog BattleEngine::resolveTurn(BattleState &state, const Action &a0, const A
   auto order = computeOrder(state, a0, a1, rng);
   const Action *actions[2] = {&a0, &a1};
 
+  bool firstActed = false;
   for (int side : order) {
     if (state.isOver())
       break;
-    executeAction(state, side, *actions[side], rng, events);
+    executeAction(state, side, *actions[side], actions[1 - side], firstActed, rng, events);
+    firstActed = true;
   }
 
   // Weather upkeep, before status residuals (canon order): the counter
   // ticks down; on reaching zero the weather ends with no chip that turn.
-  if (!state.isOver() && state.weather != Weather::None) {
+  if (!state.isOver() && state.weather != Weather::None &&
+      state.weather != Weather::StrongWinds) { // presence-bound: no countdown (ADR #47)
     state.weather_turns_left -= 1;
     if (state.weather_turns_left <= 0) {
       events.emplace_back(WeatherEndedEvent{state.weather});
       state.weather = Weather::None;
       state.weather_turns_left = 0;
     } else if (state.weather == Weather::Sand) {
-      int first = fasterSide(state, rng);
+      int first = fasterSide(state, data_, rng);
       applyWeatherChip(state, data_, first, events);
       applyWeatherChip(state, data_, 1 - first, events);
     }
@@ -432,25 +549,52 @@ EventLog BattleEngine::resolveTurn(BattleState &state, const Action &a0, const A
     }
   }
 
-  // Item heals before the status ticks (Restes/Detritus, canon order).
+  // Wish lands at the end of the NEXT turn, on whoever holds the slot.
   if (!state.isOver()) {
-    int first = fasterSide(state, rng);
+    for (int side = 0; side < kSideCount; ++side) {
+      int &wt = state.wish_turns[static_cast<size_t>(side)];
+      if (wt <= 0)
+        continue;
+      wt -= 1;
+      if (wt > 0)
+        continue;
+      BattlePokemon &p = state.active(side);
+      int amount = state.wish_heal[static_cast<size_t>(side)];
+      state.wish_heal[static_cast<size_t>(side)] = 0;
+      if (p.isFainted() || p.currentHp >= p.stats.hp)
+        continue;
+      int healed = std::min(amount, p.stats.hp - p.currentHp);
+      p.currentHp += healed;
+      CombatantRef wref{side, state.activeIndex[static_cast<size_t>(side)]};
+      events.emplace_back(HealedEvent{wref, healed});
+    }
+  }
+
+  // Item heals before the status ticks (Leftovers/BlackSludge, canon order).
+  if (!state.isOver()) {
+    int first = fasterSide(state, data_, rng);
     applyItemHook(state, data_, first, events, &Item::onResidual);
     applyItemHook(state, data_, 1 - first, events, &Item::onResidual);
   }
 
   // End-of-turn residuals (burn/poison/toxic), faster side first.
   if (!state.isOver()) {
-    int first = fasterSide(state, rng);
+    int first = fasterSide(state, data_, rng);
     applyResidual(state, data_, first, events);
     applyResidual(state, data_, 1 - first, events);
   }
 
-  // Status orbs activate last: an OrbeFlamme burn only ticks next turn.
+  // Status orbs activate last: an FlameOrb burn only ticks next turn.
   if (!state.isOver()) {
-    int first = fasterSide(state, rng);
+    int first = fasterSide(state, data_, rng);
     applyItemHook(state, data_, first, events, &Item::onTurnEnd);
     applyItemHook(state, data_, 1 - first, events, &Item::onTurnEnd);
+  }
+
+  for (int side = 0; side < kSideCount; ++side) {
+    BattlePokemon &p = state.active(side);
+    if (!p.isFainted())
+      p.turns_on_field += 1; // closes the FakeOut / FirstImpression window
   }
 
   // Screens count down last (ADR #39).
@@ -472,6 +616,7 @@ EventLog BattleEngine::resolveTurn(BattleState &state, const Action &a0, const A
     if (p.protected_now == 0)
       p.protect_chain = 0;
     p.protected_now = 0;
+    p.protect_contact_status = 0;
   }
   return events;
 }

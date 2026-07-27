@@ -1,0 +1,19 @@
+{
+  "name": "Scald",
+  "type": "Water",
+  "category": "Special",
+  "power": 80,
+  "accuracy": 100,
+  "pp": 15,
+  "thawsUser": true,
+  "effects": [
+    {
+      "kind": "Damage"
+    },
+    {
+      "kind": "ApplyStatus",
+      "status": "Burn",
+      "chance": 30
+    }
+  ]
+}

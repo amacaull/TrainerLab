@@ -6,6 +6,7 @@
   "accuracy": 100,
   "priority": 0,
   "pp": 40,
+  "reflectable": true,
   "effects": [
     {
       "kind": "StatChange",

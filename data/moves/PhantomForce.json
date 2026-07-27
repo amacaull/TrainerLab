@@ -1,0 +1,16 @@
+{
+  "name": "PhantomForce",
+  "type": "Ghost",
+  "category": "Physical",
+  "power": 90,
+  "accuracy": 100,
+  "pp": 10,
+  "contact": true,
+  "twoTurn": "disappear",
+  "bypassesProtect": true,
+  "effects": [
+    {
+      "kind": "Damage"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "FoulPlay",
+  "type": "Dark",
+  "category": "Physical",
+  "power": 95,
+  "accuracy": 100,
+  "pp": 15,
+  "contact": true,
+  "useTargetOffense": true,
+  "effects": [
+    {
+      "kind": "Damage"
+    }
+  ]
+}

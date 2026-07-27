@@ -6,10 +6,12 @@
   "accuracy": 90,
   "priority": 0,
   "pp": 10,
+  "reflectable": true,
   "effects": [
     {
       "kind": "ApplyStatus",
       "status": "Toxic"
     }
-  ]
+  ],
+  "alwaysHitsIfUserType": "Poison"
 }

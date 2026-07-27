@@ -1,0 +1,13 @@
+{
+  "name": "Ruination",
+  "type": "Dark",
+  "category": "Special",
+  "accuracy": 90,
+  "pp": 10,
+  "effects": [
+    {
+      "kind": "FixedDamage",
+      "mode": "halfCurrentHp"
+    }
+  ]
+}

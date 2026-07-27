@@ -32,4 +32,12 @@ inline BattlePokemon buildCombatant(const DataLoader &data, const std::string &s
   return p;
 }
 
+// Test-only: swap a species' ability inside THIS loader instance (each
+// test case owns its own DataLoader, so nothing leaks across tests). The
+// const_cast is confined here; production code never mutates the catalog.
+inline void overrideAbility(DataLoader &data, const std::string &speciesId,
+                            const std::string &ability) {
+  const_cast<Species &>(data.speciesByIndex(data.findSpeciesId(speciesId))).ability = ability;
+}
+
 } // namespace engine::test

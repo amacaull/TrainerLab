@@ -51,6 +51,11 @@ add_library(battle_engine_lib STATIC
     src/core/struggle.cpp
     # familles extensibles
     src/abilities/ability.cpp
+    src/abilities/damage_mods.cpp
+    src/abilities/immunities.cpp
+    src/abilities/weather_abilities.cpp
+    src/abilities/switch_hooks.cpp
+    src/abilities/triggers.cpp
     src/items/item.cpp
     src/effects/effect.cpp
     src/effects/damage.cpp
@@ -63,6 +68,7 @@ add_library(battle_engine_lib STATIC
     src/effects/clear_hazards.cpp
     src/effects/secondary.cpp
     src/effects/flinch.cpp
+    src/effects/move_mechanics.cpp
     src/effects/recoil.cpp
     src/effects/recovery.cpp
     src/effects/force_switch.cpp

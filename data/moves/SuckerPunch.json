@@ -1,0 +1,16 @@
+{
+  "name": "SuckerPunch",
+  "type": "Dark",
+  "category": "Physical",
+  "power": 70,
+  "accuracy": 100,
+  "pp": 5,
+  "priority": 1,
+  "contact": true,
+  "failsIfTargetNotAttacking": true,
+  "effects": [
+    {
+      "kind": "Damage"
+    }
+  ]
+}

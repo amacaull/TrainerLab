@@ -1,0 +1,22 @@
+{
+  "name": "Thunder",
+  "type": "Electric",
+  "category": "Special",
+  "power": 110,
+  "accuracy": 70,
+  "pp": 10,
+  "accuracyInWeather": {
+    "Rain": 0,
+    "Sun": 50
+  },
+  "effects": [
+    {
+      "kind": "Damage"
+    },
+    {
+      "kind": "ApplyStatus",
+      "status": "Paralysis",
+      "chance": 30
+    }
+  ]
+}

@@ -6,7 +6,7 @@
 namespace engine {
 
 void SetWeatherEffect::apply(EffectContext &ctx) const {
-  if (ctx.state.weather == weather_) {
+  if (ctx.state.weather == weather_ || ctx.state.weather == Weather::StrongWinds) {
     ctx.events.emplace_back(MoveFailedEvent{ctx.user, ctx.move.name});
     ctx.moveFailed = true;
     return;

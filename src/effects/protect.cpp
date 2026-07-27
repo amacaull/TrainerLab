@@ -21,6 +21,7 @@ void ProtectEffect::apply(EffectContext &ctx) const {
     return; // protected_now stays 0: the chain resets at end of turn
   }
   user.protected_now = 1;
+  user.protect_contact_status = static_cast<int>(contactStatus_);
   user.protect_chain += 1;
   ctx.events.emplace_back(ProtectedEvent{ctx.user});
 }

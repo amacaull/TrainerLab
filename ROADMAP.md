@@ -9,7 +9,7 @@
 **Tests** : Catch2 v3
 **Données** : JSON (nlohmann/json)
 **Niveau de combat** : 100 (ADR #33)
-**Dernière MAJ** : 2026-07-16 (phase 12 field terminée : neige gen 9, terrain Électrique, Voile Aurore — 179/179 tests, démo déterministe OK)
+**Dernière MAJ** : 2026-07-18 (phase 14 terminée : bascule anglaise ADR #48 + mécaniques d'attaques — 227/227 tests ; renumérotation : 15 = contenu, 16 = FFI, 17 = polish ; le contrat BattleState de Taj est à rafraîchir : +6 champs POD et wish[2] — snapshot déjà annoncé comme non gelé)
 
 ---
 
@@ -113,6 +113,7 @@ L'équipe a livré le roster complet : **49 Pokémon avec objets tenus** — alo
 - ⬜ Doc complémentaire : PP, précision et poids par attaque/Pokémon (annoncé pour le 2026-07-15 au soir)
 - ⬜ Liste officielle des **légendaires** (mythiques — Marshadow, Zarude, Hoopa — inclus ou non ?) pour la règle « 1 légendaire par équipe »
 - ⬜ Correction des archétypes météo orphelins : Minotaupe (Baigne Sable) n'a **aucun poseur de sable** dans le roster, Méga-Laggron (Glissade) n'a **aucun poseur de pluie**. En attendant : attaque placeholder au choix d'Alex sur ces slots.
+- ⬜ **Vérifier les noms de talents du doc équipe contre le canon** : plusieurs appellations utilisées dans nos échanges n'étaient pas canon (voir ADR #47) — à la saisie phase 14, les JSON référenceront les IDs du registry (`ChasseNeige`, `Tension`, `Impudence`, `Acharne`, `Benet`, `Incisif`, `Coloforce`, `CreaElec`, `SouffleDelta`, `UrneDuFleau`)
 - ⬜ **Vérifier les natures « Pudique » du roster** : en canon, Pudique (Bashful) est une nature *neutre* — l'équivalent français de Bold (+Déf/−Atk) est **Assuré**. La table du moteur est canon ; si l'équipe voulait +Déf/−Atk, corriger les JSON concernés en phase 14.
 
 ---
@@ -192,46 +193,56 @@ Branche : `feat/battle-engine-field`.
 - ✅ Fixtures : `Blizzard.json`, `VoileAurore.json` et l'espèce `Mammochon.json` (Glace/Sol, Isograisse) créés **directement sous leur nom français final** (ADR #40) — premiers fichiers du roster définitif ; catalogue de test : 13 espèces, 47 moves
 - ✅ +12 tests dans `test_field.cpp` (premier fichier de la convention post-refactor) — **179/179**
 
-### Phase 13 — Talents du roster  ⬜
+### Phase 13 — Talents du roster  ✅
 
-Branche : `feat/battle-engine-abilities`. ~35 nouveaux talents. Table talent → hook à produire en début de phase ; inventaire par famille :
+Branche : `feat/battle-engine-abilities`. **33 nouveaux talents** (45 au total), éclatés en 5 familles (`damage_mods`, `immunities`, `weather_abilities`, `switch_hooks`, `triggers`), chaque famille exposant sa fonction d'enregistrement au registry central. Noms **canon français ASCII** (ADR #40/#47) — les 12 talents legacy restent en anglais jusqu'à la bascule phase 14.
 
-- ⬜ **Nouveaux hooks d'interface** : `onSwitchOut` (Régé-Force +33% PV, Médic Nature purge le statut), `onAfterKO` (Cœur de Battant +1 Atk), `onStatLowered` (Agitation +2 Atk), `onEndOfTurn` générique, modification de priorité (Farceur : +1 sur les moves Status), renvoi (Miroir Magik : statuts/hazards/baisses renvoyés à l'envoyeur), seuil de PV (Repli Tactique : switch forcé à ≤ 50%, Berserk : +1 AtqSpé sous 50%), aura de camp (Vase Rompu : AtqSpé adverse ×0,75), légalité de switch (Marque Ombre — **désactivé** : M-Ectoplasma passe en Lévitation, décision équipe), consommation de PP adverse (Pression, branché sur le système de phase 10), blocage de baies (Cœur de Coq)
-- ⬜ **Multiplicateurs simples** (hooks existants) : Force Pure (Atk ×2), Technicien (×1,5 si puissance ≤ 60), Adaptabilité (STAB ×2), Tough Claws (contact ×1,3), Poing de Fer (coups de poing ×1,2 — flag `punch` sur les moves), Tranchant (moves tranchants ×1,5 — flag `slicing`), Isograisse ✅ (existant)
-- ⬜ **Immunités/absorptions** : Absorbe-Volt (immunité Électrik + soin 25%), Paratonnerre (immunité Électrik + AtqSpé +1), Torche (immunité Feu + boost Feu ×1,5 après absorption), Pare-Balles (immunité aux moves `bulletproof` — flag data), Lévitation ✅, Corps Sain (immunité aux baisses de stats infligées)
-- ⬜ **Météo** : Alerte Neige (pose la neige au switch-in, classe `WeatherAbility` existante), Glissade / Baigne Sable / Baigne Neige (Vit ×2 sous leur météo), Vent Delta (nouvelle météo : annule les faiblesses du type Vol, non remplaçable par les météos normales — porteur unique M-Rayquaza), Créateur Électrik (pose le terrain au switch-in)
-- ⬜ **Spéciaux** : Fantômasque (annule le premier coup reçu, flag POD `disguise_broken` persistant), Impassif (ignore les stages adverses en dégâts donnés et reçus), Cran ✅ (existant, synergie Orbe Flamme), Tête de Roc (annule le recul), Feuille Garde, Magicien (vole l'objet de la cible en frappant), Médic Nature, Intimidation ✅, Torrent ✅, Pression
-- ⬜ **Zoroark d'Hisui : champ `talent` vide** (ADR #43) — validation DataLoader et test catalogue assouplis (`abilityByName` tolère déjà le vide)
-- ⬜ Chaque talent testé individuellement sur les espèces du roster déjà saisies ou des fixtures
+- ✅ **Nouveaux hooks d'interface** (défauts neutres) : `onSwitchOut`, `onAfterKO`, `onStatLoweredByOpponent`, `priorityBoost`, `bouncesStatusMoves`, `onHalfHpCrossed` (partagé avec la fenêtre Sitrus via `abilityHpCheck`, appelé à chaque site d'application de dégâts avec détection de franchissement), `opposingSpAMultiplier`, `pressuresPP`, `blocksOpposingBerries`, `statMultiplier`, `speedMultiplier`, `stabMultiplier`, `onMoveAbsorbed`, `blocksRecoil`, `blocksStatus`, `ignoresStages`, `hasDisguise`, `blocksStatDrop`, `onAfterDamagingMove`
+- ✅ **damage_mods** : Coloforce (Atk ×2), Technicien (≤60 BP ×1,5), Adaptabilité (STAB ×2), Griffe Dure (contact ×1,3), Poing de Fer (flag `punch`, testé en phase 14 avec les vrais moves), Incisif (flag `slicing`, testé sur Air Slash), Benêt (stages adverses ignorés dans les deux sens), Urne du Fléau (AtqSpé adverse ×0,75)
+- ✅ **immunities** : Absorbe-Volt (+25 % PV), Paratonnerre (+1 AtqSpé), Torche (immunité Feu + flag POD `flash_fire_active`, boost ×1,5, éteint au switch), Pare-Balles (flag `bulletproof`), Corps Sain
+- ✅ **weather_abilities** : Alerte Neige, Créa-Élec (pose le terrain, event `TerrainStarted` enfin émis), **Souffle Delta** (ADR #47 : météo liée à la présence, `weather_turns_left = 0`, exemptée de l'upkeep, non-remplaçable, dissipée quand le poseur quitte le terrain K.O. compris, faiblesses de la composante Vol neutralisées), Glissade / Baigne Sable / Chasse-Neige (Vit ×2), Feuille Garde
+- ✅ **switch_hooks** : Régé-Force (+1/3), Médic Nature, Repli Tactique (ADR #47 : auto-switch vers le premier remplaçant valide — divergence canon assumée, avec garde anti-réentrée dans `performSwitch`)
+- ✅ **triggers** : Impudence, Acharné (+2 Atk via le chemin centralisé `applyOpposingStatDrop`, partagé avec Intimidation et Corps Sain), Colérique (coups directs seulement), Fantômasque (gen 8 : casse + 1/8 PV, flag POD persistant), Pression (branché sur la facturation PP), Tension, Magicien (vol d'objet), Farceur, **Miroir Magik** (flag data `reflectable` façon Showdown, ré-exécution rôles inversés, un Piège de Roc renvoyé se pose chez l'envoyeur), Tête de Roc (le recul de Lutte reste dû)
+- ✅ Zoroark d'Hisui : champ `talent` vide toléré (ADR #43)
+- ✅ Tests : +25 cas dans `test_abilities.cpp` via un helper d'override test-only (`overrideAbility`, const_cast confiné aux tests) ; 32/33 talents couverts par assertions directes (les cas groupés partagent leur setup ; Glissade/Baigne Sable/Chasse-Neige testés par instance pour garder le câblage nom → météo, pas seulement la classe partagée) ; seul Poing de Fer attend son premier move `punch` en phase 14 — **204/204**
 
-### Phase 14 — Attaques, roster complet, nouvelle suite de tests  🔵 (attend le doc PP/précision/poids)
+### Phase 14 — Bascule anglaise + mécaniques d'attaques  ✅
+
+Branche : `feat/battle-engine-mechanics`. Découpage 14/15 validé : les mécaniques d'abord (testées sur les fixtures), les ~190 fichiers de données ensuite.
+
+**Bascule anglaise (ADR #48)** : ✅ talents (33), objets (13, indices gelés inchangés), natures (25, table canon — le « Pudique » du doc équipe = Bold), Struggle, clés de schéma (`weight`, `item`), fichiers renommés (`AuroraVeil.json`, `Mamoswine.json`). Zéro identifiant français survivant, vérifié par grep.
+
+**Mécaniques livrées** (tout data-driven, `src/effects/move_mechanics.cpp`) :
+- ✅ Multi-hit : `MultiHit` (2-5 canon 35/35/15/15, plancher 4 avec Dés Pipés, comptes fixes garantis par les Dés — règle équipe), Prolifération 10 coups avec jet par coup, Triple Axel 20/40/60, Draco-Flèches ×2 ; **Fantômasque n'absorbe qu'un seul coup d'une rafale** (canon gen 8, `multiHitIndex`)
+- ✅ Stats croisées : champs `offenseStat`/`defenseStat`/`useTargetOffense` (Éclat de Corps, Psyko-Choc — les boosts météo Déf/DéfSpé sont désormais clés sur la stat de défense *résolue* —, Tricherie avec l'Atk + stages + objets de la cible)
+- ✅ Dégâts fixes : `FixedDamage` niveau (Frappe Atlas, immunités du chart et Ceinture respectées, Destinée déclenchée) et moitié des PV courants (Fléau)
+- ✅ Conditionnelles : `firstTurnOnly` + compteur POD `turns_on_field` (Bluff, Escarmouche), `failsIfTargetNotAttacking` via `executeAction(otherAction, targetAlreadyActed)` (Coup Bas), `requiresTargetItem` (Poltergeist)
+- ✅ Sabotage : flag `boostedByTargetItem` (×1,5) + effet `KnockOff` (retrait définitif, le verrou Choix meurt avec)
+- ✅ Drains (`Drain` : Vampipoing, Lame Funeste), Larcin Spectral (`StealBoosts` avant les dégâts), Taillade Continue (`HazardOnHit`), Cognobidon (`BellyDrum`, combo Sitrus testé sur PV pairs), Grand Nettoyage (ClearHazards deux camps + Atk/Vit +1)
+- ✅ État différé : Vœu (`wish_turns[2]`/`wish_heal[2]` dans le BattleState, résolu après le terrain avant les soins d'objets), Destinée (`destiny_bond_active` + `last_move_id`, chain-fail canon gen 7+, entraîne le tueur sur dégâts directs et dégâts fixes)
+- ✅ Blabla Dodo : flag `usableWhileAsleep` (le compteur de sommeil tique), appelle un autre move du set (sans précision, deux-tours exclus)
+- ✅ Blockhaus : `Protect` paramétré `contactStatus` (empoisonne les attaquants au contact, immunités respectées)
+- ✅ Revenant : `twoTurn: "disappear"` (état d'invulnérabilité 3, intouchable), release à travers Abri
+- ✅ Précision : Tonnerre/Vent Violent en pur JSON `accuracyInWeather` (posé en phase 12), Vent Violent `hitsFly`, Toxik `alwaysHitsIfUserType: "Poison"`, Ébullition/Boutefeu `thawsUser` (dégèle l'utilisateur ET la cible)
+- ✅ Malédiction : pur data (composite StatChange), Téléport : pur data (Pivot, priorité −6)
+- ✅ **30 fichiers de moves finals créés** (fichiers du roster, testent enfin Poing de Fer et Dés Pipés) — catalogue de test : 77 moves
+- ✅ +24 tests dans `test_move_mechanics.cpp` — **227/227**
+- ⚠️ Divergence assumée : la **confusion** (secondaire de Vent Violent) n'est pas implémentée — seul move concerné du roster, à arbitrer avec l'équipe (l'ajouter = un volatile + un jet par action)
+
+**Puissance au poids** (Balayette, Nœud Herbe) : reportée en phase 15 avec les données (paliers canon sur `weight` — champ déjà chargé).
+
+### Phase 15 — Contenu du roster + suite d'intégration + validateTeam  ⬜ (attend la liste des légendaires)
 
 Branche : `feat/battle-engine-roster-content`.
+- ⬜ Puissance au poids : effet paliers canon (Balayette, Nœud Herbe)
+- ⬜ Les **49 espèces** du roster en JSON (stats/EVs/natures du doc équipe — vérifiés conformes à notre formule —, poids, talent, objet, `legendary`, moveset fixe) — Méga = espèces statiques (ADR #32), M-Ectoplasma en Levitate
+- ⬜ Le reste des ~95 moves uniques du doc
+- ⬜ Placeholders sur les archétypes météo orphelins (Minotaupe/Sand Rush, M-Laggron/Swift Swim) en attendant l'arbitrage équipe
+- ⬜ **Suppression de l'ancien contenu de test** — les espèces du roster deviennent les fixtures
+- ⬜ **Suite d'intégration** sur le roster final (combos : Cran+Orbe Flamme, Cognobidon+Sitrus, Tête de Roc+Fracass'Tête, Prolifération+Dés Pipés, Fantômasque vs rafales...)
+- ⬜ **`validateTeam`** (ADR #42) : Species Clause, max 1 Méga, max 1 légendaire — exposée au FFI
 
-**Nouvelles mécaniques d'attaques :**
-- ⬜ Multi-hit : effet `MultiHit` (distribution canon 2-5, plancher Dés Pipés), Prolifération (10 coups, jet par coup), Triple Axel (puissance croissante 20/40/60), Draco-Flèches (2 coups)
-- ⬜ Puissance au poids : Balayette, Nœud Herbe (paliers canon sur le champ `poids`)
-- ⬜ Stats croisées : Psyko-Choc (spé vs Déf), Éclat de Corps (sa propre Déf comme Atk), Tricherie (l'Atk de la cible)
-- ⬜ Dégâts fixes : Frappe Atlas (= niveau, d'où le « 100 PV fixes » du doc équipe au niveau 100)
-- ⬜ Conditionnelles : Coup Bas (échoue si la cible n'attaque pas — `resolveTurn` connaît les deux actions), Bluff / Escarmouche (premier tour sur le terrain uniquement — compteur POD `turns_on_field`), Poltergeist (échoue sans objet cible)
-- ⬜ Interaction objets : Sabotage (retire l'objet, ×1,5 si objet présent)
-- ⬜ État différé : Vœu (soin 50% au tour suivant, sur le slot actif — état par camp), Destinée (K.O. réciproque si K.O. avant sa prochaine action), Malédiction (version non-Spectre : Atk/Déf +1, Vit −1)
-- ⬜ Sommeil : Blabla Dodo (lance un autre move du set au hasard en dormant), Repos ✅
-- ⬜ Set-up spéciaux : Cognobidon (−50% PV max, Atk +6, échoue sous 50%), Larcin Spectral (vole les stages positifs de la cible puis frappe), Grand Nettoyage (retire les hazards des deux camps + Atk/Vit +1)
-- ⬜ Hazard-on-hit : Taillade Continue (pose un niveau de Picots en touchant)
-- ⬜ Pivot : Téléport (priorité −6, switch pur)
-- ⬜ Précision météo : Tonnerre/Vent Violent (never-miss sous pluie, 50% au soleil), Blizzard (never-miss sous neige — posé en phase 12)
-- ⬜ Nouveaux flags data : `punch`, `slicing`, `bulletproof`, `sound` si nécessaire
-
-**Contenu :**
-- ⬜ Les **49 espèces** du roster en JSON (stats, types, nature, EVs, poids, talent, objet, `legendaire`, moveset fixe de 4, `displayName` FR accentué) — Méga = espèces statiques à part entière (ADR #32), M-Ectoplasma en Lévitation
-- ⬜ La totalité des attaques des movesets (~110 moves uniques) avec PP/précision/puissance du doc équipe
-- ⬜ Placeholders sur les slots météo orphelins (Minotaupe, M-Laggron) en attendant l'arbitrage équipe
-- ⬜ **Suppression de l'ancien contenu de test** (12 espèces, moves inutilisés) — les espèces du roster deviennent les fixtures
-- ⬜ **Nouvelle suite de tests** écrite sur le roster final : mécaniques par famille + scénarios d'intégration (les combos du doc équipe font d'excellents tests : Cran+Orbe Flamme, Cognobidon+Sitrus, Tête de Roc+Fracass'Tête, neige+Baigne Neige...)
-- ⬜ **Validation d'équipe** (ADR #42) : helper `validateTeam` — Species Clause, max 1 Méga, max 1 légendaire — appelée par `validateState`, exposée au FFI pour le teambuilder Rust
-
-### Phase 15 — Exposition FFI (ex-phase 10)  🔵 (attend phases 10-14 : gel des index)
+### Phase 16 — Exposition FFI  🔵 (gel des index à la fin de la phase 15 ; décisions de la réunion de mardi)
 
 > Changement d'architecture validé avec l'équipe 2026-05-19 : pas de REST, le moteur est embarqué dans le backend Rust via FFI. Le service IA Python parle au backend Rust.
 
@@ -248,7 +259,7 @@ Branche : `feat/battle-engine-roster-content`.
 - ⬜ Comment Rust obtient les indices moves/espèces : `find_*_id_by_name()` appelé au démarrage et caché, ou fichier d'index partagé généré ? **Crucial — les index gèlent ici.**
 - ⬜ Intégration build : `build.rs` + CMake, ou lib précompilée ?
 
-### Phase 16 — Polish (ex-phase 11)  ⬜
+### Phase 17 — Polish  ⬜
 
 - ⬜ Logging structuré, métriques (durée moyenne d'un tour)
 - ⬜ Documentation Doxygen + spec écrite de l'API FFI
@@ -314,6 +325,8 @@ Branche : `feat/battle-engine-roster-content`.
 | 44 | **Le roster final (49 espèces) remplace le contenu de test en phase 14** | tests réécrits de zéro sur le contenu final (décision Alex) ; anciennes espèces/moves supprimés au même moment ; d'ici là les tests existants sont recalibrés phase par phase pour garder la règle « tout vert à chaque merge » | 2026-07-15 |
 | 45 | **Catalogue d'objets indexé en code, ordre d'enregistrement gelé** | contrairement aux talents (impliqués par l'espèce), `item_id` vit dans le POD et traversera le FFI : il faut des indices stables ; les objets sont des singletons enregistrés dans un ordre fixe (append-only) dans `item.cpp`, le `DataLoader` expose `findItemId`/`isValidItemId` comme façade, cohérent ADR #12 ; ajouter un objet = une classe + une ligne d'enregistrement | 2026-07-16 |
 | 46 | **Arborescence par domaines : `model/` `core/` `effects/` `abilities/` `items/`, miroir include/src, démo dans `demo/`, tests nommés par domaine** | 24 headers à plat devenaient illisibles et les phases 13-14 vont tripler le volume (47 talents, ~110 moves) ; réorganiser avant l'afflux plutôt qu'après ; refactor pur, zéro logique, 167/167 comme preuve | 2026-07-16 |
+| 47 | **Phase 13 : Souffle Delta lié à la présence, Repli Tactique en auto-switch, Fantômasque gen 8, noms de talents canon FR** | Souffle Delta : pas de compteur (`turns_left = 0`, exception `validateState`), setters normaux en échec, dissipation au départ du poseur ; Repli Tactique : le canon demande un choix joueur mid-turn, incompatible avec un `resolveTurn` stateless → auto-switch vers `firstHealthyBenched`, divergence documentée ; Fantômasque casse + 1/8 PV max (gen 8) ; correction des appellations non-canon employées jusqu'ici (Chasse-Neige, Tension, Impudence, Acharné, Benêt, Incisif, Coloforce, Créa-Élec, Souffle Delta, Urne du Fléau) — le doc équipe fera foi à la saisie phase 14 | 2026-07-17 |
+| 48 | **Bascule anglaise intégrale : moves, talents, objets, natures, espèces et clés de schéma en anglais canon** | Décision équipe : éliminer la classe d'erreurs des traductions approximatives (cf. ADR #47) ; le doc roster fournit les noms EN ; remplace le volet français de l'ADR #40 (PascalCase ASCII conservé) ; « Pudique » du doc équipe = Bold (+Déf/−Atk d'après leurs tables) ; indices d'objets gelés inchangés (seules les strings changent) | 2026-07-18 |
 
 ---
 

@@ -1,5 +1,6 @@
 #include "engine/items/item.hpp"
 
+#include "engine/abilities/ability.hpp"
 #include "engine/core/battle_state.hpp"
 #include "engine/core/data_loader.hpp"
 #include "engine/model/status.hpp"
@@ -33,9 +34,9 @@ void healFromItem(ItemContext &ctx, BattlePokemon &p, const char *itemName, int 
   ctx.events.emplace_back(HealedEvent{ctx.holder, healed});
 }
 
-class OrbeVie final : public Item {
+class LifeOrb final : public Item {
 public:
-  const char *name() const override { return "OrbeVie"; }
+  const char *name() const override { return "LifeOrb"; }
   float damageMultiplier() const override { return 1.3f; }
   void onAfterDamagingMove(ItemContext &ctx) const override {
     BattlePokemon &p = holderOf(ctx);
@@ -45,18 +46,18 @@ public:
   }
 };
 
-class Restes final : public Item {
+class Leftovers final : public Item {
 public:
-  const char *name() const override { return "Restes"; }
+  const char *name() const override { return "Leftovers"; }
   void onResidual(ItemContext &ctx) const override {
     BattlePokemon &p = holderOf(ctx);
     healFromItem(ctx, p, name(), std::max(1, p.stats.hp / 16));
   }
 };
 
-class Detritus final : public Item {
+class BlackSludge final : public Item {
 public:
-  const char *name() const override { return "Detritus"; }
+  const char *name() const override { return "BlackSludge"; }
   void onResidual(ItemContext &ctx) const override {
     BattlePokemon &p = holderOf(ctx);
     const Species &sp = ctx.data.speciesByIndex(p.species_id);
@@ -68,9 +69,9 @@ public:
   }
 };
 
-class OrbeFlamme final : public Item {
+class FlameOrb final : public Item {
 public:
-  const char *name() const override { return "OrbeFlamme"; }
+  const char *name() const override { return "FlameOrb"; }
   void onTurnEnd(ItemContext &ctx) const override {
     BattlePokemon &p = holderOf(ctx);
     if (p.isFainted() || p.status != Status::None)
@@ -84,9 +85,9 @@ public:
   }
 };
 
-class BaieSitrus final : public Item {
+class SitrusBerry final : public Item {
 public:
-  const char *name() const override { return "BaieSitrus"; }
+  const char *name() const override { return "SitrusBerry"; }
   void onHpChanged(ItemContext &ctx) const override {
     BattlePokemon &p = holderOf(ctx);
     if (p.isFainted() || p.currentHp > p.stats.hp / 2)
@@ -99,9 +100,9 @@ public:
   }
 };
 
-class CeintureForce final : public Item {
+class FocusSash final : public Item {
 public:
-  const char *name() const override { return "CeintureForce"; }
+  const char *name() const override { return "FocusSash"; }
   int adjustLethalDamage(ItemContext &ctx, int damage) const override {
     BattlePokemon &p = holderOf(ctx);
     if (p.currentHp != p.stats.hp || damage < p.currentHp)
@@ -124,23 +125,23 @@ private:
   StatIndex boosted_;
 };
 
-class Massue final : public Item {
+class ThickClub final : public Item {
 public:
-  const char *name() const override { return "Massue"; }
+  const char *name() const override { return "ThickClub"; }
   float statMultiplier(StatIndex stat) const override {
     return stat == StatIndex::Atk ? 2.0f : 1.0f;
   }
 };
 
-class GrossesBottes final : public Item {
+class HeavyDutyBoots final : public Item {
 public:
-  const char *name() const override { return "GrossesBottes"; }
+  const char *name() const override { return "HeavyDutyBoots"; }
   bool ignoresHazards() const override { return true; }
 };
 
-class Lumargile final : public Item {
+class LightClay final : public Item {
 public:
-  const char *name() const override { return "Lumargile"; }
+  const char *name() const override { return "LightClay"; }
   int screenDuration(int base) const override { return base + 3; } // 5 -> 8
 };
 
@@ -156,19 +157,19 @@ private:
 
 // FROZEN ORDER (ADR #45): item_id crosses the FFI. Append only.
 const std::array<const Item *, 13> kItems = {
-    new OrbeVie,                                     // 0
-    new Restes,                                      // 1
-    new Detritus,                                    // 2
-    new OrbeFlamme,                                  // 3
-    new BaieSitrus,                                  // 4
-    new CeintureForce,                               // 5
-    new ChoiceItem("BandeauChoix", StatIndex::Atk),  // 6
-    new ChoiceItem("LunettesChoix", StatIndex::SpA), // 7
-    new ChoiceItem("MouchoirChoix", StatIndex::Spe), // 8
-    new GrossesBottes,                               // 9
-    new InertItem("DesPipes"),                       // 10
-    new Massue,                                      // 11
-    new Lumargile,                                   // 12
+    new LifeOrb,                                   // 0
+    new Leftovers,                                 // 1
+    new BlackSludge,                               // 2
+    new FlameOrb,                                  // 3
+    new SitrusBerry,                               // 4
+    new FocusSash,                                 // 5
+    new ChoiceItem("ChoiceBand", StatIndex::Atk),  // 6
+    new ChoiceItem("ChoiceSpecs", StatIndex::SpA), // 7
+    new ChoiceItem("ChoiceScarf", StatIndex::Spe), // 8
+    new HeavyDutyBoots,                            // 9
+    new InertItem("LoadedDice"),                   // 10
+    new ThickClub,                                 // 11
+    new LightClay,                                 // 12
 };
 
 } // namespace
@@ -198,6 +199,14 @@ void itemHpCheck(BattleState &state, const DataLoader &data, const CombatantRef 
                  EventLog &events) {
   const BattlePokemon &p =
       state.teams[static_cast<size_t>(holder.side)][static_cast<size_t>(holder.teamIndex)];
+  // Unnerve: berries never trigger while it stares from across the field.
+  const BattlePokemon &foe = state.active(1 - holder.side);
+  if (!foe.isFainted()) {
+    if (const Ability *foeAbility = abilityOf(data, foe)) {
+      if (foeAbility->blocksOpposingBerries())
+        return;
+    }
+  }
   if (const Item *item = heldItem(p)) {
     ItemContext ctx{state, data, events, holder};
     item->onHpChanged(ctx);

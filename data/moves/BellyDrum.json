@@ -1,0 +1,13 @@
+{
+  "name": "BellyDrum",
+  "type": "Normal",
+  "category": "Status",
+  "accuracy": 0,
+  "pp": 10,
+  "selfOrField": true,
+  "effects": [
+    {
+      "kind": "BellyDrum"
+    }
+  ]
+}

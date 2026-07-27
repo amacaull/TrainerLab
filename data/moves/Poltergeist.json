@@ -1,0 +1,14 @@
+{
+  "name": "Poltergeist",
+  "type": "Ghost",
+  "category": "Physical",
+  "power": 110,
+  "accuracy": 90,
+  "pp": 5,
+  "requiresTargetItem": true,
+  "effects": [
+    {
+      "kind": "Damage"
+    }
+  ]
+}

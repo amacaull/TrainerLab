@@ -1,5 +1,6 @@
 #include "engine/core/struggle.hpp"
 
+#include "engine/abilities/ability.hpp"
 #include "engine/core/battle_state.hpp"
 #include "engine/core/events.hpp"
 #include "engine/effects/damage.hpp"
@@ -24,20 +25,23 @@ public:
     BattlePokemon &user =
         ctx.state
             .teams[static_cast<size_t>(ctx.user.side)][static_cast<size_t>(ctx.user.teamIndex)];
+    int hpBefore = user.currentHp;
     int damage = std::max(1, user.stats.hp / 4);
     user.currentHp = std::max(0, user.currentHp - damage);
     ctx.events.emplace_back(RecoilDamageEvent{ctx.user, damage});
-    if (user.isFainted())
+    if (user.isFainted()) {
       ctx.events.emplace_back(FaintedEvent{ctx.user});
-    else
+    } else {
       itemHpCheck(ctx.state, ctx.data, ctx.user, ctx.events);
+      abilityHpCheck(ctx.state, ctx.data, ctx.user, hpBefore, false, ctx.events);
+    }
   }
   const char *name() const override { return "StruggleRecoil"; }
 };
 
 Move buildStruggle() {
   Move m;
-  m.name = "Lutte";
+  m.name = "Struggle";
   m.category = MoveCategory::Physical;
   m.power = 50;
   m.accuracy = 0; // never-miss sentinel

@@ -38,6 +38,8 @@ struct BattleState {
   Terrain terrain = Terrain::None;
   int terrain_turns_left = 0;
   std::array<int, 2> aurora_veil_turns{0, 0}; // per side; 0 = no screen (ADR #39)
+  std::array<int, 2> wish_turns{0, 0};        // Wish: 2 at cast, heals when reaching 0
+  std::array<int, 2> wish_heal{0, 0};         // amount = caster's max HP / 2
   std::array<SideHazards, kSideCount> hazards{};
 
   const BattlePokemon &active(int side) const {

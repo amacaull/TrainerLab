@@ -62,6 +62,27 @@ void validatePokemon(const BattlePokemon &p, const DataLoader &data, int side, i
   if (p.item_consumed != 0 && p.item_consumed != 1) {
     fail(where.str() + ": item_consumed must be 0 or 1");
   }
+  if (p.disguise_broken != 0 && p.disguise_broken != 1) {
+    fail(where.str() + ": disguise_broken must be 0 or 1");
+  }
+  if (p.flash_fire_active != 0 && p.flash_fire_active != 1) {
+    fail(where.str() + ": flash_fire_active must be 0 or 1");
+  }
+  if (p.turns_on_field < 0) {
+    fail(where.str() + ": turns_on_field is negative");
+  }
+  if (p.destiny_bond_active != 0 && p.destiny_bond_active != 1) {
+    fail(where.str() + ": destiny_bond_active must be 0 or 1");
+  }
+  if (p.protect_contact_status < 0 || p.protect_contact_status >= static_cast<int>(Status::Count)) {
+    fail(where.str() + ": protect_contact_status out of the Status range");
+  }
+  if (p.last_move_id != kNoMove && !data.isValidMoveId(p.last_move_id)) {
+    fail(where.str() + ": last_move_id invalid");
+  }
+  if (p.invulnerable_state < 0 || p.invulnerable_state > 3) {
+    fail(where.str() + ": invulnerable_state out of range [0, 3]");
+  }
   if (p.item_consumed == 1 && p.item_id == kNoItem) {
     fail(where.str() + ": item_consumed set without an item");
   }
@@ -124,7 +145,10 @@ void validateState(const BattleState &state, const DataLoader &data) {
     fail("weather_turns_left is negative");
   if (state.weather == Weather::None && state.weather_turns_left != 0)
     fail("weather_turns_left must be 0 when weather is None");
-  if (state.weather != Weather::None && state.weather_turns_left > kWeatherDuration)
+  if (state.weather == Weather::StrongWinds && state.weather_turns_left != 0)
+    fail("StrongWinds is presence-bound: weather_turns_left must be 0 (ADR #47)");
+  if (state.weather != Weather::None && state.weather != Weather::StrongWinds &&
+      state.weather_turns_left > kWeatherDuration)
     fail("weather_turns_left exceeds the maximum duration");
 
   if (state.terrain < Terrain::None || state.terrain >= Terrain::Count)
@@ -137,8 +161,13 @@ void validateState(const BattleState &state, const DataLoader &data) {
     fail("terrain_turns_left exceeds the maximum duration");
 
   for (int side = 0; side < kSideCount; ++side) {
+    if (state.wish_turns[static_cast<size_t>(side)] < 0 ||
+        state.wish_turns[static_cast<size_t>(side)] > 2)
+      fail("wish_turns out of range [0, 2]");
+    if (state.wish_heal[static_cast<size_t>(side)] < 0)
+      fail("wish_heal is negative");
     int veil = state.aurora_veil_turns[static_cast<size_t>(side)];
-    if (veil < 0 || veil > 8) // 5 turns, 8 with Lumargile (ADR #39)
+    if (veil < 0 || veil > 8) // 5 turns, 8 with LightClay (ADR #39)
       fail("aurora_veil_turns out of range [0, 8] on side " + std::to_string(side));
   }
 

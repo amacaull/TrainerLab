@@ -163,6 +163,10 @@ struct ScreenEndedEvent {
   int side;
 };
 
+struct DestinyBondTriggeredEvent {
+  CombatantRef dragged; // the attacker taken along
+};
+
 struct ItemTriggeredEvent {
   CombatantRef who;
   std::string itemName;
@@ -204,7 +208,7 @@ using BattleEvent =
                  ToxicSpikesAbsorbedEvent, HealedEvent, RecoilDamageEvent, ChargingEvent,
                  ProtectedEvent, ItemTriggeredEvent, ItemConsumedEvent, ItemDamageEvent,
                  ItemKnockedOffEvent, TerrainStartedEvent, TerrainEndedEvent, ScreenStartedEvent,
-                 ScreenEndedEvent>;
+                 ScreenEndedEvent, DestinyBondTriggeredEvent>;
 using EventLog = std::vector<BattleEvent>;
 
 } // namespace engine

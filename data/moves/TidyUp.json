@@ -1,0 +1,26 @@
+{
+  "name": "TidyUp",
+  "type": "Normal",
+  "category": "Status",
+  "accuracy": 0,
+  "pp": 10,
+  "selfOrField": true,
+  "effects": [
+    {
+      "kind": "ClearHazards",
+      "bothSides": true
+    },
+    {
+      "kind": "StatChange",
+      "stat": "Atk",
+      "delta": 1,
+      "affectsUser": true
+    },
+    {
+      "kind": "StatChange",
+      "stat": "Spe",
+      "delta": 1,
+      "affectsUser": true
+    }
+  ]
+}

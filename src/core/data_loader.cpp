@@ -6,6 +6,7 @@
 #include "engine/effects/damage.hpp"
 #include "engine/effects/flinch.hpp"
 #include "engine/effects/force_switch.hpp"
+#include "engine/effects/move_mechanics.hpp"
 #include "engine/effects/pivot.hpp"
 #include "engine/effects/protect.hpp"
 #include "engine/effects/recoil.hpp"
@@ -55,6 +56,28 @@ StatIndex statIndexFromString(const std::string &s) {
 
 EffectPtr makeEffectFromJson(const json &j) {
   const std::string kind = j.at("kind").get<std::string>();
+  if (kind == "MultiHit")
+    return std::make_unique<MultiHitEffect>();
+  if (kind == "Drain")
+    return std::make_unique<DrainEffect>(j.value("denominator", 2));
+  if (kind == "FixedDamage")
+    return std::make_unique<FixedDamageEffect>(j.at("mode").get<std::string>() == "level"
+                                                   ? FixedDamageEffect::Mode::Level
+                                                   : FixedDamageEffect::Mode::HalfCurrentHp);
+  if (kind == "StealBoosts")
+    return std::make_unique<StealBoostsEffect>();
+  if (kind == "KnockOff")
+    return std::make_unique<KnockOffEffect>();
+  if (kind == "HazardOnHit")
+    return std::make_unique<HazardOnHitEffect>();
+  if (kind == "BellyDrum")
+    return std::make_unique<BellyDrumEffect>();
+  if (kind == "SleepTalk")
+    return std::make_unique<SleepTalkEffect>();
+  if (kind == "DestinyBond")
+    return std::make_unique<DestinyBondEffect>();
+  if (kind == "Wish")
+    return std::make_unique<WishEffect>();
   if (kind == "Damage")
     return std::make_unique<DamageEffect>();
   if (kind == "ApplyStatus")
@@ -74,8 +97,10 @@ EffectPtr makeEffectFromJson(const json &j) {
         weatherFromString(j.at("weather").get<std::string>()));
   if (kind == "SetHazard")
     return std::make_unique<SetHazardEffect>(hazardFromString(j.at("hazard").get<std::string>()));
-  if (kind == "ClearHazards")
-    return std::make_unique<ClearHazardsEffect>(j.value("scope", std::string("user")) == "both");
+  if (kind == "ClearHazards") {
+    bool both = j.value("bothSides", false) || j.value("scope", std::string("user")) == "both";
+    return std::make_unique<ClearHazardsEffect>(both, j.value("clearScreens", false));
+  }
   if (kind == "Flinch")
     return std::make_unique<FlinchEffect>();
   if (kind == "Recoil")
@@ -88,8 +113,12 @@ EffectPtr makeEffectFromJson(const json &j) {
     return std::make_unique<RestEffect>();
   if (kind == "ForceSwitch")
     return std::make_unique<ForceSwitchEffect>();
-  if (kind == "Protect")
-    return std::make_unique<ProtectEffect>();
+  if (kind == "Protect") {
+    Status contactStatus = Status::None;
+    if (j.contains("contactStatus"))
+      contactStatus = statusFromString(j.at("contactStatus").get<std::string>());
+    return std::make_unique<ProtectEffect>(contactStatus);
+  }
   throw std::invalid_argument("makeEffectFromJson: unknown effect '" + kind + "'");
 }
 
@@ -163,6 +192,40 @@ void DataLoader::loadMoves(const std::string &dir) {
     m.power = j.value("power", 0);
     m.accuracy = j.value("accuracy", 100);
     m.priority = j.value("priority", 0);
+    m.punch = j.value("punch", false);
+    m.useTargetOffense = j.value("useTargetOffense", false);
+    m.boostedByTargetItem = j.value("boostedByTargetItem", false);
+    m.firstTurnOnly = j.value("firstTurnOnly", false);
+    m.failsIfTargetNotAttacking = j.value("failsIfTargetNotAttacking", false);
+    m.requiresTargetItem = j.value("requiresTargetItem", false);
+    m.usableWhileAsleep = j.value("usableWhileAsleep", false);
+    m.thawsUser = j.value("thawsUser", false);
+    m.hitsFly = j.value("hitsFly", false);
+    if (j.contains("offenseStat"))
+      m.offenseStat = statIndexFromString(j.at("offenseStat").get<std::string>());
+    if (j.contains("defenseStat"))
+      m.defenseStat = statIndexFromString(j.at("defenseStat").get<std::string>());
+    if (j.contains("alwaysHitsIfUserType"))
+      m.alwaysHitsIfUserType = typeFromString(j.at("alwaysHitsIfUserType").get<std::string>());
+    if (j.contains("multiHit")) {
+      const auto &mh = j.at("multiHit");
+      if (mh.contains("powers")) {
+        for (const auto &pw : mh.at("powers"))
+          m.hitPowers.push_back(pw.get<int>());
+        m.minHits = m.maxHits = static_cast<int>(m.hitPowers.size());
+      } else if (mh.contains("count")) {
+        m.minHits = m.maxHits = mh.at("count").get<int>();
+      } else {
+        m.minHits = mh.at("min").get<int>();
+        m.maxHits = mh.at("max").get<int>();
+      }
+      m.perHitAccuracy = mh.value("perHitAccuracy", false);
+      if (m.minHits < 1 || m.maxHits < m.minHits)
+        throw std::runtime_error("Move '" + m.name + "' has an invalid multiHit block");
+    }
+    m.slicing = j.value("slicing", false);
+    m.bulletproof = j.value("bulletproof", false);
+    m.reflectable = j.value("reflectable", false);
     m.pp = j.at("pp").get<int>(); // mandatory: every move burns PP (ADR #35)
     if (j.contains("accuracyInWeather")) {
       for (const auto &[w, acc] : j.at("accuracyInWeather").items()) {
@@ -183,10 +246,11 @@ void DataLoader::loadMoves(const std::string &dir) {
     bool selfOrField = j.value("selfOrField", false);
     m.blockedByProtect = !selfOrField;
     const std::string twoTurn = j.value("twoTurn", std::string(""));
-    m.twoTurn = twoTurn == "charge" ? TwoTurn::Charge
-                : twoTurn == "fly"  ? TwoTurn::Fly
-                : twoTurn == "dig"  ? TwoTurn::Dig
-                                    : TwoTurn::None;
+    m.twoTurn = twoTurn == "charge"      ? TwoTurn::Charge
+                : twoTurn == "fly"       ? TwoTurn::Fly
+                : twoTurn == "dig"       ? TwoTurn::Dig
+                : twoTurn == "disappear" ? TwoTurn::Disappear
+                                         : TwoTurn::None;
 
     if (j.contains("effects")) {
       for (const auto &e : j.at("effects")) {
@@ -230,7 +294,7 @@ void DataLoader::loadSpecies(const std::string &dir) {
     s.type1 = typeFromString(j.at("type1").get<std::string>());
     s.type2 = j.contains("type2") ? typeFromString(j.at("type2").get<std::string>()) : s.type1;
     s.ability = j.value("ability", "");
-    s.nature = j.value("nature", std::string("Sérieux"));
+    s.nature = j.value("nature", std::string("Serious"));
     if (natureByName(s.nature) == nullptr) {
       throw std::runtime_error("Species '" + s.id + "' has unknown nature '" + s.nature + "'");
     }
@@ -252,11 +316,11 @@ void DataLoader::loadSpecies(const std::string &dir) {
         throw std::runtime_error("Species '" + s.id + "' has EV total " + std::to_string(total) +
                                  " > 510");
     }
-    s.weightKg = j.value("poids", 0.0);
+    s.weightKg = j.value("weight", 0.0);
     if (s.weightKg < 0.0) {
       throw std::runtime_error("Species '" + s.id + "' has negative weight");
     }
-    s.item = j.value("objet", std::string(""));
+    s.item = j.value("item", std::string(""));
     if (!s.item.empty() && findItemIdByName(s.item) < 0) {
       throw std::runtime_error("Species '" + s.id + "' references unknown item '" + s.item + "'");
     }

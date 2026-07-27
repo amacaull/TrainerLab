@@ -1,5 +1,6 @@
 #include "engine/effects/apply_status.hpp"
 
+#include "engine/abilities/ability.hpp"
 #include "engine/core/switching.hpp"
 
 #include "engine/core/battle_state.hpp"
@@ -47,8 +48,12 @@ void ApplyStatusEffect::apply(EffectContext &ctx) const {
   bool terrainBlocksSleep =
       (status_ == Status::Sleep && ctx.state.terrain == Terrain::Electric && isGrounded(sp));
 
-  if (chartImmune || sunBlocksFreeze || terrainBlocksSleep || target.status != Status::None ||
-      typeImmuneToStatus(status_, sp) ||
+  // LeafGuard: no status at all under the sun.
+  const Ability *targetAbility = abilityOf(ctx.data, target);
+  bool abilityBlocks = targetAbility && targetAbility->blocksStatus(ctx.state);
+
+  if (chartImmune || sunBlocksFreeze || terrainBlocksSleep || abilityBlocks ||
+      target.status != Status::None || typeImmuneToStatus(status_, sp) ||
       (status_ == Status::Sleep && sideHasSleeper(ctx.state, ctx.target.side))) {
     ctx.events.emplace_back(StatusFailedEvent{ctx.target, status_});
     return;

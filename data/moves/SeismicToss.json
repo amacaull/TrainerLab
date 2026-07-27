@@ -1,0 +1,14 @@
+{
+  "name": "SeismicToss",
+  "type": "Fighting",
+  "category": "Physical",
+  "accuracy": 100,
+  "pp": 20,
+  "contact": true,
+  "effects": [
+    {
+      "kind": "FixedDamage",
+      "mode": "level"
+    }
+  ]
+}
