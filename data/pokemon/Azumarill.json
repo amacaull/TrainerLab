@@ -1,0 +1,30 @@
+{
+  "id": "Azumarill",
+  "displayName": "Azumarill",
+  "baseStats": {
+    "hp": 100,
+    "atk": 50,
+    "def": 80,
+    "specAtk": 60,
+    "specDef": 80,
+    "speed": 50
+  },
+  "type1": "Water",
+  "type2": "Fairy",
+  "ability": "HugePower",
+  "nature": "Adamant",
+  "evs": {
+    "hp": 252,
+    "atk": 252,
+    "speed": 4
+  },
+  "weight": 28.5,
+  "item": "SitrusBerry",
+  "legendary": false,
+  "movepool": [
+    "BellyDrum",
+    "AquaJet",
+    "PlayRough",
+    "IcePunch"
+  ]
+}

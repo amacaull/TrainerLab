@@ -1,0 +1,20 @@
+{
+  "name": "PlayRough",
+  "type": "Fairy",
+  "category": "Physical",
+  "power": 90,
+  "accuracy": 90,
+  "pp": 10,
+  "contact": true,
+  "effects": [
+    {
+      "kind": "Damage"
+    },
+    {
+      "kind": "StatChange",
+      "stat": "Atk",
+      "delta": -1,
+      "chance": 10
+    }
+  ]
+}

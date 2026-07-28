@@ -1,0 +1,30 @@
+{
+  "id": "Zarude",
+  "displayName": "Zarude",
+  "baseStats": {
+    "hp": 105,
+    "atk": 120,
+    "def": 105,
+    "specAtk": 70,
+    "specDef": 95,
+    "speed": 105
+  },
+  "type1": "Dark",
+  "type2": "Grass",
+  "ability": "LeafGuard",
+  "nature": "Jolly",
+  "evs": {
+    "atk": 252,
+    "def": 4,
+    "speed": 252
+  },
+  "weight": 70.0,
+  "item": "ChoiceBand",
+  "legendary": false,
+  "movepool": [
+    "PowerWhip",
+    "KnockOff",
+    "CloseCombat",
+    "UTurn"
+  ]
+}

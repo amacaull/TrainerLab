@@ -1,0 +1,29 @@
+{
+  "id": "Conkeldurr",
+  "displayName": "Conkeldurr",
+  "baseStats": {
+    "hp": 105,
+    "atk": 140,
+    "def": 95,
+    "specAtk": 55,
+    "specDef": 65,
+    "speed": 45
+  },
+  "type1": "Fighting",
+  "ability": "Guts",
+  "nature": "Adamant",
+  "evs": {
+    "hp": 252,
+    "atk": 252,
+    "def": 4
+  },
+  "weight": 87.0,
+  "item": "FlameOrb",
+  "legendary": false,
+  "movepool": [
+    "DrainPunch",
+    "MachPunch",
+    "KnockOff",
+    "IcePunch"
+  ]
+}

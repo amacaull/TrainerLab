@@ -1,0 +1,30 @@
+{
+  "id": "Golisopod",
+  "displayName": "Golisopod",
+  "baseStats": {
+    "hp": 75,
+    "atk": 125,
+    "def": 140,
+    "specAtk": 60,
+    "specDef": 90,
+    "speed": 40
+  },
+  "type1": "Bug",
+  "type2": "Water",
+  "ability": "EmergencyExit",
+  "nature": "Adamant",
+  "evs": {
+    "atk": 252,
+    "def": 4,
+    "speed": 252
+  },
+  "weight": 108.0,
+  "item": "ChoiceBand",
+  "legendary": false,
+  "movepool": [
+    "FirstImpression",
+    "Liquidation",
+    "KnockOff",
+    "CloseCombat"
+  ]
+}

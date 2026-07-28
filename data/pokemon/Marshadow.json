@@ -1,0 +1,30 @@
+{
+  "id": "Marshadow",
+  "displayName": "Marshadow",
+  "baseStats": {
+    "hp": 90,
+    "atk": 125,
+    "def": 80,
+    "specAtk": 90,
+    "specDef": 90,
+    "speed": 125
+  },
+  "type1": "Fighting",
+  "type2": "Ghost",
+  "ability": "Technician",
+  "nature": "Jolly",
+  "evs": {
+    "atk": 252,
+    "def": 4,
+    "speed": 252
+  },
+  "weight": 22.2,
+  "item": "LifeOrb",
+  "legendary": false,
+  "movepool": [
+    "SpectralThief",
+    "CloseCombat",
+    "ShadowSneak",
+    "MachPunch"
+  ]
+}

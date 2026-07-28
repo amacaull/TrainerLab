@@ -1,0 +1,20 @@
+{
+  "name": "Crunch",
+  "type": "Dark",
+  "category": "Physical",
+  "power": 80,
+  "accuracy": 100,
+  "pp": 15,
+  "contact": true,
+  "effects": [
+    {
+      "kind": "Damage"
+    },
+    {
+      "kind": "StatChange",
+      "stat": "Def",
+      "delta": -1,
+      "chance": 20
+    }
+  ]
+}

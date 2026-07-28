@@ -1,0 +1,30 @@
+{
+  "id": "ThundurusT",
+  "displayName": "Thundurus-T",
+  "baseStats": {
+    "hp": 79,
+    "atk": 105,
+    "def": 70,
+    "specAtk": 145,
+    "specDef": 80,
+    "speed": 101
+  },
+  "type1": "Electric",
+  "type2": "Flying",
+  "ability": "VoltAbsorb",
+  "nature": "Timid",
+  "evs": {
+    "specAtk": 252,
+    "specDef": 4,
+    "speed": 252
+  },
+  "weight": 61.0,
+  "item": "LifeOrb",
+  "legendary": false,
+  "movepool": [
+    "NastyPlot",
+    "Thunder",
+    "FocusBlast",
+    "VoltSwitch"
+  ]
+}

@@ -2,7 +2,7 @@
   "name": "ToxicSpikes",
   "type": "Poison",
   "category": "Status",
-  "accuracy": 100,
+  "accuracy": 0,
   "pp": 20,
   "reflectable": true,
   "effects": [

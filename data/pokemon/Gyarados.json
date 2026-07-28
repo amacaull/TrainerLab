@@ -1,0 +1,30 @@
+{
+  "id": "Gyarados",
+  "displayName": "Gyarados",
+  "baseStats": {
+    "hp": 95,
+    "atk": 125,
+    "def": 79,
+    "specAtk": 60,
+    "specDef": 100,
+    "speed": 81
+  },
+  "type1": "Water",
+  "type2": "Flying",
+  "ability": "Moxie",
+  "nature": "Jolly",
+  "evs": {
+    "atk": 252,
+    "def": 4,
+    "speed": 252
+  },
+  "weight": 235.0,
+  "item": "HeavyDutyBoots",
+  "legendary": false,
+  "movepool": [
+    "DragonDance",
+    "Waterfall",
+    "Earthquake",
+    "IceFang"
+  ]
+}

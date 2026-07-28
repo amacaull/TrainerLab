@@ -1,0 +1,30 @@
+{
+  "id": "Aerodactyl",
+  "displayName": "Aerodactyl",
+  "baseStats": {
+    "hp": 80,
+    "atk": 105,
+    "def": 65,
+    "specAtk": 60,
+    "specDef": 75,
+    "speed": 130
+  },
+  "type1": "Rock",
+  "type2": "Flying",
+  "ability": "Unnerve",
+  "nature": "Jolly",
+  "evs": {
+    "atk": 252,
+    "def": 4,
+    "speed": 252
+  },
+  "weight": 59.0,
+  "item": "FocusSash",
+  "legendary": false,
+  "movepool": [
+    "StoneEdge",
+    "Earthquake",
+    "IceFang",
+    "StealthRock"
+  ]
+}

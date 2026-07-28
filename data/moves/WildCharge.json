@@ -1,0 +1,18 @@
+{
+  "name": "WildCharge",
+  "type": "Electric",
+  "category": "Physical",
+  "power": 90,
+  "accuracy": 100,
+  "pp": 15,
+  "contact": true,
+  "effects": [
+    {
+      "kind": "Damage"
+    },
+    {
+      "kind": "Recoil",
+      "denominator": 4
+    }
+  ]
+}

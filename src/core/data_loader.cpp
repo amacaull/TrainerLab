@@ -157,6 +157,14 @@ void DataLoader::loadAll(const std::string &dataDir) {
   loadSpecies((root / "pokemon").string());
 }
 
+void DataLoader::loadExtraContent(const std::string &dataDir) {
+  fs::path root(dataDir);
+  if (!fs::exists(root))
+    throw std::runtime_error("Extra content directory not found: " + dataDir);
+  loadMoves((root / "moves").string());
+  loadSpecies((root / "pokemon").string());
+}
+
 void DataLoader::loadTypes(const std::string &path) {
   json j = readJsonFile(path);
 
@@ -201,6 +209,7 @@ void DataLoader::loadMoves(const std::string &dir) {
     m.usableWhileAsleep = j.value("usableWhileAsleep", false);
     m.thawsUser = j.value("thawsUser", false);
     m.hitsFly = j.value("hitsFly", false);
+    m.powerFromTargetWeight = j.value("powerFromTargetWeight", false);
     if (j.contains("offenseStat"))
       m.offenseStat = statIndexFromString(j.at("offenseStat").get<std::string>());
     if (j.contains("defenseStat"))
@@ -317,6 +326,8 @@ void DataLoader::loadSpecies(const std::string &dir) {
                                  " > 510");
     }
     s.weightKg = j.value("weight", 0.0);
+    s.legendary = j.value("legendary", false);
+    s.mega = j.value("mega", false);
     if (s.weightKg < 0.0) {
       throw std::runtime_error("Species '" + s.id + "' has negative weight");
     }

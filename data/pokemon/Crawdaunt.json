@@ -1,0 +1,30 @@
+{
+  "id": "Crawdaunt",
+  "displayName": "Crawdaunt",
+  "baseStats": {
+    "hp": 63,
+    "atk": 120,
+    "def": 85,
+    "specAtk": 90,
+    "specDef": 55,
+    "speed": 55
+  },
+  "type1": "Water",
+  "type2": "Dark",
+  "ability": "Adaptability",
+  "nature": "Adamant",
+  "evs": {
+    "atk": 252,
+    "def": 4,
+    "speed": 252
+  },
+  "weight": 32.8,
+  "item": "LifeOrb",
+  "legendary": false,
+  "movepool": [
+    "SwordsDance",
+    "Liquidation",
+    "KnockOff",
+    "AquaJet"
+  ]
+}

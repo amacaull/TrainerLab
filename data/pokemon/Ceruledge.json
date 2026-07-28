@@ -1,0 +1,30 @@
+{
+  "id": "Ceruledge",
+  "displayName": "Ceruledge",
+  "baseStats": {
+    "hp": 75,
+    "atk": 125,
+    "def": 80,
+    "specAtk": 60,
+    "specDef": 100,
+    "speed": 85
+  },
+  "type1": "Fire",
+  "type2": "Ghost",
+  "ability": "FlashFire",
+  "nature": "Adamant",
+  "evs": {
+    "atk": 252,
+    "def": 4,
+    "speed": 252
+  },
+  "weight": 62.0,
+  "item": "LifeOrb",
+  "legendary": false,
+  "movepool": [
+    "SwordsDance",
+    "BitterBlade",
+    "ShadowSneak",
+    "CloseCombat"
+  ]
+}

@@ -11,13 +11,20 @@
   },
   "type1": "Ice",
   "type2": "Ground",
-  "ability": "ThickFat",
-  "nature": "Serious",
+  "ability": "SlushRush",
+  "nature": "Adamant",
+  "evs": {
+    "atk": 252,
+    "def": 4,
+    "speed": 252
+  },
   "weight": 291.0,
+  "item": "ChoiceBand",
+  "legendary": false,
   "movepool": [
-    "Blizzard",
-    "Tackle",
+    "IcicleCrash",
     "Earthquake",
-    "IceBeam"
+    "IceShard",
+    "StoneEdge"
   ]
 }

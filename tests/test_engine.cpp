@@ -12,11 +12,11 @@ using engine::test::buildCombatant;
 
 TEST_CASE("Full battle ends in a KO", "[engine][integration]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "charizard", 100, {"Flamethrower"});
-  state.teams[1][0] = buildCombatant(data, "venusaur", 100, {"VineWhip"});
+  state.teams[0][0] = buildCombatant(data, "Infernape", 100, {"Flamethrower"});
+  state.teams[1][0] = buildCombatant(data, "Toxapex", 100, {"VineWhip"});
   state.team_size = {1, 1};
 
   BattleEngine engine(data);

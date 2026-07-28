@@ -63,11 +63,11 @@ void setElectricTerrain(BattleState &state) {
 
 TEST_CASE("Snow: Ice types get Def x1.5, special side untouched (ADR #37)", "[field][snow]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto hit = [&](const char *move, bool snow) {
-    auto state = makeDuel(data, "machamp", {move}, "Mamoswine", {"Tackle"});
+    auto state = makeDuel(data, "Conkeldurr", {move}, "Mamoswine", {"Tackle"});
     if (snow)
       setSnow(state);
     FixedRNG rng(0.99f);
@@ -86,10 +86,10 @@ TEST_CASE("Snow: Ice types get Def x1.5, special side untouched (ADR #37)", "[fi
 
 TEST_CASE("The Hail fixture move now sets snow; snow never chips", "[field][snow]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
-  auto state = makeDuel(data, "pikachu", {"Hail"}, "snorlax", {"Growl"});
+  auto state = makeDuel(data, "Luxray", {"Hail"}, "Snorlax", {"Growl"});
   FixedRNG rng(0.99f);
   auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(state.weather == Weather::Snow);
@@ -99,11 +99,11 @@ TEST_CASE("The Hail fixture move now sets snow; snow never chips", "[field][snow
 
 TEST_CASE("Blizzard never misses under snow (accuracyInWeather)", "[field][snow]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto run = [&](bool snow) {
-    auto state = makeDuel(data, "Mamoswine", {"Blizzard"}, "snorlax", {"Growl"});
+    auto state = makeDuel(data, "Mamoswine", {"Blizzard"}, "Snorlax", {"Growl"});
     if (snow)
       setSnow(state);
     MissRNG rng; // every accuracy roll fails: only a never-miss connects
@@ -117,11 +117,11 @@ TEST_CASE("Blizzard never misses under snow (accuracyInWeather)", "[field][snow]
 
 TEST_CASE("Electric Terrain: x1.3 for grounded attackers only (ADR #38)", "[field][terrain]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto bolt = [&](const char *attacker, bool terrain) {
-    auto state = makeDuel(data, attacker, {"Thunderbolt"}, "snorlax", {"Growl"});
+    auto state = makeDuel(data, attacker, {"Thunderbolt"}, "Snorlax", {"Growl"});
     if (terrain)
       setElectricTerrain(state);
     FixedRNG rng(0.99f);
@@ -129,38 +129,38 @@ TEST_CASE("Electric Terrain: x1.3 for grounded attackers only (ADR #38)", "[fiel
     return damageOn(events, 1);
   };
 
-  int plain = bolt("pikachu", false);
-  int boosted = bolt("pikachu", true);
+  int plain = bolt("Luxray", false);
+  int boosted = bolt("Luxray", true);
   REQUIRE(boosted > static_cast<int>(static_cast<float>(plain) * 1.2f));
 
   // Gengar levitates: the terrain never reaches it.
-  REQUIRE(bolt("gengar", true) == bolt("gengar", false));
+  REQUIRE(bolt("MegaGengar", true) == bolt("MegaGengar", false));
 }
 
 TEST_CASE("Electric Terrain keeps grounded Pokemon awake, Levitate exempt", "[field][terrain]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto sporeOn = [&](const char *target) {
-    auto state = makeDuel(data, "venusaur", {"Spore"}, target, {"Growl"});
+    auto state = makeDuel(data, "Toxapex", {"Spore"}, target, {"Growl"});
     setElectricTerrain(state);
     FixedRNG rng(0.99f);
     engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
     return state.teams[1][0].status;
   };
 
-  REQUIRE(sporeOn("snorlax") == Status::None); // grounded: protected
-  REQUIRE(sporeOn("gengar") == Status::Sleep); // Levitate: fair game
+  REQUIRE(sporeOn("Snorlax") == Status::None);     // grounded: protected
+  REQUIRE(sporeOn("MegaGengar") == Status::Sleep); // Levitate: fair game
 }
 
 TEST_CASE("Rest fails for a grounded user under Electric Terrain (canon)", "[field][terrain]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto rest = [&](const char *user) {
-    auto state = makeDuel(data, user, {"Rest"}, "machamp", {"Growl"});
+    auto state = makeDuel(data, user, {"Rest"}, "Conkeldurr", {"Growl"});
     setElectricTerrain(state);
     state.teams[0][0].currentHp = state.teams[0][0].stats.hp / 2;
     FixedRNG rng(0.99f);
@@ -168,21 +168,21 @@ TEST_CASE("Rest fails for a grounded user under Electric Terrain (canon)", "[fie
     return std::pair{state.teams[0][0].status, countEvents<MoveFailedEvent>(events)};
   };
 
-  auto [laxStatus, laxFails] = rest("snorlax");
+  auto [laxStatus, laxFails] = rest("Snorlax");
   REQUIRE(laxStatus == Status::None);
   REQUIRE(laxFails == 1); // no sleep, no heal: the whole move fails
 
-  auto [gengarStatus, gengarFails] = rest("gengar");
+  auto [gengarStatus, gengarFails] = rest("MegaGengar");
   REQUIRE(gengarStatus == Status::Sleep);
   REQUIRE(gengarFails == 0);
 }
 
 TEST_CASE("The terrain ticks like the weather and ends after 5 turns", "[field][terrain]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
-  auto state = makeDuel(data, "snorlax", {"Growl"}, "machamp", {"SwordsDance"});
+  auto state = makeDuel(data, "Snorlax", {"Growl"}, "Conkeldurr", {"SwordsDance"});
   setElectricTerrain(state);
   FixedRNG rng(0.99f);
 
@@ -199,10 +199,10 @@ TEST_CASE("The terrain ticks like the weather and ends after 5 turns", "[field][
 
 TEST_CASE("Voile Aurore needs snow and refuses to stack (ADR #39)", "[field][screen]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
-  auto state = makeDuel(data, "Mamoswine", {"AuroraVeil"}, "machamp", {"SwordsDance"});
+  auto state = makeDuel(data, "Mamoswine", {"AuroraVeil"}, "Conkeldurr", {"SwordsDance"});
   FixedRNG rng(0.99f);
 
   // No snow: the screen refuses to go up.
@@ -222,11 +222,11 @@ TEST_CASE("Voile Aurore needs snow and refuses to stack (ADR #39)", "[field][scr
 
 TEST_CASE("Voile Aurore halves both categories; crits punch through", "[field][screen]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto hit = [&](const char *move, bool veil, float rngUnit) {
-    auto state = makeDuel(data, "machamp", {move}, "snorlax", {"Growl"});
+    auto state = makeDuel(data, "Conkeldurr", {move}, "Snorlax", {"Growl"});
     setSnow(state);
     if (veil)
       state.aurora_veil_turns[1] = 5;
@@ -253,10 +253,10 @@ TEST_CASE("Voile Aurore halves both categories; crits punch through", "[field][s
 
 TEST_CASE("Voile Aurore lasts 8 turns when the setter holds LightClay", "[field][screen]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
-  auto state = makeDuel(data, "Mamoswine", {"AuroraVeil"}, "machamp", {"SwordsDance"});
+  auto state = makeDuel(data, "Mamoswine", {"AuroraVeil"}, "Conkeldurr", {"SwordsDance"});
   setSnow(state);
   state.teams[0][0].item_id = data.findItemId("LightClay");
   FixedRNG rng(0.99f);
@@ -270,10 +270,10 @@ TEST_CASE("Voile Aurore lasts 8 turns when the setter holds LightClay", "[field]
 
 TEST_CASE("The screen counts down and ends with its event", "[field][screen]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
-  auto state = makeDuel(data, "snorlax", {"Growl"}, "machamp", {"SwordsDance"});
+  auto state = makeDuel(data, "Snorlax", {"Growl"}, "Conkeldurr", {"SwordsDance"});
   state.aurora_veil_turns[0] = 2;
   FixedRNG rng(0.99f);
 
@@ -286,9 +286,9 @@ TEST_CASE("The screen counts down and ends with its event", "[field][screen]") {
 
 TEST_CASE("validateState checks the terrain and screen invariants", "[field][validate]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
 
-  auto state = makeDuel(data, "snorlax", {"Tackle"}, "machamp", {"Growl"});
+  auto state = makeDuel(data, "Snorlax", {"Tackle"}, "Conkeldurr", {"Growl"});
   setElectricTerrain(state);
   state.aurora_veil_turns[1] = 8;
   REQUIRE_NOTHROW(validateState(state, data));

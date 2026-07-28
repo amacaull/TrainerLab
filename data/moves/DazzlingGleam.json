@@ -1,0 +1,13 @@
+{
+  "name": "DazzlingGleam",
+  "type": "Fairy",
+  "category": "Special",
+  "power": 80,
+  "accuracy": 100,
+  "pp": 10,
+  "effects": [
+    {
+      "kind": "Damage"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "id": "MegaBanette",
+  "displayName": "Mega Banette",
+  "baseStats": {
+    "hp": 64,
+    "atk": 165,
+    "def": 75,
+    "specAtk": 93,
+    "specDef": 83,
+    "speed": 75
+  },
+  "type1": "Ghost",
+  "ability": "Prankster",
+  "nature": "Adamant",
+  "evs": {
+    "hp": 252,
+    "atk": 252
+  },
+  "weight": 13.0,
+  "legendary": false,
+  "mega": true,
+  "movepool": [
+    "Poltergeist",
+    "KnockOff",
+    "WillOWisp",
+    "DestinyBond"
+  ]
+}

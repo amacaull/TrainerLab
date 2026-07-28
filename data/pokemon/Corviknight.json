@@ -1,0 +1,30 @@
+{
+  "id": "Corviknight",
+  "displayName": "Corviknight",
+  "baseStats": {
+    "hp": 98,
+    "atk": 87,
+    "def": 105,
+    "specAtk": 53,
+    "specDef": 85,
+    "speed": 67
+  },
+  "type1": "Flying",
+  "type2": "Steel",
+  "ability": "Pressure",
+  "nature": "Bold",
+  "evs": {
+    "hp": 252,
+    "def": 252,
+    "specDef": 4
+  },
+  "weight": 75.0,
+  "item": "Leftovers",
+  "legendary": false,
+  "movepool": [
+    "BraveBird",
+    "BodyPress",
+    "Roost",
+    "Defog"
+  ]
+}

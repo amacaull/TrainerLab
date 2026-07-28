@@ -1,0 +1,29 @@
+{
+  "id": "Azelf",
+  "displayName": "Azelf",
+  "baseStats": {
+    "hp": 75,
+    "atk": 125,
+    "def": 70,
+    "specAtk": 125,
+    "specDef": 70,
+    "speed": 115
+  },
+  "type1": "Psychic",
+  "ability": "Levitate",
+  "nature": "Timid",
+  "evs": {
+    "specAtk": 252,
+    "specDef": 4,
+    "speed": 252
+  },
+  "weight": 0.3,
+  "item": "LifeOrb",
+  "legendary": false,
+  "movepool": [
+    "NastyPlot",
+    "Psyshock",
+    "DazzlingGleam",
+    "FocusBlast"
+  ]
+}

@@ -45,12 +45,12 @@ BattleState makeDuel(const DataLoader &data, const char *s0, std::vector<std::st
 
 TEST_CASE("Secondary effects proc or not through RNG::chance (ADR #26)", "[phase8][secondary]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   // Flamethrower: 10% burn. FixedRNG(0.99) denies, FixedRNG(0.05) forces.
   auto burnAfter = [&](float unit) {
-    auto state = makeDuel(data, "gengar", {"Flamethrower"}, "snorlax", {"Growl"});
+    auto state = makeDuel(data, "MegaGengar", {"Flamethrower"}, "Snorlax", {"Growl"});
     FixedRNG rng(unit);
     engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
     return state.teams[1][0].status;
@@ -61,11 +61,11 @@ TEST_CASE("Secondary effects proc or not through RNG::chance (ADR #26)", "[phase
 
 TEST_CASE("Flinch skips the slower target's move and clears at end of turn", "[phase8][flinch]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   // Charizard (100) AirSlash before Snorlax (30); forced 30% flinch.
-  auto state = makeDuel(data, "charizard", {"AirSlash"}, "snorlax", {"Tackle"});
+  auto state = makeDuel(data, "Infernape", {"AirSlash"}, "Snorlax", {"Tackle"});
   FixedRNG rng(0.05f);
   auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
 
@@ -81,13 +81,13 @@ TEST_CASE("Flinch skips the slower target's move and clears at end of turn", "[p
 
 TEST_CASE("Crits multiply by 1.5 and flag the event", "[phase8][crit]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   // Machamp uses Swords Dance (self): unlike Growl it doesn't lower Snorlax's
   // Attack, which a crit would then ignore and skew the ratio.
   auto hit = [&](float unit, bool *critOut) {
-    auto state = makeDuel(data, "snorlax", {"Tackle"}, "machamp", {"SwordsDance"});
+    auto state = makeDuel(data, "Snorlax", {"Tackle"}, "Conkeldurr", {"SwordsDance"});
     FixedRNG rng(unit);
     auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
     for (const auto &ev : events)
@@ -112,11 +112,11 @@ TEST_CASE("Crits multiply by 1.5 and flag the event", "[phase8][crit]") {
 
 TEST_CASE("A crit ignores the defender's defensive boosts", "[phase8][crit]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto critHit = [&](int defStage) {
-    auto state = makeDuel(data, "snorlax", {"Tackle"}, "machamp", {"Growl"});
+    auto state = makeDuel(data, "Snorlax", {"Tackle"}, "Conkeldurr", {"Growl"});
     state.teams[1][0].stat_stages[static_cast<size_t>(StatIndex::Def)] = defStage;
     FixedRNG rng(0.01f);
     auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
@@ -128,10 +128,10 @@ TEST_CASE("A crit ignores the defender's defensive boosts", "[phase8][crit]") {
 
 TEST_CASE("Recoil hits the user for a third of the damage dealt and can KO", "[phase8][recoil]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
-  auto state = makeDuel(data, "pikachu", {"BraveBird"}, "snorlax", {"Growl"});
+  auto state = makeDuel(data, "Luxray", {"BraveBird"}, "Snorlax", {"Growl"});
   FixedRNG rng(0.5f);
   auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
 
@@ -144,7 +144,7 @@ TEST_CASE("Recoil hits the user for a third of the damage dealt and can KO", "[p
   REQUIRE(recoil == std::max(1, dealt / 3));
 
   // Recoil can faint the user.
-  auto state2 = makeDuel(data, "pikachu", {"BraveBird"}, "snorlax", {"Growl"});
+  auto state2 = makeDuel(data, "Luxray", {"BraveBird"}, "Snorlax", {"Growl"});
   state2.teams[0][0].currentHp = 1;
   FixedRNG rng2(0.5f);
   auto events2 = engine.resolveTurn(state2, UseMove{0}, UseMove{0}, rng2);
@@ -154,10 +154,10 @@ TEST_CASE("Recoil hits the user for a third of the damage dealt and can KO", "[p
 
 TEST_CASE("Recover heals half the max HP and fails at full", "[phase8][recovery]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
-  auto state = makeDuel(data, "politoed", {"Recover"}, "snorlax", {"Growl"});
+  auto state = makeDuel(data, "Quagsire", {"Recover"}, "Snorlax", {"Growl"});
   int maxHp = state.teams[0][0].stats.hp;
   state.teams[0][0].currentHp = maxHp / 4;
 
@@ -173,13 +173,13 @@ TEST_CASE("Recover heals half the max HP and fails at full", "[phase8][recovery]
 
 TEST_CASE("Roost heals and suppresses the Flying type until end of turn", "[phase8][recovery]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
-  // Charizard (100) roosts before Pikachu (90) attacks: Electric hits a
-  // pure Fire target for neutral instead of 2x.
+  // Aerodactyl (394) roosts before Luxray (239) attacks: with the Flying
+  // half suppressed, Electric hits pure Rock for neutral instead of 2x.
   auto thunderboltOn = [&](const char *move0) {
-    auto state = makeDuel(data, "charizard", {move0}, "pikachu", {"Thunderbolt"});
+    auto state = makeDuel(data, "Aerodactyl", {move0}, "Luxray", {"Thunderbolt"});
     state.teams[0][0].currentHp = state.teams[0][0].stats.hp / 2;
     FixedRNG rng(0.99f); // no crits, no paralysis secondary
     auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
@@ -200,13 +200,13 @@ TEST_CASE("Roost heals and suppresses the Flying type until end of turn", "[phas
 TEST_CASE("Rest fully heals, cures the old status and sleeps 2 turns outside the Sleep Clause",
           "[phase8][rest]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "snorlax", 100, {"Rest", "Tackle"});
-  state.teams[0][1] = buildCombatant(data, "machamp", 100, {"CloseCombat"});
-  state.teams[1][0] = buildCombatant(data, "venusaur", 100, {"Spore"});
+  state.teams[0][0] = buildCombatant(data, "Snorlax", 100, {"Rest", "Tackle"});
+  state.teams[0][1] = buildCombatant(data, "Conkeldurr", 100, {"CloseCombat"});
+  state.teams[1][0] = buildCombatant(data, "Toxapex", 100, {"Spore"});
   state.team_size = {2, 1};
 
   state.teams[0][0].currentHp = 30;
@@ -230,7 +230,7 @@ TEST_CASE("Rest fully heals, cures the old status and sleeps 2 turns outside the
   REQUIRE(state.teams[0][1].sleep_self_inflicted == 0);
 
   // Rest fails at full HP.
-  auto state2 = makeDuel(data, "snorlax", {"Rest"}, "venusaur", {"Growl"});
+  auto state2 = makeDuel(data, "Snorlax", {"Rest"}, "Toxapex", {"Growl"});
   auto t3 = engine.resolveTurn(state2, UseMove{0}, UseMove{0}, rng);
   REQUIRE(countEvents<MoveFailedEvent>(t3) == 1);
 }
@@ -238,11 +238,11 @@ TEST_CASE("Rest fully heals, cures the old status and sleeps 2 turns outside the
 TEST_CASE("Evasion stages make 100-accuracy moves missable (ADR #18 resolved)",
           "[phase8][accuracy]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto missesIn100Turns = [&](int evaStage, const char *move) {
-    auto state = makeDuel(data, "snorlax", {move}, "machamp", {"Growl"});
+    auto state = makeDuel(data, "Snorlax", {move}, "Conkeldurr", {"Growl"});
     state.teams[1][0].stat_stages[static_cast<size_t>(StatIndex::Evasion)] = evaStage;
     MersenneRNG rng(42);
     int misses = 0;
@@ -273,11 +273,11 @@ TEST_CASE("Evasion stages make 100-accuracy moves missable (ADR #18 resolved)",
 TEST_CASE("Guts boosts physical damage x1.5 while statused and ignores the burn halving",
           "[phase8][ability]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto hit = [&](Status st) {
-    auto state = makeDuel(data, "machamp", {"CloseCombat"}, "snorlax", {"Growl"});
+    auto state = makeDuel(data, "Conkeldurr", {"CloseCombat"}, "Snorlax", {"Growl"});
     state.teams[0][0].status = st;
     FixedRNG rng(0.99f);
     auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
@@ -293,12 +293,12 @@ TEST_CASE("Guts boosts physical damage x1.5 while statused and ignores the burn 
 
 TEST_CASE("Thick Fat halves incoming Fire damage", "[phase8][ability]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   // Gengar has no STAB on either move; same power, same category, same target.
   auto hit = [&](const char *move) {
-    auto state = makeDuel(data, "gengar", {move}, "snorlax", {"Growl"});
+    auto state = makeDuel(data, "MegaGengar", {move}, "Snorlax", {"Growl"});
     FixedRNG rng(0.99f);
     auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
     return damageOn(events, 1);
@@ -313,11 +313,12 @@ TEST_CASE("Thick Fat halves incoming Fire damage", "[phase8][ability]") {
 
 TEST_CASE("Static paralyzes on contact only", "[phase8][ability]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
+  engine::test::overrideAbility(data, "Luxray", "Static"); // roster: Intimidate
   BattleEngine engine(data);
 
   auto attackerStatus = [&](const char *move, float unit) {
-    auto state = makeDuel(data, "snorlax", {move}, "pikachu", {"Growl"});
+    auto state = makeDuel(data, "Snorlax", {move}, "Luxray", {"Growl"});
     FixedRNG rng(unit);
     engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
     return state.teams[0][0].status;
@@ -330,18 +331,19 @@ TEST_CASE("Static paralyzes on contact only", "[phase8][ability]") {
 
 TEST_CASE("Rough Skin chips a contact attacker for 1/8 max HP", "[phase8][ability]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
+  engine::test::overrideAbility(data, "Excadrill", "RoughSkin"); // roster: SandRush
   BattleEngine engine(data);
 
   auto chip = [&](const char *move) {
-    auto state = makeDuel(data, "machamp", {move}, "garchomp", {"Growl"});
+    auto state = makeDuel(data, "Conkeldurr", {move}, "Excadrill", {"Growl"});
     int before = state.teams[0][0].currentHp;
     FixedRNG rng(0.99f);
     engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
     return before - state.teams[0][0].currentHp;
   };
 
-  auto state = makeDuel(data, "machamp", {"CloseCombat"}, "garchomp", {"Growl"});
+  auto state = makeDuel(data, "Conkeldurr", {"CloseCombat"}, "Excadrill", {"Growl"});
   int maxHp = state.teams[0][0].stats.hp;
   REQUIRE(chip("CloseCombat") == maxHp / 8); // contact
   REQUIRE(chip("StoneEdge") == 0);           // no contact
@@ -349,11 +351,11 @@ TEST_CASE("Rough Skin chips a contact attacker for 1/8 max HP", "[phase8][abilit
 
 TEST_CASE("Speed ties are broken by the RNG (phase 0 debt resolved)", "[phase8][order]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto firstMover = [&](float unit) {
-    auto state = makeDuel(data, "snorlax", {"Growl"}, "snorlax", {"Growl"});
+    auto state = makeDuel(data, "Snorlax", {"Growl"}, "Snorlax", {"Growl"});
     FixedRNG rng(unit);
     auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
     for (const auto &ev : events)
@@ -368,9 +370,9 @@ TEST_CASE("Speed ties are broken by the RNG (phase 0 debt resolved)", "[phase8][
 
 TEST_CASE("validateState checks the new volatile fields", "[phase8][validate]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
 
-  auto state = makeDuel(data, "snorlax", {"Tackle"}, "machamp", {"CloseCombat"});
+  auto state = makeDuel(data, "Snorlax", {"Tackle"}, "Conkeldurr", {"CloseCombat"});
   REQUIRE_NOTHROW(validateState(state, data));
 
   SECTION("self-inflicted sleep flag without sleep") {

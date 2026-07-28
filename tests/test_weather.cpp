@@ -13,6 +13,7 @@
 
 using namespace engine;
 using engine::test::buildCombatant;
+using engine::test::overrideAbility;
 
 namespace {
 
@@ -45,11 +46,11 @@ BattleState makeDuel(const DataLoader &data, const char *s0, const char *m0, con
 
 TEST_CASE("SetWeather starts the weather for 5 turns; same weather fails", "[weather]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
-  auto state = makeDuel(data, "politoed", "RainDance", "snorlax", "Tackle");
-  state.teams[0][0] = buildCombatant(data, "snorlax", 100, {"RainDance"}); // no Drizzle side effect
+  auto state = makeDuel(data, "Quagsire", "RainDance", "Snorlax", "Tackle");
+  state.teams[0][0] = buildCombatant(data, "Snorlax", 100, {"RainDance"}); // no Drizzle side effect
   FixedRNG rng(0.5f);
 
   auto t1 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
@@ -63,10 +64,10 @@ TEST_CASE("SetWeather starts the weather for 5 turns; same weather fails", "[wea
 
 TEST_CASE("Weather subsides at the end of its fifth turn", "[weather]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
-  auto state = makeDuel(data, "snorlax", "RainDance", "snorlax", "Tackle");
+  auto state = makeDuel(data, "Snorlax", "RainDance", "Snorlax", "Tackle");
   FixedRNG rng(0.5f);
 
   engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
@@ -84,11 +85,11 @@ TEST_CASE("Weather subsides at the end of its fifth turn", "[weather]") {
 
 TEST_CASE("Rain boosts Water x1.5 and halves Fire; sun mirrors it", "[weather][damage]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto hit = [&](Weather w, const char *attacker, const char *move) {
-    auto state = makeDuel(data, attacker, move, "snorlax", "Tackle");
+    auto state = makeDuel(data, attacker, move, "Snorlax", "Tackle");
     state.weather = w;
     state.weather_turns_left = (w == Weather::None) ? 0 : 5;
     FixedRNG rng(0.5f);
@@ -96,27 +97,27 @@ TEST_CASE("Rain boosts Water x1.5 and halves Fire; sun mirrors it", "[weather][d
     return damageOn(events, 1);
   };
 
-  int surfDry = hit(Weather::None, "blastoise", "Surf");
-  int surfRain = hit(Weather::Rain, "blastoise", "Surf");
-  int surfSun = hit(Weather::Sun, "blastoise", "Surf");
+  int surfDry = hit(Weather::None, "Inteleon", "Surf");
+  int surfRain = hit(Weather::Rain, "Inteleon", "Surf");
+  int surfSun = hit(Weather::Sun, "Inteleon", "Surf");
   REQUIRE(surfRain > surfDry);
   REQUIRE(surfRain >= surfDry * 3 / 2 - 2);
   REQUIRE(surfSun < surfDry);
 
-  int fireDry = hit(Weather::None, "charizard", "Flamethrower");
-  int fireSun = hit(Weather::Sun, "charizard", "Flamethrower");
-  int fireRain = hit(Weather::Rain, "charizard", "Flamethrower");
+  int fireDry = hit(Weather::None, "Infernape", "Flamethrower");
+  int fireSun = hit(Weather::Sun, "Infernape", "Flamethrower");
+  int fireRain = hit(Weather::Rain, "Infernape", "Flamethrower");
   REQUIRE(fireSun > fireDry);
   REQUIRE(fireRain < fireDry);
 }
 
 TEST_CASE("Sand chips 1/16 on non Rock/Ground/Steel only", "[weather][residual]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   // Pikachu (Electric) chips; Tyranitar (Rock/Dark) is immune.
-  auto state = makeDuel(data, "pikachu", "Growl", "tyranitar", "Sandstorm");
+  auto state = makeDuel(data, "Luxray", "Growl", "Aerodactyl", "Sandstorm");
   state.weather = Weather::Sand;
   state.weather_turns_left = 5;
   int pikaHp = state.teams[0][0].currentHp;
@@ -134,11 +135,11 @@ TEST_CASE("Sand chips 1/16 on non Rock/Ground/Steel only", "[weather][residual]"
 TEST_CASE("Garchomp (Ground) and Scizor (Steel) shrug off sand; snow never chips",
           "[weather][residual]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto chip = [&](const char *species, Weather w) {
-    auto state = makeDuel(data, species, "Growl", "snorlax", "Growl");
+    auto state = makeDuel(data, species, "Growl", "Snorlax", "Growl");
     state.weather = w;
     state.weather_turns_left = 5;
     int before = state.teams[0][0].currentHp;
@@ -147,19 +148,19 @@ TEST_CASE("Garchomp (Ground) and Scizor (Steel) shrug off sand; snow never chips
     return before - state.teams[0][0].currentHp;
   };
 
-  REQUIRE(chip("garchomp", Weather::Sand) == 0);
-  REQUIRE(chip("scizor", Weather::Sand) == 0);
-  REQUIRE(chip("gengar", Weather::Sand) > 0); // Levitate does NOT protect
-  REQUIRE(chip("garchomp", Weather::Snow) == 0);
-  REQUIRE(chip("pikachu", Weather::Snow) == 0);
+  REQUIRE(chip("Excadrill", Weather::Sand) == 0);
+  REQUIRE(chip("Corviknight", Weather::Sand) == 0);
+  REQUIRE(chip("MegaGengar", Weather::Sand) > 0); // Levitate does NOT protect
+  REQUIRE(chip("Excadrill", Weather::Snow) == 0);
+  REQUIRE(chip("Luxray", Weather::Snow) == 0);
 }
 
 TEST_CASE("Weather chip resolves before status residuals", "[weather][residual]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
-  auto state = makeDuel(data, "pikachu", "Growl", "snorlax", "Growl");
+  auto state = makeDuel(data, "Luxray", "Growl", "Snorlax", "Growl");
   state.weather = Weather::Sand;
   state.weather_turns_left = 5;
   state.teams[0][0].status = Status::Burn;
@@ -181,11 +182,11 @@ TEST_CASE("Weather chip resolves before status residuals", "[weather][residual]"
 
 TEST_CASE("Sandstorm gives Rock types SpD x1.5 against special moves", "[weather][damage]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto hit = [&](Weather w, const char *move) {
-    auto state = makeDuel(data, "blastoise", move, "tyranitar", "Growl");
+    auto state = makeDuel(data, "Inteleon", move, "Aerodactyl", "Growl");
     state.weather = w;
     state.weather_turns_left = (w == Weather::None) ? 0 : 5;
     // neutralize Drizzle/SandStream interference: weather forced by hand
@@ -205,13 +206,15 @@ TEST_CASE("Sandstorm gives Rock types SpD x1.5 against special moves", "[weather
 
 TEST_CASE("SandStream and Drizzle set their weather on switch-in", "[weather][ability]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
+  overrideAbility(data, "Aerodactyl", "SandStream"); // roster orphan: no setter left
+  overrideAbility(data, "Quagsire", "Drizzle");
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "snorlax", 100, {"Tackle"});
-  state.teams[0][1] = buildCombatant(data, "tyranitar", 100, {"StoneEdge"});
-  state.teams[1][0] = buildCombatant(data, "machamp", 100, {"CloseCombat"});
+  state.teams[0][0] = buildCombatant(data, "Snorlax", 100, {"Tackle"});
+  state.teams[0][1] = buildCombatant(data, "Aerodactyl", 100, {"StoneEdge"});
+  state.teams[1][0] = buildCombatant(data, "Conkeldurr", 100, {"CloseCombat"});
   state.team_size = {2, 1};
 
   FixedRNG rng(0.5f);
@@ -223,31 +226,33 @@ TEST_CASE("SandStream and Drizzle set their weather on switch-in", "[weather][ab
 
 TEST_CASE("startBattle: the slower weather ability wins the war", "[weather][ability]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
+  overrideAbility(data, "Aerodactyl", "SandStream"); // roster orphans: no setter left
+  overrideAbility(data, "Quagsire", "Drizzle");
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "tyranitar", 100, {"StoneEdge"}); // 66 speed
-  state.teams[1][0] = buildCombatant(data, "politoed", 100, {"Surf"});       // 75 speed
+  state.teams[0][0] = buildCombatant(data, "Aerodactyl", 100, {"StoneEdge"}); // 394 speed
+  state.teams[1][0] = buildCombatant(data, "Quagsire", 100, {"Surf"});        // 106 speed
   state.team_size = {1, 1};
 
   FixedRNG srng(0.5f);
   auto events = engine.startBattle(state, srng);
 
-  // Politoed (faster) fires Drizzle first, Tyranitar overrides: sand stays.
+  // Aerodactyl (faster) sets sand first, Quagsire overrides: rain stays.
   REQUIRE(countEvents<WeatherStartedEvent>(events) == 2);
-  REQUIRE(state.weather == Weather::Sand);
+  REQUIRE(state.weather == Weather::Rain);
 }
 
 TEST_CASE("Weather ability is silent if its weather is already up", "[weather][ability]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "snorlax", 100, {"Tackle"});
-  state.teams[0][1] = buildCombatant(data, "politoed", 100, {"Surf"});
-  state.teams[1][0] = buildCombatant(data, "machamp", 100, {"CloseCombat"});
+  state.teams[0][0] = buildCombatant(data, "Snorlax", 100, {"Tackle"});
+  state.teams[0][1] = buildCombatant(data, "Quagsire", 100, {"Surf"});
+  state.teams[1][0] = buildCombatant(data, "Conkeldurr", 100, {"CloseCombat"});
   state.team_size = {2, 1};
   state.weather = Weather::Rain;
   state.weather_turns_left = 5;
@@ -261,9 +266,9 @@ TEST_CASE("Weather ability is silent if its weather is already up", "[weather][a
 
 TEST_CASE("validateState checks weather fields", "[weather][validate]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
 
-  auto state = makeDuel(data, "snorlax", "Tackle", "machamp", "CloseCombat");
+  auto state = makeDuel(data, "Snorlax", "Tackle", "Conkeldurr", "CloseCombat");
   REQUIRE_NOTHROW(validateState(state, data));
 
   SECTION("turns without weather") {

@@ -53,10 +53,10 @@ BattleState makeDuel(const DataLoader &data, const char *s0, std::vector<std::st
 
 TEST_CASE("PP is loaded from the move catalog and billed on execution", "[phase10][pp]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
-  auto state = makeDuel(data, "snorlax", {"Tackle"}, "machamp", {"Growl"});
+  auto state = makeDuel(data, "Snorlax", {"Tackle"}, "Conkeldurr", {"Growl"});
   REQUIRE(state.teams[0][0].pp[0] == 35);
   REQUIRE(state.teams[1][0].pp[0] == 40);
 
@@ -68,10 +68,10 @@ TEST_CASE("PP is loaded from the move catalog and billed on execution", "[phase1
 
 TEST_CASE("A skipped turn doesn't pay PP", "[phase10][pp]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
-  auto state = makeDuel(data, "snorlax", {"Tackle"}, "machamp", {"Growl"});
+  auto state = makeDuel(data, "Snorlax", {"Tackle"}, "Conkeldurr", {"Growl"});
   state.teams[0][0].status = Status::Sleep;
   state.teams[0][0].status_turns = 2;
 
@@ -84,11 +84,11 @@ TEST_CASE("A skipped turn doesn't pay PP", "[phase10][pp]") {
 
 TEST_CASE("A failed move still pays its PP", "[phase10][pp]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   // Recover at full HP fails, but the PP is spent (canon).
-  auto state = makeDuel(data, "gengar", {"Recover"}, "snorlax", {"Growl"});
+  auto state = makeDuel(data, "MegaGengar", {"Recover"}, "Snorlax", {"Growl"});
   FixedRNG rng(0.99f);
   auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(countEvents<MoveFailedEvent>(events) == 1);
@@ -97,10 +97,10 @@ TEST_CASE("A failed move still pays its PP", "[phase10][pp]") {
 
 TEST_CASE("A missed move still pays its PP", "[phase10][pp]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
-  auto state = makeDuel(data, "machamp", {"Growl"}, "snorlax", {"Tackle"});
+  auto state = makeDuel(data, "Conkeldurr", {"Growl"}, "Snorlax", {"Tackle"});
   state.teams[1][0].stat_stages[static_cast<size_t>(StatIndex::Evasion)] = 6;
 
   MissRNG rng;
@@ -111,10 +111,10 @@ TEST_CASE("A missed move still pays its PP", "[phase10][pp]") {
 
 TEST_CASE("Two-turn moves pay on the charge turn only", "[phase10][pp]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
-  auto state = makeDuel(data, "charizard", {"Fly"}, "snorlax", {"Growl"});
+  auto state = makeDuel(data, "Infernape", {"Fly"}, "Snorlax", {"Growl"});
   FixedRNG rng(0.99f);
 
   auto t1 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
@@ -127,12 +127,12 @@ TEST_CASE("Two-turn moves pay on the charge turn only", "[phase10][pp]") {
 
 TEST_CASE("Out of PP everywhere: the engine substitutes Struggle", "[phase10][struggle]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   // Normal vs Ghost: Tackle would bounce off Gengar (0x). Struggle is typeless
   // and connects for neutral damage, with a flat 25% max-HP recoil.
-  auto state = makeDuel(data, "snorlax", {"Tackle"}, "gengar", {"SwordsDance"});
+  auto state = makeDuel(data, "Snorlax", {"Tackle"}, "MegaGengar", {"SwordsDance"});
   state.teams[0][0].pp[0] = 0;
 
   FixedRNG rng(0.99f);
@@ -154,10 +154,10 @@ TEST_CASE("Out of PP everywhere: the engine substitutes Struggle", "[phase10][st
 
 TEST_CASE("checkAction rejects an empty-PP slot while another slot has PP", "[phase10][struggle]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
-  auto state = makeDuel(data, "snorlax", {"Tackle", "BodySlam"}, "machamp", {"Growl"});
+  auto state = makeDuel(data, "Snorlax", {"Tackle", "BodySlam"}, "Conkeldurr", {"Growl"});
   state.teams[0][0].pp[0] = 0;
 
   FixedRNG rng(0.99f);
@@ -167,9 +167,9 @@ TEST_CASE("checkAction rejects an empty-PP slot while another slot has PP", "[ph
 
 TEST_CASE("validateState checks the PP invariants", "[phase10][validate]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
 
-  auto state = makeDuel(data, "snorlax", {"Tackle"}, "machamp", {"Growl"});
+  auto state = makeDuel(data, "Snorlax", {"Tackle"}, "Conkeldurr", {"Growl"});
   REQUIRE_NOTHROW(validateState(state, data));
 
   state.teams[0][0].pp[0] = 99; // above Tackle's max (35)
@@ -184,11 +184,12 @@ TEST_CASE("validateState checks the PP invariants", "[phase10][validate]") {
 
 TEST_CASE("6v6: full teams are valid and slot 5 is reachable", "[phase10][6v6]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
   REQUIRE(kTeamSize == 6);
 
-  const char *roster[6] = {"snorlax", "machamp", "gengar", "charizard", "venusaur", "blastoise"};
+  const char *roster[6] = {"Snorlax",   "Conkeldurr", "MegaGengar",
+                           "Infernape", "Toxapex",    "Inteleon"};
   BattleState state;
   for (int side = 0; side < 2; ++side)
     for (int i = 0; i < 6; ++i)
@@ -204,12 +205,13 @@ TEST_CASE("6v6: full teams are valid and slot 5 is reachable", "[phase10][6v6]")
 
 TEST_CASE("Species stats come from the locked nature and EVs", "[phase10][stats]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
 
-  const Species &sp = data.speciesByIndex(data.findSpeciesId("charizard"));
-  REQUIRE(sp.nature == "Serious");
+  const Species &sp = data.speciesByIndex(data.findSpeciesId("Infernape"));
+  REQUIRE(sp.nature == "Jolly"); // roster sheet: +Spe / -SpA
   Stats s = computeSpeciesStats(sp, 100);
-  REQUIRE(s.hp == 297);
-  REQUIRE(s.specAtk == 254);
-  REQUIRE(sp.weightKg == 90.5);
+  REQUIRE(s.hp == 293);
+  REQUIRE(s.specAtk == 219); // 244 lowered by the nature
+  REQUIRE(s.speed == 346);   // 315 raised by the nature
+  REQUIRE(sp.weightKg == 55.0);
 }

@@ -1,0 +1,14 @@
+{
+  "name": "AuraSphere",
+  "type": "Fighting",
+  "category": "Special",
+  "power": 80,
+  "accuracy": 0,
+  "pp": 20,
+  "bulletproof": true,
+  "effects": [
+    {
+      "kind": "Damage"
+    }
+  ]
+}

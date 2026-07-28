@@ -1,0 +1,30 @@
+{
+  "id": "NinetalesAlola",
+  "displayName": "Ninetales-Alola",
+  "baseStats": {
+    "hp": 73,
+    "atk": 67,
+    "def": 75,
+    "specAtk": 81,
+    "specDef": 100,
+    "speed": 109
+  },
+  "type1": "Ice",
+  "type2": "Fairy",
+  "ability": "SnowWarning",
+  "nature": "Timid",
+  "evs": {
+    "hp": 252,
+    "specAtk": 4,
+    "speed": 252
+  },
+  "weight": 19.9,
+  "item": "LightClay",
+  "legendary": false,
+  "movepool": [
+    "AuroraVeil",
+    "Blizzard",
+    "Moonblast",
+    "Nuzzle"
+  ]
+}

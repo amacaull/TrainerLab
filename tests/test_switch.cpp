@@ -35,9 +35,9 @@ bool switchedInTo(const EventLog &events, int side, int teamIndex) {
 // Snorlax + Machamp vs Blastoise; slow, statusless matchup for switch tests.
 BattleState makeTwoVsOne(const DataLoader &data) {
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "snorlax", 100, {"BodySlam"});
-  state.teams[0][1] = buildCombatant(data, "machamp", 100, {"CloseCombat"});
-  state.teams[1][0] = buildCombatant(data, "blastoise", 100, {"Surf"});
+  state.teams[0][0] = buildCombatant(data, "Snorlax", 100, {"BodySlam"});
+  state.teams[0][1] = buildCombatant(data, "Conkeldurr", 100, {"CloseCombat"});
+  state.teams[1][0] = buildCombatant(data, "Inteleon", 100, {"Surf"});
   state.team_size = {2, 1};
   return state;
 }
@@ -46,7 +46,7 @@ BattleState makeTwoVsOne(const DataLoader &data) {
 
 TEST_CASE("Switch resolves before any move", "[switch][order]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto state = makeTwoVsOne(data);
@@ -62,7 +62,7 @@ TEST_CASE("Switch resolves before any move", "[switch][order]") {
 
 TEST_CASE("Incoming Pokemon takes the opponent's hit after a switch", "[switch]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto state = makeTwoVsOne(data);
@@ -77,7 +77,7 @@ TEST_CASE("Incoming Pokemon takes the opponent's hit after a switch", "[switch]"
 
 TEST_CASE("Switch-out resets stat stages", "[switch][stage]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto state = makeTwoVsOne(data);
@@ -92,7 +92,7 @@ TEST_CASE("Switch-out resets stat stages", "[switch][stage]") {
 
 TEST_CASE("Switch-out resets the Toxic counter but keeps the status", "[switch][status]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto state = makeTwoVsOne(data);
@@ -107,7 +107,7 @@ TEST_CASE("Switch-out resets the Toxic counter but keeps the status", "[switch][
 
 TEST_CASE("Sleep turns persist across a switch", "[switch][status]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto state = makeTwoVsOne(data);
@@ -122,7 +122,7 @@ TEST_CASE("Sleep turns persist across a switch", "[switch][status]") {
 
 TEST_CASE("Invalid switch targets are rejected before the turn runs", "[switch][validate]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
   FixedRNG rng(0.5f);
 
@@ -149,7 +149,7 @@ TEST_CASE("Invalid switch targets are rejected before the turn runs", "[switch][
 TEST_CASE("resolveTurn requires a replacement when the active is fainted",
           "[switch][replacement]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
   FixedRNG rng(0.5f);
 
@@ -161,7 +161,7 @@ TEST_CASE("resolveTurn requires a replacement when the active is fainted",
 
 TEST_CASE("resolveReplacement performs a free switch", "[switch][replacement]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto state = makeTwoVsOne(data);
@@ -180,7 +180,7 @@ TEST_CASE("resolveReplacement performs a free switch", "[switch][replacement]") 
 TEST_CASE("resolveReplacement rejects a non-fainted active or invalid target",
           "[switch][replacement]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto state = makeTwoVsOne(data);
@@ -193,13 +193,13 @@ TEST_CASE("resolveReplacement rejects a non-fainted active or invalid target",
 
 TEST_CASE("UTurn deals damage then switches the user out", "[switch][pivot]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "gyarados", 100, {"UTurn"});
-  state.teams[0][1] = buildCombatant(data, "snorlax", 100, {"BodySlam"});
-  state.teams[1][0] = buildCombatant(data, "blastoise", 100, {"Surf"});
+  state.teams[0][0] = buildCombatant(data, "Gyarados", 100, {"UTurn"});
+  state.teams[0][1] = buildCombatant(data, "Snorlax", 100, {"BodySlam"});
+  state.teams[1][0] = buildCombatant(data, "Inteleon", 100, {"Surf"});
   state.team_size = {2, 1};
 
   int blastoiseHp = state.teams[1][0].currentHp;
@@ -213,14 +213,14 @@ TEST_CASE("UTurn deals damage then switches the user out", "[switch][pivot]") {
 
 TEST_CASE("Opponent's slower move hits the Pokemon brought in by the pivot", "[switch][pivot]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   BattleState state;
   // Gyarados (81) outspeeds Snorlax's side? Opponent: Snorlax (30), slower.
-  state.teams[0][0] = buildCombatant(data, "gyarados", 100, {"UTurn"});
-  state.teams[0][1] = buildCombatant(data, "machamp", 100, {"CloseCombat"});
-  state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"BodySlam"});
+  state.teams[0][0] = buildCombatant(data, "Gyarados", 100, {"UTurn"});
+  state.teams[0][1] = buildCombatant(data, "Conkeldurr", 100, {"CloseCombat"});
+  state.teams[1][0] = buildCombatant(data, "Snorlax", 100, {"BodySlam"});
   state.team_size = {2, 1};
 
   int gyaradosHp = state.teams[0][0].currentHp;
@@ -234,12 +234,12 @@ TEST_CASE("Opponent's slower move hits the Pokemon brought in by the pivot", "[s
 
 TEST_CASE("Pivot with an empty bench is damage-only", "[switch][pivot]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "gyarados", 100, {"UTurn"});
-  state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"BodySlam"});
+  state.teams[0][0] = buildCombatant(data, "Gyarados", 100, {"UTurn"});
+  state.teams[1][0] = buildCombatant(data, "Snorlax", 100, {"BodySlam"});
   state.team_size = {1, 1};
 
   int snorlaxHp = state.teams[1][0].currentHp;
@@ -253,14 +253,14 @@ TEST_CASE("Pivot with an empty bench is damage-only", "[switch][pivot]") {
 
 TEST_CASE("Pivot with pivotTarget -1 auto-picks the first healthy teammate", "[switch][pivot]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "pikachu", 100, {"VoltSwitch"});
-  state.teams[0][1] = buildCombatant(data, "snorlax", 100, {"BodySlam"});
-  state.teams[0][2] = buildCombatant(data, "machamp", 100, {"CloseCombat"});
-  state.teams[1][0] = buildCombatant(data, "blastoise", 100, {"Surf"});
+  state.teams[0][0] = buildCombatant(data, "Luxray", 100, {"VoltSwitch"});
+  state.teams[0][1] = buildCombatant(data, "Snorlax", 100, {"BodySlam"});
+  state.teams[0][2] = buildCombatant(data, "Conkeldurr", 100, {"CloseCombat"});
+  state.teams[1][0] = buildCombatant(data, "Inteleon", 100, {"Surf"});
   state.team_size = {3, 1};
   state.teams[0][1].currentHp = 0; // slot 1 fainted: auto must pick slot 2
 

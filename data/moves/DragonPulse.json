@@ -1,0 +1,14 @@
+{
+  "name": "DragonPulse",
+  "type": "Dragon",
+  "category": "Special",
+  "power": 85,
+  "accuracy": 100,
+  "pp": 10,
+  "bulletproof": true,
+  "effects": [
+    {
+      "kind": "Damage"
+    }
+  ]
+}

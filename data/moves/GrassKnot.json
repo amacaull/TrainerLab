@@ -1,0 +1,13 @@
+{
+  "name": "GrassKnot",
+  "type": "Grass",
+  "category": "Special",
+  "accuracy": 100,
+  "pp": 20,
+  "powerFromTargetWeight": true,
+  "effects": [
+    {
+      "kind": "Damage"
+    }
+  ]
+}

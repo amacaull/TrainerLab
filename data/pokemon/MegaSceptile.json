@@ -1,0 +1,30 @@
+{
+  "id": "MegaSceptile",
+  "displayName": "Mega Sceptile",
+  "baseStats": {
+    "hp": 70,
+    "atk": 110,
+    "def": 75,
+    "specAtk": 145,
+    "specDef": 85,
+    "speed": 145
+  },
+  "type1": "Grass",
+  "type2": "Dragon",
+  "ability": "LightningRod",
+  "nature": "Timid",
+  "evs": {
+    "specAtk": 252,
+    "specDef": 4,
+    "speed": 252
+  },
+  "weight": 55.2,
+  "legendary": false,
+  "mega": true,
+  "movepool": [
+    "NastyPlot",
+    "LeafStorm",
+    "DragonPulse",
+    "FocusBlast"
+  ]
+}

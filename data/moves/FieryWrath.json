@@ -1,0 +1,17 @@
+{
+  "name": "FieryWrath",
+  "type": "Dark",
+  "category": "Special",
+  "power": 90,
+  "accuracy": 100,
+  "pp": 10,
+  "effects": [
+    {
+      "kind": "Damage"
+    },
+    {
+      "kind": "Flinch",
+      "chance": 20
+    }
+  ]
+}

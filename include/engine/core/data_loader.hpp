@@ -24,6 +24,12 @@ class DataLoader {
 public:
   void loadAll(const std::string &dataDir);
 
+  // Appends a second catalog on top of the shipped one, without touching the
+  // type chart. Exists for the test fixtures: the roster's 95 moves are the
+  // game content, and the neutral instruments the unit tests need (Tackle,
+  // Growl...) must not leak into the indices frozen for the FFI (ADR #49).
+  void loadExtraContent(const std::string &dataDir);
+
   const TypeChart &typeChart() const { return typeChart_; }
 
   const Move &moveByIndex(int id) const;

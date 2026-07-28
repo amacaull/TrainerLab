@@ -1,0 +1,21 @@
+{
+  "name": "CalmMind",
+  "type": "Psychic",
+  "category": "Status",
+  "accuracy": 0,
+  "pp": 20,
+  "effects": [
+    {
+      "kind": "StatChange",
+      "stat": "SpA",
+      "delta": 1,
+      "affectsUser": true
+    },
+    {
+      "kind": "StatChange",
+      "stat": "SpD",
+      "delta": 1,
+      "affectsUser": true
+    }
+  ]
+}

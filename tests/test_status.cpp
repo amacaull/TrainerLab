@@ -79,11 +79,11 @@ int moveDamageOn(const EventLog &events, int side) {
 
 TEST_CASE("WillOWisp applies Burn", "[status]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "gengar", 100, {"WillOWisp"});
-  state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"Tackle"});
+  state.teams[0][0] = buildCombatant(data, "MegaGengar", 100, {"WillOWisp"});
+  state.teams[1][0] = buildCombatant(data, "Snorlax", 100, {"Tackle"});
   state.team_size = {1, 1};
 
   BattleEngine engine(data);
@@ -96,11 +96,11 @@ TEST_CASE("WillOWisp applies Burn", "[status]") {
 
 TEST_CASE("Burn deals 1/16 max HP at end of turn", "[status][residual]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "gengar", 100, {"WillOWisp"});
-  state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"Tackle"});
+  state.teams[0][0] = buildCombatant(data, "MegaGengar", 100, {"WillOWisp"});
+  state.teams[1][0] = buildCombatant(data, "Snorlax", 100, {"Tackle"});
   state.team_size = {1, 1};
 
   BattleEngine engine(data);
@@ -116,13 +116,13 @@ TEST_CASE("Burn deals 1/16 max HP at end of turn", "[status][residual]") {
 
 TEST_CASE("Burn halves physical damage, leaves special damage untouched", "[status][damage]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto runTurn = [&](const char *species, const char *move, Status attackerStatus) {
     BattleState state;
     state.teams[0][0] = buildCombatant(data, species, 50, {move});
-    state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"Tackle"});
+    state.teams[1][0] = buildCombatant(data, "Snorlax", 100, {"Tackle"});
     state.team_size = {1, 1};
     state.teams[0][0].status = attackerStatus;
     FixedRNG rng(0.5f);
@@ -133,24 +133,24 @@ TEST_CASE("Burn halves physical damage, leaves special damage untouched", "[stat
   // Garchomp, not Machamp: Machamp has Guts, which inverts the burn penalty
   // into a x1.5 boost (covered in test_phase8). Earthquake is unaffected by
   // Snorlax's Thick Fat (Fire/Ice only) and by Garchomp's own Rough Skin.
-  int physNormal = runTurn("garchomp", "Earthquake", Status::None);
-  int physBurned = runTurn("garchomp", "Earthquake", Status::Burn);
+  int physNormal = runTurn("Excadrill", "Earthquake", Status::None);
+  int physBurned = runTurn("Excadrill", "Earthquake", Status::Burn);
   REQUIRE(physBurned < physNormal);
   REQUIRE(physBurned >= physNormal / 2 - 1);
   REQUIRE(physBurned <= physNormal / 2 + 1);
 
-  int specNormal = runTurn("gengar", "ShadowBall", Status::None);
-  int specBurned = runTurn("gengar", "ShadowBall", Status::Burn);
+  int specNormal = runTurn("MegaGengar", "ShadowBall", Status::None);
+  int specBurned = runTurn("MegaGengar", "ShadowBall", Status::Burn);
   REQUIRE(specBurned == specNormal);
 }
 
 TEST_CASE("Poison deals 1/8 max HP at end of turn", "[status][residual]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "gengar", 100, {"PoisonPowder"});
-  state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"Tackle"});
+  state.teams[0][0] = buildCombatant(data, "MegaGengar", 100, {"PoisonPowder"});
+  state.teams[1][0] = buildCombatant(data, "Snorlax", 100, {"Tackle"});
   state.team_size = {1, 1};
 
   BattleEngine engine(data);
@@ -163,11 +163,11 @@ TEST_CASE("Poison deals 1/8 max HP at end of turn", "[status][residual]") {
 
 TEST_CASE("Toxic damage ramps n/16 per turn", "[status][residual]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "gengar", 100, {"Toxic"});
-  state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"Tackle"});
+  state.teams[0][0] = buildCombatant(data, "MegaGengar", 100, {"Toxic"});
+  state.teams[1][0] = buildCombatant(data, "Snorlax", 100, {"Tackle"});
   state.team_size = {1, 1};
 
   BattleEngine engine(data);
@@ -188,14 +188,14 @@ TEST_CASE("Toxic damage ramps n/16 per turn", "[status][residual]") {
 
 TEST_CASE("Paralysis halves effective speed in turn order", "[status][order]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   // Gengar (Spd 115) normally outspeeds Charizard (Spd 105).
   auto firstMover = [&](Status gengarStatus) {
     BattleState state;
-    state.teams[0][0] = buildCombatant(data, "charizard", 100, {"DragonClaw"});
-    state.teams[1][0] = buildCombatant(data, "gengar", 100, {"ShadowBall"});
+    state.teams[0][0] = buildCombatant(data, "Infernape", 100, {"DragonClaw"});
+    state.teams[1][0] = buildCombatant(data, "MegaGengar", 100, {"ShadowBall"});
     state.team_size = {1, 1};
     state.teams[1][0].status = gengarStatus;
     FixedRNG rng(0.5f);
@@ -211,11 +211,11 @@ TEST_CASE("Paralysis halves effective speed in turn order", "[status][order]") {
 
 TEST_CASE("Full paralysis skips the move", "[status][before_move]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "pikachu", 100, {"QuickAttack"});
-  state.teams[1][0] = buildCombatant(data, "gengar", 100, {"ShadowBall"});
+  state.teams[0][0] = buildCombatant(data, "Luxray", 100, {"QuickAttack"});
+  state.teams[1][0] = buildCombatant(data, "MegaGengar", 100, {"ShadowBall"});
   state.team_size = {1, 1};
   state.teams[1][0].status = Status::Paralysis;
 
@@ -230,11 +230,11 @@ TEST_CASE("Full paralysis skips the move", "[status][before_move]") {
 
 TEST_CASE("Sleep: target skips its turns then wakes up", "[status][before_move]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "venusaur", 100, {"Spore"});
-  state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"BodySlam"});
+  state.teams[0][0] = buildCombatant(data, "Toxapex", 100, {"Spore"});
+  state.teams[1][0] = buildCombatant(data, "Snorlax", 100, {"BodySlam"});
   state.team_size = {1, 1};
 
   BattleEngine engine(data);
@@ -257,12 +257,12 @@ TEST_CASE("Sleep: target skips its turns then wakes up", "[status][before_move]"
 
 TEST_CASE("Sleep Clause: applying Sleep fails if a teammate already sleeps", "[status][clause]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "venusaur", 100, {"Spore"});
-  state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"BodySlam"});
-  state.teams[1][1] = buildCombatant(data, "pikachu", 100, {"Thunderbolt"});
+  state.teams[0][0] = buildCombatant(data, "Toxapex", 100, {"Spore"});
+  state.teams[1][0] = buildCombatant(data, "Snorlax", 100, {"BodySlam"});
+  state.teams[1][1] = buildCombatant(data, "Luxray", 100, {"Thunderbolt"});
   state.team_size = {1, 2};
   state.teams[1][1].status = Status::Sleep;
   state.teams[1][1].status_turns = 2;
@@ -277,12 +277,12 @@ TEST_CASE("Sleep Clause: applying Sleep fails if a teammate already sleeps", "[s
 
 TEST_CASE("Sleep Clause ignores fainted sleepers", "[status][clause]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "venusaur", 100, {"Spore"});
-  state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"BodySlam"});
-  state.teams[1][1] = buildCombatant(data, "pikachu", 100, {"Thunderbolt"});
+  state.teams[0][0] = buildCombatant(data, "Toxapex", 100, {"Spore"});
+  state.teams[1][0] = buildCombatant(data, "Snorlax", 100, {"BodySlam"});
+  state.teams[1][1] = buildCombatant(data, "Luxray", 100, {"Thunderbolt"});
   state.team_size = {1, 2};
   state.teams[1][1].status = Status::Sleep;
   state.teams[1][1].currentHp = 0;
@@ -296,11 +296,11 @@ TEST_CASE("Sleep Clause ignores fainted sleepers", "[status][clause]") {
 
 TEST_CASE("A second status cannot replace the first", "[status]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "gengar", 100, {"WillOWisp"});
-  state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"Tackle"});
+  state.teams[0][0] = buildCombatant(data, "MegaGengar", 100, {"WillOWisp"});
+  state.teams[1][0] = buildCombatant(data, "Snorlax", 100, {"Tackle"});
   state.team_size = {1, 1};
   state.teams[1][0].status = Status::Paralysis;
 
@@ -314,7 +314,7 @@ TEST_CASE("A second status cannot replace the first", "[status]") {
 
 TEST_CASE("Type immunities to statuses", "[status][types]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto tryStatus = [&](const char *attacker, const char *move, const char *target) {
@@ -328,29 +328,29 @@ TEST_CASE("Type immunities to statuses", "[status][types]") {
   };
 
   SECTION("Fire-types cannot be burned") {
-    REQUIRE(tryStatus("gengar", "WillOWisp", "charizard") == Status::None);
+    REQUIRE(tryStatus("MegaGengar", "WillOWisp", "Infernape") == Status::None);
   }
   SECTION("Electric-types cannot be paralyzed") {
-    REQUIRE(tryStatus("gengar", "ThunderWave", "pikachu") == Status::None);
+    REQUIRE(tryStatus("MegaGengar", "ThunderWave", "Luxray") == Status::None);
   }
   SECTION("Poison-types cannot be poisoned") {
-    REQUIRE(tryStatus("snorlax", "Toxic", "gengar") == Status::None);
-    REQUIRE(tryStatus("snorlax", "PoisonPowder", "venusaur") == Status::None);
+    REQUIRE(tryStatus("Snorlax", "Toxic", "MegaGengar") == Status::None);
+    REQUIRE(tryStatus("Snorlax", "PoisonPowder", "Toxapex") == Status::None);
   }
   SECTION("Type-chart immunity blocks status moves (ThunderWave vs Ground)") {
-    REQUIRE(tryStatus("gengar", "ThunderWave", "garchomp") == Status::None);
+    REQUIRE(tryStatus("MegaGengar", "ThunderWave", "Excadrill") == Status::None);
   }
 }
 
 TEST_CASE("Frozen Pokemon skips its move, thaws on RNG proc", "[status][before_move]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto runFrozenTurn = [&](float rngUnit) {
     BattleState state;
-    state.teams[0][0] = buildCombatant(data, "blastoise", 100, {"Surf"});
-    state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"BodySlam"});
+    state.teams[0][0] = buildCombatant(data, "Inteleon", 100, {"Surf"});
+    state.teams[1][0] = buildCombatant(data, "Snorlax", 100, {"BodySlam"});
     state.team_size = {1, 1};
     state.teams[1][0].status = Status::Freeze;
     FixedRNG rng(rngUnit);
@@ -367,11 +367,11 @@ TEST_CASE("Frozen Pokemon skips its move, thaws on RNG proc", "[status][before_m
 
 TEST_CASE("A damaging Fire move thaws a frozen target", "[status][damage]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "charizard", 100, {"Flamethrower"});
-  state.teams[1][0] = buildCombatant(data, "blastoise", 100, {"Surf"});
+  state.teams[0][0] = buildCombatant(data, "Infernape", 100, {"Flamethrower"});
+  state.teams[1][0] = buildCombatant(data, "Inteleon", 100, {"Surf"});
   state.team_size = {1, 1};
   state.teams[1][0].status = Status::Freeze;
 
@@ -385,11 +385,11 @@ TEST_CASE("A damaging Fire move thaws a frozen target", "[status][damage]") {
 
 TEST_CASE("Residual damage can faint and end the battle", "[status][residual]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "gengar", 100, {"WillOWisp"});
-  state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"Tackle"});
+  state.teams[0][0] = buildCombatant(data, "MegaGengar", 100, {"WillOWisp"});
+  state.teams[1][0] = buildCombatant(data, "Snorlax", 100, {"Tackle"});
   state.team_size = {1, 1};
   state.teams[1][0].status = Status::Burn;
   state.teams[1][0].currentHp = 3; // below the 1/16 burn chip
@@ -404,11 +404,11 @@ TEST_CASE("Residual damage can faint and end the battle", "[status][residual]") 
 
 TEST_CASE("validateState accepts a statused Pokemon", "[status][validate]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "gengar", 100, {"WillOWisp"});
-  state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"Tackle"});
+  state.teams[0][0] = buildCombatant(data, "MegaGengar", 100, {"WillOWisp"});
+  state.teams[1][0] = buildCombatant(data, "Snorlax", 100, {"Tackle"});
   state.team_size = {1, 1};
   state.teams[1][0].status = Status::Toxic;
   state.teams[1][0].status_turns = 4;

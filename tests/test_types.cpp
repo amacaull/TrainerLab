@@ -1,3 +1,5 @@
+#include "helpers.hpp"
+
 #include "engine/core/data_loader.hpp"
 #include "engine/model/types.hpp"
 
@@ -39,7 +41,7 @@ TEST_CASE("Full type chart loads without error", "[types][data]") {
 
 TEST_CASE("Full type chart: every matchup is a canonical value", "[types][data]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   const TypeChart &chart = data.typeChart();
 
   for (int a = 0; a < TypeCount; ++a) {
@@ -55,7 +57,7 @@ TEST_CASE("Full type chart: every matchup is a canonical value", "[types][data]"
 
 TEST_CASE("Full type chart: canonical immunities (0x)", "[types][data]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   const TypeChart &chart = data.typeChart();
 
   REQUIRE(chart.multiplier(Type::Normal, Type::Ghost) == 0.0f);
@@ -70,7 +72,7 @@ TEST_CASE("Full type chart: canonical immunities (0x)", "[types][data]") {
 
 TEST_CASE("Full type chart: classic super-effective matchups (2x)", "[types][data]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   const TypeChart &chart = data.typeChart();
 
   REQUIRE(chart.multiplier(Type::Fire, Type::Grass) == 2.0f);
@@ -96,7 +98,7 @@ TEST_CASE("Full type chart: classic super-effective matchups (2x)", "[types][dat
 
 TEST_CASE("Full type chart: classic resistances (0.5x)", "[types][data]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   const TypeChart &chart = data.typeChart();
 
   REQUIRE(chart.multiplier(Type::Fire, Type::Water) == 0.5f);
@@ -109,7 +111,7 @@ TEST_CASE("Full type chart: classic resistances (0.5x)", "[types][data]") {
 
 TEST_CASE("Full type chart: 4x via dual type", "[types][data]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   const TypeChart &chart = data.typeChart();
 
   REQUIRE(chart.effectiveness(Type::Ice, Type::Dragon, Type::Flying) == 4.0f);
@@ -118,7 +120,7 @@ TEST_CASE("Full type chart: 4x via dual type", "[types][data]") {
 
 TEST_CASE("Full type chart: 0.25x via dual resistance", "[types][data]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   const TypeChart &chart = data.typeChart();
 
   REQUIRE(chart.effectiveness(Type::Grass, Type::Fire, Type::Flying) == 0.25f);
@@ -127,7 +129,7 @@ TEST_CASE("Full type chart: 0.25x via dual resistance", "[types][data]") {
 
 TEST_CASE("Full type chart: dual-type immunity cancels super-effective", "[types][data]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   const TypeChart &chart = data.typeChart();
 
   REQUIRE(chart.effectiveness(Type::Ground, Type::Flying, Type::Steel) == 0.0f);

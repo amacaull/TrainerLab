@@ -1,0 +1,30 @@
+{
+  "id": "MegaMawile",
+  "displayName": "Mega Mawile",
+  "baseStats": {
+    "hp": 50,
+    "atk": 105,
+    "def": 125,
+    "specAtk": 55,
+    "specDef": 95,
+    "speed": 50
+  },
+  "type1": "Steel",
+  "type2": "Fairy",
+  "ability": "HugePower",
+  "nature": "Adamant",
+  "evs": {
+    "hp": 252,
+    "atk": 252,
+    "speed": 4
+  },
+  "weight": 23.5,
+  "legendary": false,
+  "mega": true,
+  "movepool": [
+    "SwordsDance",
+    "PlayRough",
+    "SuckerPunch",
+    "IronHead"
+  ]
+}

@@ -9,7 +9,7 @@
 **Tests** : Catch2 v3
 **Données** : JSON (nlohmann/json)
 **Niveau de combat** : 100 (ADR #33)
-**Dernière MAJ** : 2026-07-18 (phase 14 terminée : bascule anglaise ADR #48 + mécaniques d'attaques — 227/227 tests ; renumérotation : 15 = contenu, 16 = FFI, 17 = polish ; le contrat BattleState de Taj est à rafraîchir : +6 champs POD et wish[2] — snapshot déjà annoncé comme non gelé)
+**Dernière MAJ** : 2026-07-28 (phase 15 terminée : 49 espèces + 95 moves générés et vérifiés, validateTeam, puissance au poids, suite d'intégration, legacy supprimé — 239/239 tests. Le catalogue est stable : le gel des index FFI peut avoir lieu. Le contrat BattleState de Taj est à régénérer au gel : +6 champs POD de la phase 14, `wish[2]`, et `legendary`/`mega` côté Species)
 
 ---
 
@@ -231,18 +231,27 @@ Branche : `feat/battle-engine-mechanics`. Découpage 14/15 validé : les mécani
 
 **Puissance au poids** (Balayette, Nœud Herbe) : reportée en phase 15 avec les données (paliers canon sur `weight` — champ déjà chargé).
 
-### Phase 15 — Contenu du roster + suite d'intégration + validateTeam  ⬜ (attend la liste des légendaires)
+### Phase 15 — Contenu du roster, catalogue livrable, validateTeam  ✅
 
-Branche : `feat/battle-engine-roster-content`.
-- ⬜ Puissance au poids : effet paliers canon (Balayette, Nœud Herbe)
-- ⬜ Les **49 espèces** du roster en JSON (stats/EVs/natures du doc équipe — vérifiés conformes à notre formule —, poids, talent, objet, `legendary`, moveset fixe) — Méga = espèces statiques (ADR #32), M-Ectoplasma en Levitate
-- ⬜ Le reste des ~95 moves uniques du doc
-- ⬜ Placeholders sur les archétypes météo orphelins (Minotaupe/Sand Rush, M-Laggron/Swift Swim) en attendant l'arbitrage équipe
-- ⬜ **Suppression de l'ancien contenu de test** — les espèces du roster deviennent les fixtures
-- ⬜ **Suite d'intégration** sur le roster final (combos : Cran+Orbe Flamme, Cognobidon+Sitrus, Tête de Roc+Fracass'Tête, Prolifération+Dés Pipés, Fantômasque vs rafales...)
-- ⬜ **`validateTeam`** (ADR #42) : Species Clause, max 1 Méga, max 1 légendaire — exposée au FFI
+Branche : `feat/battle-engine-roster-content`. **239 tests / 3204 assertions.**
 
-### Phase 16 — Exposition FFI  🔵 (gel des index à la fin de la phase 15 ; décisions de la réunion de mardi)
+**Données générées, pas saisies** : script de génération one-shot depuis le doc équipe, avec **vérification croisée des 294 stats** (chaque valeur du doc doit égaler notre formule — zéro écart) et échec bruyant sur tout pattern d'effet non couvert. Les 58 fichiers de moves préexistants ont été réconciliés avec l'index du doc : 5 divergences corrigées (Anti-Brume / Picots Toxik / Piège de Roc en précision 0, Tour Rapide 20→50, clé parasite sur Revenant).
+- ✅ **49 espèces** (stats, EVs, natures, poids, talent, objet, moveset fixe) et **95 moves** — le catalogue livré est *exactement* le doc équipe
+- ✅ Puissance au poids : paliers canon 20/40/60/80/100/120 sur `weight` (Balayette, Nœud Herbe), bornes testées au kg près
+- ✅ Champs `legendary` et **`mega`** dans `Species` — le Méga est une **donnée**, pas une devinette sur le préfixe de l'id
+- ✅ **`validateTeam`** : Species Clause, max 1 Méga, max 1 légendaire, et chaque attaque tirée du movepool de son espèce (ADR #50)
+- ✅ **Suppression du legacy** : 12 espèces de test, les 49 du roster deviennent les fixtures ; les 18 instruments neutres des tests (Tackle, Growl, Abri…) sortent du catalogue livré (ADR #49)
+- ✅ **Suite d'intégration** sur les objets réels (`buildLoadout`) : Cran+Orbe Flamme, Cognobidon+Baie Sitrus, Prolifération+Dés Pipés, Fantômasque vs rafale, Tête de Roc+Fracass'Tête, Alerte Neige+Voile Aurore+Chasse-Neige
+- ✅ Démo rejouée sur le contenu réel (10 matchs, déterministe)
+
+**Découvertes de la migration**, toutes conformes au canon et non des bugs : Mimiqui est **Spectre**, donc immunisé aux rafales Normal (le type prime sur le déguisement) ; Corviknight est **Vol**, donc immunisé aux Picots ; aucune espèce du roster n'est ×4 faible à Roche (le palier haut des tests est ×2) ; Mammochon et Dragapult tiennent un Bandeau Choix, ce qui verrouille les scripts de démo.
+
+**En attente équipe** (n'a pas bloqué la livraison) :
+- ⚠️ **Liste des légendaires** : tous les `legendary: false`. La règle « max 1 » est codée *et testée* sur des flags basculés — le jour où la liste arrive, c'est un flip de booléens en pur JSON, zéro code
+- ⚠️ **Archétypes météo orphelins** : le roster ne contient **aucun move de météo** (ni Danse Pluie, ni Zénith, ni Tempête de Sable) et aucun talent poseur de sable ou de pluie. Baigne Sable (Minotaupe) et Glissade (M-Laggron) sont donc **inertes en partie réelle** ; la neige, elle, tourne (Alerte Neige de Feunard d'Alola). À trancher : ajouter un poseur, ou assumer deux talents morts
+- ⚠️ Confusion (Vent Violent) toujours non implémentée (divergence de la phase 14)
+
+### Phase 16 — Exposition FFI  🔵 (le catalogue est stable : le gel des index peut avoir lieu)
 
 > Changement d'architecture validé avec l'équipe 2026-05-19 : pas de REST, le moteur est embarqué dans le backend Rust via FFI. Le service IA Python parle au backend Rust.
 
@@ -326,6 +335,8 @@ Branche : `feat/battle-engine-roster-content`.
 | 45 | **Catalogue d'objets indexé en code, ordre d'enregistrement gelé** | contrairement aux talents (impliqués par l'espèce), `item_id` vit dans le POD et traversera le FFI : il faut des indices stables ; les objets sont des singletons enregistrés dans un ordre fixe (append-only) dans `item.cpp`, le `DataLoader` expose `findItemId`/`isValidItemId` comme façade, cohérent ADR #12 ; ajouter un objet = une classe + une ligne d'enregistrement | 2026-07-16 |
 | 46 | **Arborescence par domaines : `model/` `core/` `effects/` `abilities/` `items/`, miroir include/src, démo dans `demo/`, tests nommés par domaine** | 24 headers à plat devenaient illisibles et les phases 13-14 vont tripler le volume (47 talents, ~110 moves) ; réorganiser avant l'afflux plutôt qu'après ; refactor pur, zéro logique, 167/167 comme preuve | 2026-07-16 |
 | 47 | **Phase 13 : Souffle Delta lié à la présence, Repli Tactique en auto-switch, Fantômasque gen 8, noms de talents canon FR** | Souffle Delta : pas de compteur (`turns_left = 0`, exception `validateState`), setters normaux en échec, dissipation au départ du poseur ; Repli Tactique : le canon demande un choix joueur mid-turn, incompatible avec un `resolveTurn` stateless → auto-switch vers `firstHealthyBenched`, divergence documentée ; Fantômasque casse + 1/8 PV max (gen 8) ; correction des appellations non-canon employées jusqu'ici (Chasse-Neige, Tension, Impudence, Acharné, Benêt, Incisif, Coloforce, Créa-Élec, Souffle Delta, Urne du Fléau) — le doc équipe fera foi à la saisie phase 14 | 2026-07-17 |
+| 50 | **`validateTeam` n'est pas appelée par `validateState`** | Species Clause, max 1 Méga, max 1 légendaire et l'appartenance au movepool sont des règles de *construction* d'équipe, pas des invariants d'état : une partie déjà lancée avec une équipe illégale n'est pas corrompue, elle aurait dû être refusée à la soumission. Les brancher dans `validateState` ferait payer ce coût à chaque tour (ADR #13) et casserait les fixtures qui réutilisent une espèce. Le teambuilder Rust l'appelle une fois via le FFI. Le flag `mega` est une donnée JSON, pas une heuristique sur le préfixe de l'id | 2026-07-28 |
+| 49 | **Le catalogue livré est exactement le roster ; les instruments de test vivent hors de `data/`** | 18 des 19 moves devenus orphelins servaient de fixtures neutres aux tests (Tackle, Growl, Abri, Surf…) et aucun n'appartient à un movepool du roster. Les garder aurait fait entrer 19 moves injouables dans la table d'indices gelée en phase 16 — et les supprimer *après* le gel décalerait tous les indices suivants. Ils partent dans `tests/fixtures/moves/`, chargés par `loadExtraContent()` que seuls les tests appellent. Un test verrouille l'invariant : tout move livré appartient à au moins un movepool | 2026-07-28 |
 | 48 | **Bascule anglaise intégrale : moves, talents, objets, natures, espèces et clés de schéma en anglais canon** | Décision équipe : éliminer la classe d'erreurs des traductions approximatives (cf. ADR #47) ; le doc roster fournit les noms EN ; remplace le volet français de l'ADR #40 (PascalCase ASCII conservé) ; « Pudique » du doc équipe = Bold (+Déf/−Atk d'après leurs tables) ; indices d'objets gelés inchangés (seules les strings changent) | 2026-07-18 |
 
 ---

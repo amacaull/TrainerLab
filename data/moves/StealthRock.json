@@ -2,7 +2,7 @@
   "name": "StealthRock",
   "type": "Rock",
   "category": "Status",
-  "accuracy": 100,
+  "accuracy": 0,
   "pp": 20,
   "reflectable": true,
   "effects": [

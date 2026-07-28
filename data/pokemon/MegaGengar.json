@@ -1,0 +1,30 @@
+{
+  "id": "MegaGengar",
+  "displayName": "Mega Gengar",
+  "baseStats": {
+    "hp": 60,
+    "atk": 65,
+    "def": 80,
+    "specAtk": 170,
+    "specDef": 95,
+    "speed": 130
+  },
+  "type1": "Ghost",
+  "type2": "Poison",
+  "ability": "Levitate",
+  "nature": "Timid",
+  "evs": {
+    "specAtk": 252,
+    "specDef": 4,
+    "speed": 252
+  },
+  "weight": 40.5,
+  "legendary": false,
+  "mega": true,
+  "movepool": [
+    "NastyPlot",
+    "ShadowBall",
+    "SludgeBomb",
+    "FocusBlast"
+  ]
+}

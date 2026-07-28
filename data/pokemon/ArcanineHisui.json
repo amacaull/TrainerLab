@@ -1,0 +1,30 @@
+{
+  "id": "ArcanineHisui",
+  "displayName": "Arcanine-Hisui",
+  "baseStats": {
+    "hp": 95,
+    "atk": 115,
+    "def": 80,
+    "specAtk": 95,
+    "specDef": 80,
+    "speed": 90
+  },
+  "type1": "Fire",
+  "type2": "Rock",
+  "ability": "RockHead",
+  "nature": "Adamant",
+  "evs": {
+    "atk": 252,
+    "def": 4,
+    "speed": 252
+  },
+  "weight": 168.0,
+  "item": "ChoiceBand",
+  "legendary": false,
+  "movepool": [
+    "FlareBlitz",
+    "HeadSmash",
+    "ExtremeSpeed",
+    "Earthquake"
+  ]
+}

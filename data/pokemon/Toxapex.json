@@ -1,0 +1,30 @@
+{
+  "id": "Toxapex",
+  "displayName": "Toxapex",
+  "baseStats": {
+    "hp": 50,
+    "atk": 63,
+    "def": 152,
+    "specAtk": 53,
+    "specDef": 142,
+    "speed": 35
+  },
+  "type1": "Poison",
+  "type2": "Water",
+  "ability": "Regenerator",
+  "nature": "Bold",
+  "evs": {
+    "hp": 252,
+    "def": 252,
+    "specDef": 4
+  },
+  "weight": 14.5,
+  "item": "BlackSludge",
+  "legendary": false,
+  "movepool": [
+    "Scald",
+    "Recover",
+    "ToxicSpikes",
+    "BanefulBunker"
+  ]
+}

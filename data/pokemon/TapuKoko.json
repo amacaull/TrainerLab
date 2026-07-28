@@ -1,0 +1,30 @@
+{
+  "id": "TapuKoko",
+  "displayName": "Tapu Koko",
+  "baseStats": {
+    "hp": 70,
+    "atk": 115,
+    "def": 85,
+    "specAtk": 95,
+    "specDef": 75,
+    "speed": 130
+  },
+  "type1": "Electric",
+  "type2": "Fairy",
+  "ability": "ElectricSurge",
+  "nature": "Timid",
+  "evs": {
+    "def": 4,
+    "specAtk": 252,
+    "speed": 252
+  },
+  "weight": 20.5,
+  "item": "ChoiceScarf",
+  "legendary": false,
+  "movepool": [
+    "Thunder",
+    "DazzlingGleam",
+    "VoltSwitch",
+    "GrassKnot"
+  ]
+}

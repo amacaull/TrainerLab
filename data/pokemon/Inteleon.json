@@ -1,0 +1,29 @@
+{
+  "id": "Inteleon",
+  "displayName": "Inteleon",
+  "baseStats": {
+    "hp": 70,
+    "atk": 85,
+    "def": 65,
+    "specAtk": 125,
+    "specDef": 65,
+    "speed": 120
+  },
+  "type1": "Water",
+  "ability": "Torrent",
+  "nature": "Timid",
+  "evs": {
+    "specAtk": 252,
+    "specDef": 4,
+    "speed": 252
+  },
+  "weight": 45.2,
+  "item": "ChoiceSpecs",
+  "legendary": false,
+  "movepool": [
+    "HydroPump",
+    "IceBeam",
+    "DarkPulse",
+    "UTurn"
+  ]
+}

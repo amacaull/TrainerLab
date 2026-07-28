@@ -2,7 +2,7 @@
   "name": "Defog",
   "type": "Flying",
   "category": "Status",
-  "accuracy": 100,
+  "accuracy": 0,
   "pp": 15,
   "reflectable": true,
   "effects": [

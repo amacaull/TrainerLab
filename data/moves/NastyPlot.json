@@ -1,0 +1,15 @@
+{
+  "name": "NastyPlot",
+  "type": "Dark",
+  "category": "Status",
+  "accuracy": 0,
+  "pp": 20,
+  "effects": [
+    {
+      "kind": "StatChange",
+      "stat": "SpA",
+      "delta": 2,
+      "affectsUser": true
+    }
+  ]
+}

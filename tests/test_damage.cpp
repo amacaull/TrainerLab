@@ -11,13 +11,13 @@
 using namespace engine;
 using engine::test::buildCombatant;
 
-TEST_CASE("Flamethrower on Venusaur is super-effective", "[damage]") {
+TEST_CASE("Flamethrower on Zarude is super-effective", "[damage]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "charizard", 100, {"Flamethrower"});
-  state.teams[1][0] = buildCombatant(data, "venusaur", 100, {"VineWhip"});
+  state.teams[0][0] = buildCombatant(data, "Infernape", 100, {"Flamethrower"});
+  state.teams[1][0] = buildCombatant(data, "Zarude", 100, {"VineWhip"}); // Dark/Grass: x2
   state.team_size = {1, 1};
 
   BattleEngine engine(data);
@@ -42,11 +42,11 @@ TEST_CASE("Flamethrower on Venusaur is super-effective", "[damage]") {
 
 TEST_CASE("Charizard outspeeds Venusaur", "[order]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "charizard", 100, {"Flamethrower"});
-  state.teams[1][0] = buildCombatant(data, "venusaur", 100, {"VineWhip"});
+  state.teams[0][0] = buildCombatant(data, "Infernape", 100, {"Flamethrower"});
+  state.teams[1][0] = buildCombatant(data, "Toxapex", 100, {"VineWhip"});
   state.team_size = {1, 1};
 
   BattleEngine engine(data);
@@ -64,11 +64,11 @@ TEST_CASE("Charizard outspeeds Venusaur", "[order]") {
 // coverage check moved to Pikachu (Electric, 2x weak).
 TEST_CASE("Earthquake on Pikachu is super-effective (Ground vs Electric)", "[damage][types]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "garchomp", 100, {"Earthquake"});
-  state.teams[1][0] = buildCombatant(data, "pikachu", 100, {"QuickAttack"});
+  state.teams[0][0] = buildCombatant(data, "Excadrill", 100, {"Earthquake"});
+  state.teams[1][0] = buildCombatant(data, "Luxray", 100, {"QuickAttack"});
   state.team_size = {1, 1};
 
   BattleEngine engine(data);
@@ -85,11 +85,11 @@ TEST_CASE("Earthquake on Pikachu is super-effective (Ground vs Electric)", "[dam
 // of speed. Normal vs Ghost is the immunity under test.
 TEST_CASE("Immunity event emitted when type chart says 0x", "[damage][types]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "pikachu", 100, {"QuickAttack"});
-  state.teams[1][0] = buildCombatant(data, "gengar", 100, {"ShadowBall"});
+  state.teams[0][0] = buildCombatant(data, "Luxray", 100, {"QuickAttack"});
+  state.teams[1][0] = buildCombatant(data, "MegaGengar", 100, {"ShadowBall"});
   state.team_size = {1, 1};
 
   BattleEngine engine(data);

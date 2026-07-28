@@ -1,0 +1,30 @@
+{
+  "id": "Weavile",
+  "displayName": "Weavile",
+  "baseStats": {
+    "hp": 70,
+    "atk": 120,
+    "def": 65,
+    "specAtk": 45,
+    "specDef": 85,
+    "speed": 125
+  },
+  "type1": "Dark",
+  "type2": "Ice",
+  "ability": "Pressure",
+  "nature": "Jolly",
+  "evs": {
+    "atk": 252,
+    "def": 4,
+    "speed": 252
+  },
+  "weight": 34.0,
+  "item": "HeavyDutyBoots",
+  "legendary": false,
+  "movepool": [
+    "KnockOff",
+    "TripleAxel",
+    "IceShard",
+    "LowKick"
+  ]
+}

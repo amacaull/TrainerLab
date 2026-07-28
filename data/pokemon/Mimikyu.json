@@ -1,0 +1,30 @@
+{
+  "id": "Mimikyu",
+  "displayName": "Mimikyu",
+  "baseStats": {
+    "hp": 55,
+    "atk": 90,
+    "def": 80,
+    "specAtk": 50,
+    "specDef": 105,
+    "speed": 96
+  },
+  "type1": "Ghost",
+  "type2": "Fairy",
+  "ability": "Disguise",
+  "nature": "Jolly",
+  "evs": {
+    "atk": 252,
+    "def": 4,
+    "speed": 252
+  },
+  "weight": 0.7,
+  "item": "LifeOrb",
+  "legendary": false,
+  "movepool": [
+    "SwordsDance",
+    "ShadowSneak",
+    "PlayRough",
+    "Poltergeist"
+  ]
+}

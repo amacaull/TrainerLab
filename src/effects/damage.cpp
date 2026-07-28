@@ -18,6 +18,19 @@ namespace engine {
 void DamageEffect::apply(EffectContext &ctx) const {
   const Move &move = ctx.move;
   int power = ctx.powerOverride > 0 ? ctx.powerOverride : move.power;
+  if (move.powerFromTargetWeight) {
+    // Canon tiers (LowKick / GrassKnot), on the catalog weight in kg.
+    const BattlePokemon &weighed =
+        ctx.state
+            .teams[static_cast<size_t>(ctx.target.side)][static_cast<size_t>(ctx.target.teamIndex)];
+    double kg = ctx.data.speciesByIndex(weighed.species_id).weightKg;
+    power = kg < 10.0    ? 20
+            : kg < 25.0  ? 40
+            : kg < 50.0  ? 60
+            : kg < 100.0 ? 80
+            : kg < 200.0 ? 100
+                         : 120;
+  }
   if (power <= 0)
     return;
 

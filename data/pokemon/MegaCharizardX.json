@@ -1,0 +1,30 @@
+{
+  "id": "MegaCharizardX",
+  "displayName": "Mega Charizard X",
+  "baseStats": {
+    "hp": 78,
+    "atk": 130,
+    "def": 111,
+    "specAtk": 130,
+    "specDef": 85,
+    "speed": 100
+  },
+  "type1": "Fire",
+  "type2": "Dragon",
+  "ability": "ToughClaws",
+  "nature": "Adamant",
+  "evs": {
+    "atk": 252,
+    "def": 4,
+    "speed": 252
+  },
+  "weight": 110.5,
+  "legendary": false,
+  "mega": true,
+  "movepool": [
+    "DragonDance",
+    "DragonClaw",
+    "FlareBlitz",
+    "Earthquake"
+  ]
+}

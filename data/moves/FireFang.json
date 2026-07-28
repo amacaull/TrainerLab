@@ -1,0 +1,23 @@
+{
+  "name": "FireFang",
+  "type": "Fire",
+  "category": "Physical",
+  "power": 65,
+  "accuracy": 95,
+  "pp": 15,
+  "contact": true,
+  "effects": [
+    {
+      "kind": "Damage"
+    },
+    {
+      "kind": "ApplyStatus",
+      "status": "Burn",
+      "chance": 10
+    },
+    {
+      "kind": "Flinch",
+      "chance": 10
+    }
+  ]
+}

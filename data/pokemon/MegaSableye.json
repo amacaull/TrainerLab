@@ -1,0 +1,30 @@
+{
+  "id": "MegaSableye",
+  "displayName": "Mega Sableye",
+  "baseStats": {
+    "hp": 50,
+    "atk": 85,
+    "def": 125,
+    "specAtk": 85,
+    "specDef": 115,
+    "speed": 20
+  },
+  "type1": "Dark",
+  "type2": "Ghost",
+  "ability": "MagicBounce",
+  "nature": "Bold",
+  "evs": {
+    "hp": 252,
+    "def": 252,
+    "specDef": 4
+  },
+  "weight": 161.0,
+  "legendary": false,
+  "mega": true,
+  "movepool": [
+    "Scald",
+    "Recover",
+    "WillOWisp",
+    "FoulPlay"
+  ]
+}

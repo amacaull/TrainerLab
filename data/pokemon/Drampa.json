@@ -1,0 +1,30 @@
+{
+  "id": "Drampa",
+  "displayName": "Drampa",
+  "baseStats": {
+    "hp": 78,
+    "atk": 60,
+    "def": 85,
+    "specAtk": 135,
+    "specDef": 91,
+    "speed": 36
+  },
+  "type1": "Normal",
+  "type2": "Dragon",
+  "ability": "Berserk",
+  "nature": "Modest",
+  "evs": {
+    "hp": 248,
+    "specAtk": 252,
+    "specDef": 8
+  },
+  "weight": 185.0,
+  "item": "Leftovers",
+  "legendary": false,
+  "movepool": [
+    "NastyPlot",
+    "HyperVoice",
+    "DragonPulse",
+    "Flamethrower"
+  ]
+}

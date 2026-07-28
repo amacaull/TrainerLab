@@ -1,0 +1,19 @@
+{
+  "name": "Psychic",
+  "type": "Psychic",
+  "category": "Special",
+  "power": 90,
+  "accuracy": 100,
+  "pp": 10,
+  "effects": [
+    {
+      "kind": "Damage"
+    },
+    {
+      "kind": "StatChange",
+      "stat": "SpD",
+      "delta": -1,
+      "chance": 10
+    }
+  ]
+}

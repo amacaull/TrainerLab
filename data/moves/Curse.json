@@ -1,0 +1,27 @@
+{
+  "name": "Curse",
+  "type": "Ghost",
+  "category": "Status",
+  "accuracy": 0,
+  "pp": 10,
+  "effects": [
+    {
+      "kind": "StatChange",
+      "stat": "Atk",
+      "delta": 1,
+      "affectsUser": true
+    },
+    {
+      "kind": "StatChange",
+      "stat": "Def",
+      "delta": 1,
+      "affectsUser": true
+    },
+    {
+      "kind": "StatChange",
+      "stat": "Spe",
+      "delta": -1,
+      "affectsUser": true
+    }
+  ]
+}

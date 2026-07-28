@@ -1,0 +1,30 @@
+{
+  "id": "GiratinaOrigin",
+  "displayName": "Giratina Origin",
+  "baseStats": {
+    "hp": 150,
+    "atk": 100,
+    "def": 120,
+    "specAtk": 100,
+    "specDef": 120,
+    "speed": 90
+  },
+  "type1": "Ghost",
+  "type2": "Dragon",
+  "ability": "Pressure",
+  "nature": "Bold",
+  "evs": {
+    "hp": 252,
+    "def": 252,
+    "specDef": 4
+  },
+  "weight": 750.0,
+  "item": "Leftovers",
+  "legendary": false,
+  "movepool": [
+    "DragonTail",
+    "WillOWisp",
+    "Defog",
+    "Rest"
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "id": "MegaSwampert",
+  "displayName": "Mega Swampert",
+  "baseStats": {
+    "hp": 100,
+    "atk": 150,
+    "def": 110,
+    "specAtk": 95,
+    "specDef": 110,
+    "speed": 70
+  },
+  "type1": "Water",
+  "type2": "Ground",
+  "ability": "SwiftSwim",
+  "nature": "Adamant",
+  "evs": {
+    "atk": 252,
+    "def": 4,
+    "speed": 252
+  },
+  "weight": 102.0,
+  "legendary": false,
+  "mega": true,
+  "movepool": [
+    "Waterfall",
+    "Earthquake",
+    "IcePunch",
+    "Superpower"
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "id": "Dragapult",
+  "displayName": "Dragapult",
+  "baseStats": {
+    "hp": 88,
+    "atk": 120,
+    "def": 75,
+    "specAtk": 100,
+    "specDef": 75,
+    "speed": 142
+  },
+  "type1": "Dragon",
+  "type2": "Ghost",
+  "ability": "ClearBody",
+  "nature": "Jolly",
+  "evs": {
+    "atk": 252,
+    "def": 4,
+    "speed": 252
+  },
+  "weight": 50.0,
+  "item": "ChoiceBand",
+  "legendary": false,
+  "movepool": [
+    "DragonDarts",
+    "PhantomForce",
+    "UTurn",
+    "FireFang"
+  ]
+}

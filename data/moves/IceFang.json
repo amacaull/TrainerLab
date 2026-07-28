@@ -1,0 +1,23 @@
+{
+  "name": "IceFang",
+  "type": "Ice",
+  "category": "Physical",
+  "power": 65,
+  "accuracy": 95,
+  "pp": 15,
+  "contact": true,
+  "effects": [
+    {
+      "kind": "Damage"
+    },
+    {
+      "kind": "ApplyStatus",
+      "status": "Freeze",
+      "chance": 10
+    },
+    {
+      "kind": "Flinch",
+      "chance": 10
+    }
+  ]
+}

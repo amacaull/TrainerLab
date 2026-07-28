@@ -1,0 +1,30 @@
+{
+  "id": "KommoO",
+  "displayName": "Kommo-o",
+  "baseStats": {
+    "hp": 75,
+    "atk": 110,
+    "def": 125,
+    "specAtk": 100,
+    "specDef": 105,
+    "speed": 85
+  },
+  "type1": "Dragon",
+  "type2": "Fighting",
+  "ability": "Bulletproof",
+  "nature": "Jolly",
+  "evs": {
+    "atk": 252,
+    "def": 4,
+    "speed": 252
+  },
+  "weight": 78.2,
+  "item": "FocusSash",
+  "legendary": false,
+  "movepool": [
+    "DragonDance",
+    "DragonClaw",
+    "CloseCombat",
+    "ThunderPunch"
+  ]
+}

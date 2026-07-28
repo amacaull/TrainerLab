@@ -1,0 +1,30 @@
+{
+  "id": "ZapdosGalar",
+  "displayName": "Zapdos-Galar",
+  "baseStats": {
+    "hp": 90,
+    "atk": 125,
+    "def": 90,
+    "specAtk": 85,
+    "specDef": 90,
+    "speed": 100
+  },
+  "type1": "Fighting",
+  "type2": "Flying",
+  "ability": "Defiant",
+  "nature": "Jolly",
+  "evs": {
+    "atk": 252,
+    "def": 4,
+    "speed": 252
+  },
+  "weight": 58.2,
+  "item": "ChoiceScarf",
+  "legendary": false,
+  "movepool": [
+    "CloseCombat",
+    "BraveBird",
+    "KnockOff",
+    "UTurn"
+  ]
+}

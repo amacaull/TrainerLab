@@ -1,0 +1,29 @@
+{
+  "id": "Luxray",
+  "displayName": "Luxray",
+  "baseStats": {
+    "hp": 80,
+    "atk": 120,
+    "def": 79,
+    "specAtk": 95,
+    "specDef": 79,
+    "speed": 70
+  },
+  "type1": "Electric",
+  "ability": "Intimidate",
+  "nature": "Adamant",
+  "evs": {
+    "atk": 252,
+    "def": 4,
+    "speed": 252
+  },
+  "weight": 42.0,
+  "item": "ChoiceBand",
+  "legendary": false,
+  "movepool": [
+    "WildCharge",
+    "Crunch",
+    "IceFang",
+    "Superpower"
+  ]
+}

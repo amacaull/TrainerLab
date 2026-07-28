@@ -1,0 +1,30 @@
+{
+  "id": "WeezingGalar",
+  "displayName": "Weezing-Galar",
+  "baseStats": {
+    "hp": 65,
+    "atk": 90,
+    "def": 120,
+    "specAtk": 85,
+    "specDef": 70,
+    "speed": 60
+  },
+  "type1": "Poison",
+  "type2": "Fairy",
+  "ability": "Levitate",
+  "nature": "Bold",
+  "evs": {
+    "hp": 252,
+    "def": 252,
+    "specDef": 4
+  },
+  "weight": 16.0,
+  "item": "BlackSludge",
+  "legendary": false,
+  "movepool": [
+    "WillOWisp",
+    "SludgeBomb",
+    "ToxicSpikes",
+    "Defog"
+  ]
+}

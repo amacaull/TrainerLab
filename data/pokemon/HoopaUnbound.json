@@ -1,0 +1,30 @@
+{
+  "id": "HoopaUnbound",
+  "displayName": "Hoopa Unbound",
+  "baseStats": {
+    "hp": 80,
+    "atk": 160,
+    "def": 60,
+    "specAtk": 170,
+    "specDef": 130,
+    "speed": 80
+  },
+  "type1": "Psychic",
+  "type2": "Dark",
+  "ability": "Magician",
+  "nature": "Modest",
+  "evs": {
+    "specAtk": 252,
+    "specDef": 4,
+    "speed": 252
+  },
+  "weight": 490.0,
+  "item": "ChoiceSpecs",
+  "legendary": false,
+  "movepool": [
+    "Psyshock",
+    "DarkPulse",
+    "AuraSphere",
+    "NastyPlot"
+  ]
+}

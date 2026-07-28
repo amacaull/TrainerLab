@@ -1,0 +1,30 @@
+{
+  "id": "MegaRayquaza",
+  "displayName": "Mega Rayquaza",
+  "baseStats": {
+    "hp": 105,
+    "atk": 180,
+    "def": 100,
+    "specAtk": 180,
+    "specDef": 100,
+    "speed": 115
+  },
+  "type1": "Dragon",
+  "type2": "Flying",
+  "ability": "DeltaStream",
+  "nature": "Adamant",
+  "evs": {
+    "atk": 252,
+    "def": 4,
+    "speed": 252
+  },
+  "weight": 392.0,
+  "legendary": false,
+  "mega": true,
+  "movepool": [
+    "DragonDance",
+    "DragonAscent",
+    "Earthquake",
+    "ExtremeSpeed"
+  ]
+}

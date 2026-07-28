@@ -1,0 +1,14 @@
+{
+  "name": "IceShard",
+  "type": "Ice",
+  "category": "Physical",
+  "power": 40,
+  "accuracy": 100,
+  "pp": 30,
+  "priority": 1,
+  "effects": [
+    {
+      "kind": "Damage"
+    }
+  ]
+}

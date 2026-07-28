@@ -46,11 +46,13 @@ TEST_CASE("Ability registry: known names resolve, unknown returns nullptr", "[ab
 
 TEST_CASE("Every loaded species references a registered ability", "[ability][catalog]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
 
   for (int sid = 0; sid < data.speciesCount(); ++sid) {
     const Species &sp = data.speciesByIndex(sid);
     INFO("species " << sp.id << " ability '" << sp.ability << "'");
+    if (sp.id == "ZoroarkHisui")
+      continue; // ADR #43: Illusion reportee, talent vide legal
     REQUIRE_FALSE(sp.ability.empty());
     REQUIRE(abilityByName(sp.ability) != nullptr);
   }
@@ -58,13 +60,14 @@ TEST_CASE("Every loaded species references a registered ability", "[ability][cat
 
 TEST_CASE("Intimidate lowers the opposing Attack on switch-in", "[ability][switch]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
+  engine::test::overrideAbility(data, "Gyarados", "Intimidate"); // roster: Moxie
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "snorlax", 100, {"BodySlam"});
-  state.teams[0][1] = buildCombatant(data, "gyarados", 100, {"UTurn"});
-  state.teams[1][0] = buildCombatant(data, "machamp", 100, {"CloseCombat"});
+  state.teams[0][0] = buildCombatant(data, "Snorlax", 100, {"BodySlam"});
+  state.teams[0][1] = buildCombatant(data, "Gyarados", 100, {"UTurn"});
+  state.teams[1][0] = buildCombatant(data, "Conkeldurr", 100, {"CloseCombat"});
   state.team_size = {2, 1};
 
   FixedRNG rng(0.5f);
@@ -76,13 +79,14 @@ TEST_CASE("Intimidate lowers the opposing Attack on switch-in", "[ability][switc
 
 TEST_CASE("Intimidate fires on a KO replacement", "[ability][replacement]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
+  engine::test::overrideAbility(data, "Gyarados", "Intimidate"); // roster: Moxie
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "snorlax", 100, {"BodySlam"});
-  state.teams[0][1] = buildCombatant(data, "gyarados", 100, {"UTurn"});
-  state.teams[1][0] = buildCombatant(data, "machamp", 100, {"CloseCombat"});
+  state.teams[0][0] = buildCombatant(data, "Snorlax", 100, {"BodySlam"});
+  state.teams[0][1] = buildCombatant(data, "Gyarados", 100, {"UTurn"});
+  state.teams[1][0] = buildCombatant(data, "Conkeldurr", 100, {"CloseCombat"});
   state.team_size = {2, 1};
   state.teams[0][0].currentHp = 0;
 
@@ -94,12 +98,13 @@ TEST_CASE("Intimidate fires on a KO replacement", "[ability][replacement]") {
 
 TEST_CASE("startBattle fires the leads' switch-in abilities", "[ability]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
+  engine::test::overrideAbility(data, "Gyarados", "Intimidate"); // roster: Moxie
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "gyarados", 100, {"UTurn"});
-  state.teams[1][0] = buildCombatant(data, "machamp", 100, {"CloseCombat"});
+  state.teams[0][0] = buildCombatant(data, "Gyarados", 100, {"UTurn"});
+  state.teams[1][0] = buildCombatant(data, "Conkeldurr", 100, {"CloseCombat"});
   state.team_size = {1, 1};
 
   FixedRNG srng(0.5f);
@@ -111,12 +116,13 @@ TEST_CASE("startBattle fires the leads' switch-in abilities", "[ability]") {
 
 TEST_CASE("Intimidate at the -6 cap emits StatChangeFailed", "[ability][stage]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
+  engine::test::overrideAbility(data, "Gyarados", "Intimidate"); // roster: Moxie
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "gyarados", 100, {"UTurn"});
-  state.teams[1][0] = buildCombatant(data, "machamp", 100, {"CloseCombat"});
+  state.teams[0][0] = buildCombatant(data, "Gyarados", 100, {"UTurn"});
+  state.teams[1][0] = buildCombatant(data, "Conkeldurr", 100, {"CloseCombat"});
   state.team_size = {1, 1};
   state.teams[1][0].stat_stages[static_cast<size_t>(StatIndex::Atk)] = -6;
 
@@ -133,12 +139,12 @@ TEST_CASE("Intimidate at the -6 cap emits StatChangeFailed", "[ability][stage]")
 
 TEST_CASE("Levitate voids Ground moves entirely", "[ability][immunity]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "garchomp", 100, {"Earthquake", "DragonClaw"});
-  state.teams[1][0] = buildCombatant(data, "gengar", 100, {"ShadowBall"});
+  state.teams[0][0] = buildCombatant(data, "Excadrill", 100, {"Earthquake", "DragonClaw"});
+  state.teams[1][0] = buildCombatant(data, "MegaGengar", 100, {"SwordsDance"});
   state.team_size = {1, 1};
 
   int gengarHp = state.teams[1][0].currentHp;
@@ -156,7 +162,11 @@ TEST_CASE("Levitate voids Ground moves entirely", "[ability][immunity]") {
 
 TEST_CASE("Pinch abilities boost same-type damage at 1/3 HP", "[ability][damage]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
+  // The roster carries these three species with other abilities; the pinch
+  // family itself is what this case guards.
+  engine::test::overrideAbility(data, "Infernape", "Blaze");
+  engine::test::overrideAbility(data, "Zarude", "Overgrow"); // Inteleon has Torrent natively
   BattleEngine engine(data);
 
   struct Case {
@@ -164,15 +174,17 @@ TEST_CASE("Pinch abilities boost same-type damage at 1/3 HP", "[ability][damage]
     const char *move;
   };
   const Case cases[] = {
-      {"charizard", "Flamethrower"}, // Blaze
-      {"blastoise", "Surf"},         // Torrent
-      {"venusaur", "VineWhip"},      // Overgrow
+      {"Infernape", "Flamethrower"}, // Blaze
+      {"Inteleon", "Surf"},          // Torrent
+      {"Zarude", "VineWhip"},        // Overgrow
   };
 
   auto hitDamage = [&](const Case &c, bool pinched) {
     BattleState state;
-    state.teams[0][0] = buildCombatant(data, c.species, 50, {c.move});
-    state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"Tackle"});
+    // Level 100 into a frail neutral target: the x1.5 must stay well
+    // clear of the damage floor for the tolerance check below.
+    state.teams[0][0] = buildCombatant(data, c.species, 100, {c.move});
+    state.teams[1][0] = buildCombatant(data, "Luxray", 100, {"Tackle"});
     state.team_size = {1, 1};
     if (pinched)
       state.teams[0][0].currentHp = state.teams[0][0].stats.hp / 3;
@@ -194,13 +206,13 @@ TEST_CASE("Pinch abilities boost same-type damage at 1/3 HP", "[ability][damage]
 
 TEST_CASE("Pinch abilities are inert above 1/3 HP and on off-type moves", "[ability][damage]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto hitDamage = [&](const char *move, int hpFraction) {
     BattleState state;
-    state.teams[0][0] = buildCombatant(data, "charizard", 100, {move});
-    state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"Tackle"});
+    state.teams[0][0] = buildCombatant(data, "Infernape", 100, {move});
+    state.teams[1][0] = buildCombatant(data, "Snorlax", 100, {"Tackle"});
     state.team_size = {1, 1};
     if (hpFraction > 0)
       state.teams[0][0].currentHp = state.teams[0][0].stats.hp / hpFraction;
@@ -256,16 +268,16 @@ template <typename E> int countEv(const EventLog &events) {
 
 TEST_CASE("HugePower doubles Attack; Technician boosts weak moves only", "[abilities13]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto tackle = [&](const char *ability) {
     DataLoader d;
-    d.loadAll(BATTLE_ENGINE_DATA_DIR);
+    engine::test::loadAll(d);
     if (ability)
-      overrideAbility(d, "snorlax", ability);
+      overrideAbility(d, "Snorlax", ability);
     BattleEngine e(d);
-    auto state = duel(d, "snorlax", {"Tackle", "BodySlam"}, "machamp", {"Growl"});
+    auto state = duel(d, "Snorlax", {"Tackle", "BodySlam"}, "Conkeldurr", {"Growl"});
     FixedRNG rng(0.99f);
     auto events = e.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
     return dmgOn(events, 1);
@@ -278,11 +290,11 @@ TEST_CASE("HugePower doubles Attack; Technician boosts weak moves only", "[abili
   // Body Slam (85 BP) is above the Technician cutoff.
   auto bodySlam = [&](const char *ability) {
     DataLoader d;
-    d.loadAll(BATTLE_ENGINE_DATA_DIR);
+    engine::test::loadAll(d);
     if (ability)
-      overrideAbility(d, "snorlax", ability);
+      overrideAbility(d, "Snorlax", ability);
     BattleEngine e(d);
-    auto state = duel(d, "snorlax", {"BodySlam"}, "machamp", {"Growl"});
+    auto state = duel(d, "Snorlax", {"BodySlam"}, "Conkeldurr", {"Growl"});
     FixedRNG rng(0.99f);
     auto events = e.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
     return dmgOn(events, 1);
@@ -292,42 +304,42 @@ TEST_CASE("HugePower doubles Attack; Technician boosts weak moves only", "[abili
 
 TEST_CASE("Adaptability turns STAB into x2; Sharpness rewards slicing moves", "[abilities13]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
 
   auto hit = [&](const char *attacker, const char *move, const char *ability) {
     DataLoader d;
-    d.loadAll(BATTLE_ENGINE_DATA_DIR);
+    engine::test::loadAll(d);
     if (ability)
       overrideAbility(d, attacker, ability);
     BattleEngine e(d);
-    auto state = duel(d, attacker, {move}, "machamp", {"Growl"});
+    auto state = duel(d, attacker, {move}, "Conkeldurr", {"Growl"});
     FixedRNG rng(0.99f);
     auto events = e.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
     return dmgOn(events, 1);
   };
 
   // Snorlax Tackle is STAB (Normal/Normal): 1.5 -> 2.0 is a x1.33 bump.
-  int stabPlain = hit("snorlax", "Tackle", nullptr);
-  int stabAdapt = hit("snorlax", "Tackle", "Adaptability");
+  int stabPlain = hit("Snorlax", "Tackle", nullptr);
+  int stabAdapt = hit("Snorlax", "Tackle", "Adaptability");
   REQUIRE(stabAdapt > static_cast<int>(static_cast<float>(stabPlain) * 1.25f));
 
   // Charizard AirSlash carries the slicing flag.
-  int slashPlain = hit("charizard", "AirSlash", nullptr);
-  int slashSharp = hit("charizard", "AirSlash", "Sharpness");
+  int slashPlain = hit("Infernape", "AirSlash", nullptr);
+  int slashSharp = hit("Infernape", "AirSlash", "Sharpness");
   REQUIRE(slashSharp > static_cast<int>(static_cast<float>(slashPlain) * 1.4f));
 }
 
 TEST_CASE("Unaware ignores the other side's stages, both ways", "[abilities13]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
 
   auto boostedTackle = [&](const char *defenderAbility) {
     DataLoader d;
-    d.loadAll(BATTLE_ENGINE_DATA_DIR);
+    engine::test::loadAll(d);
     if (defenderAbility)
-      overrideAbility(d, "machamp", defenderAbility);
+      overrideAbility(d, "Conkeldurr", defenderAbility);
     BattleEngine e(d);
-    auto state = duel(d, "snorlax", {"Tackle"}, "machamp", {"Growl"});
+    auto state = duel(d, "Snorlax", {"Tackle"}, "Conkeldurr", {"Growl"});
     state.teams[0][0].stat_stages[static_cast<size_t>(StatIndex::Atk)] = 6;
     FixedRNG rng(0.99f);
     auto events = e.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
@@ -342,10 +354,10 @@ TEST_CASE("VesselOfRuin drains the opponent's Special Attack", "[abilities13]") 
   // would halve Fire and poison the comparison.
   auto flame = [&](const char *defenderAbility) {
     DataLoader d;
-    d.loadAll(BATTLE_ENGINE_DATA_DIR);
-    overrideAbility(d, "snorlax", defenderAbility ? defenderAbility : "Pressure");
+    engine::test::loadAll(d);
+    overrideAbility(d, "Snorlax", defenderAbility ? defenderAbility : "Pressure");
     BattleEngine e(d);
-    auto state = duel(d, "charizard", {"Flamethrower", "Tackle"}, "snorlax", {"Growl"});
+    auto state = duel(d, "Infernape", {"Flamethrower", "Tackle"}, "Snorlax", {"Growl"});
     FixedRNG rng(0.99f);
     auto events = e.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
     return dmgOn(events, 1);
@@ -359,11 +371,11 @@ TEST_CASE("VesselOfRuin drains the opponent's Special Attack", "[abilities13]") 
 
 TEST_CASE("VoltAbsorb and LightningRod void Electric moves with their perks", "[abilities13]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
-  overrideAbility(data, "snorlax", "VoltAbsorb");
+  engine::test::loadAll(data);
+  overrideAbility(data, "Snorlax", "VoltAbsorb");
   BattleEngine engine(data);
 
-  auto state = duel(data, "pikachu", {"Thunderbolt"}, "snorlax", {"Growl"});
+  auto state = duel(data, "Luxray", {"Thunderbolt"}, "Snorlax", {"Growl"});
   state.teams[1][0].currentHp = state.teams[1][0].stats.hp / 2;
   FixedRNG rng(0.99f);
   auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
@@ -372,24 +384,24 @@ TEST_CASE("VoltAbsorb and LightningRod void Electric moves with their perks", "[
           state.teams[1][0].stats.hp / 2 + state.teams[1][0].stats.hp / 4);
 
   DataLoader d2;
-  d2.loadAll(BATTLE_ENGINE_DATA_DIR);
-  overrideAbility(d2, "snorlax", "LightningRod");
+  engine::test::loadAll(d2);
+  overrideAbility(d2, "Snorlax", "LightningRod");
   BattleEngine e2(d2);
-  auto s2 = duel(d2, "pikachu", {"Thunderbolt"}, "snorlax", {"Growl"});
+  auto s2 = duel(d2, "Luxray", {"Thunderbolt"}, "Snorlax", {"Growl"});
   e2.resolveTurn(s2, UseMove{0}, UseMove{0}, rng);
   REQUIRE(s2.teams[1][0].stat_stages[static_cast<size_t>(StatIndex::SpA)] == 1);
 }
 
 TEST_CASE("FlashFire: Fire immunity, then a x1.5 boost that dies on switch-out", "[abilities13]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
-  overrideAbility(data, "charizard", "FlashFire");
+  engine::test::loadAll(data);
+  overrideAbility(data, "Infernape", "FlashFire");
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = engine::test::buildCombatant(data, "charizard", 100, {"Flamethrower"});
-  state.teams[0][1] = engine::test::buildCombatant(data, "snorlax", 100, {"Tackle"});
-  state.teams[1][0] = engine::test::buildCombatant(data, "venusaur", 100, {"Flamethrower"});
+  state.teams[0][0] = engine::test::buildCombatant(data, "Infernape", 100, {"Flamethrower"});
+  state.teams[0][1] = engine::test::buildCombatant(data, "Snorlax", 100, {"Tackle"});
+  state.teams[1][0] = engine::test::buildCombatant(data, "Toxapex", 100, {"Flamethrower"});
   state.team_size = {2, 1};
   FixedRNG rng(0.99f);
 
@@ -410,11 +422,11 @@ TEST_CASE("FlashFire: Fire immunity, then a x1.5 boost that dies on switch-out",
 
 TEST_CASE("Bulletproof voids ballistic moves only", "[abilities13]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
-  overrideAbility(data, "machamp", "Bulletproof");
+  engine::test::loadAll(data);
+  overrideAbility(data, "Conkeldurr", "Bulletproof");
   BattleEngine engine(data);
 
-  auto state = duel(data, "gengar", {"ShadowBall", "Tackle"}, "machamp", {"Growl"});
+  auto state = duel(data, "MegaGengar", {"ShadowBall", "Tackle"}, "Conkeldurr", {"Growl"});
   FixedRNG rng(0.99f);
   auto e1 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(dmgOn(e1, 1) == -1); // Ball'Ombre bounces off
@@ -424,43 +436,44 @@ TEST_CASE("Bulletproof voids ballistic moves only", "[abilities13]") {
 
 TEST_CASE("ClearBody blocks opposing drops; Defiant answers them with +2 Atk", "[abilities13]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
-  overrideAbility(data, "snorlax", "ClearBody");
+  engine::test::loadAll(data);
+  overrideAbility(data, "Snorlax", "ClearBody");
   BattleEngine engine(data);
 
-  auto state = duel(data, "machamp", {"Growl"}, "snorlax", {"Tackle"});
+  auto state = duel(data, "Conkeldurr", {"Growl"}, "Snorlax", {"Tackle"});
   FixedRNG rng(0.99f);
   engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(state.teams[1][0].stat_stages[static_cast<size_t>(StatIndex::Atk)] == 0);
 
   DataLoader d2;
-  d2.loadAll(BATTLE_ENGINE_DATA_DIR);
-  overrideAbility(d2, "snorlax", "Defiant");
+  engine::test::loadAll(d2);
+  overrideAbility(d2, "Snorlax", "Defiant");
   BattleEngine e2(d2);
-  auto s2 = duel(d2, "machamp", {"Growl"}, "snorlax", {"Tackle"});
+  auto s2 = duel(d2, "Conkeldurr", {"Growl"}, "Snorlax", {"Tackle"});
   e2.resolveTurn(s2, UseMove{0}, UseMove{0}, rng);
   // -1 from Growl, +2 from Defiant: net +1.
   REQUIRE(s2.teams[1][0].stat_stages[static_cast<size_t>(StatIndex::Atk)] == 1);
 
   // Own drops (Close Combat's) never trigger it.
   DataLoader d3;
-  d3.loadAll(BATTLE_ENGINE_DATA_DIR);
-  overrideAbility(d3, "machamp", "Defiant");
+  engine::test::loadAll(d3);
+  overrideAbility(d3, "Conkeldurr", "Defiant");
   BattleEngine e3(d3);
-  auto s3 = duel(d3, "machamp", {"CloseCombat"}, "snorlax", {"Growl"});
+  auto s3 = duel(d3, "Conkeldurr", {"CloseCombat"}, "Snorlax", {"Growl"});
   e3.resolveTurn(s3, UseMove{0}, UseMove{0}, rng);
   REQUIRE(s3.teams[0][0].stat_stages[static_cast<size_t>(StatIndex::Atk)] < 1);
 }
 
 TEST_CASE("Moxie: +1 Atk on the KO", "[abilities13]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
-  overrideAbility(data, "machamp", "Moxie");
+  engine::test::loadAll(data);
+  overrideAbility(data, "Conkeldurr", "Moxie");
   BattleEngine engine(data);
 
   // SwordsDance, not Growl: Pikachu outspeeds and a Growl before the KO
   // would cancel the +1 out.
-  auto state = duel(data, "machamp", {"CloseCombat"}, "pikachu", {"SwordsDance"});
+  auto state = duel(data, "Conkeldurr", {"CloseCombat"}, "Luxray", {"SwordsDance"});
+  state.teams[1][0].currentHp = 1; // real-EV Luxray tanks a CC from full
   FixedRNG rng(0.99f);
   engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(state.teams[1][0].isFainted());
@@ -470,12 +483,12 @@ TEST_CASE("Moxie: +1 Atk on the KO", "[abilities13]") {
 TEST_CASE("Berserk: +1 SpA when a hit drops it below half — residuals don't count",
           "[abilities13]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
-  overrideAbility(data, "snorlax", "Berserk");
+  engine::test::loadAll(data);
+  overrideAbility(data, "Snorlax", "Berserk");
   BattleEngine engine(data);
 
   // Tackle, not Close Combat: a KO never angers anyone.
-  auto state = duel(data, "machamp", {"Tackle"}, "snorlax", {"Growl"});
+  auto state = duel(data, "Conkeldurr", {"Tackle"}, "Snorlax", {"Growl"});
   state.teams[1][0].currentHp = state.teams[1][0].stats.hp / 2 + 30;
   FixedRNG rng(0.99f);
   engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
@@ -483,10 +496,10 @@ TEST_CASE("Berserk: +1 SpA when a hit drops it below half — residuals don't co
 
   // Poison chip across the threshold: no anger.
   DataLoader d2;
-  d2.loadAll(BATTLE_ENGINE_DATA_DIR);
-  overrideAbility(d2, "snorlax", "Berserk");
+  engine::test::loadAll(d2);
+  overrideAbility(d2, "Snorlax", "Berserk");
   BattleEngine e2(d2);
-  auto s2 = duel(d2, "snorlax", {"Growl"}, "machamp", {"SwordsDance"});
+  auto s2 = duel(d2, "Snorlax", {"Growl"}, "Conkeldurr", {"SwordsDance"});
   s2.teams[0][0].status = Status::Poison;
   s2.teams[0][0].currentHp = s2.teams[0][0].stats.hp / 2 + 5;
   e2.resolveTurn(s2, UseMove{0}, UseMove{0}, rng);
@@ -496,14 +509,14 @@ TEST_CASE("Berserk: +1 SpA when a hit drops it below half — residuals don't co
 
 TEST_CASE("EmergencyExit auto-switches below half (ADR #47 divergence)", "[abilities13]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
-  overrideAbility(data, "snorlax", "EmergencyExit");
+  engine::test::loadAll(data);
+  overrideAbility(data, "Snorlax", "EmergencyExit");
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = engine::test::buildCombatant(data, "snorlax", 100, {"Tackle"});
-  state.teams[0][1] = engine::test::buildCombatant(data, "gyarados", 100, {"Tackle"});
-  state.teams[1][0] = engine::test::buildCombatant(data, "machamp", 100, {"Tackle"});
+  state.teams[0][0] = engine::test::buildCombatant(data, "Snorlax", 100, {"Tackle"});
+  state.teams[0][1] = engine::test::buildCombatant(data, "Gyarados", 100, {"Tackle"});
+  state.teams[1][0] = engine::test::buildCombatant(data, "Conkeldurr", 100, {"Tackle"});
   state.team_size = {2, 1};
   state.teams[0][0].currentHp = state.teams[0][0].stats.hp / 2 + 30;
 
@@ -515,14 +528,14 @@ TEST_CASE("EmergencyExit auto-switches below half (ADR #47 divergence)", "[abili
 TEST_CASE("Regenerator heals a third on the way out; NaturalCure purges the status",
           "[abilities13]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
-  overrideAbility(data, "snorlax", "Regenerator");
+  engine::test::loadAll(data);
+  overrideAbility(data, "Snorlax", "Regenerator");
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = engine::test::buildCombatant(data, "snorlax", 100, {"Tackle"});
-  state.teams[0][1] = engine::test::buildCombatant(data, "gyarados", 100, {"Tackle"});
-  state.teams[1][0] = engine::test::buildCombatant(data, "machamp", 100, {"Growl"});
+  state.teams[0][0] = engine::test::buildCombatant(data, "Snorlax", 100, {"Tackle"});
+  state.teams[0][1] = engine::test::buildCombatant(data, "Gyarados", 100, {"Tackle"});
+  state.teams[1][0] = engine::test::buildCombatant(data, "Conkeldurr", 100, {"Growl"});
   state.team_size = {2, 1};
   int max = state.teams[0][0].stats.hp;
   state.teams[0][0].currentHp = max / 2;
@@ -532,13 +545,13 @@ TEST_CASE("Regenerator heals a third on the way out; NaturalCure purges the stat
   REQUIRE(state.teams[0][0].currentHp == max / 2 + max / 3);
 
   DataLoader d2;
-  d2.loadAll(BATTLE_ENGINE_DATA_DIR);
-  overrideAbility(d2, "snorlax", "NaturalCure");
+  engine::test::loadAll(d2);
+  overrideAbility(d2, "Snorlax", "NaturalCure");
   BattleEngine e2(d2);
   BattleState s2;
-  s2.teams[0][0] = engine::test::buildCombatant(d2, "snorlax", 100, {"Tackle"});
-  s2.teams[0][1] = engine::test::buildCombatant(d2, "gyarados", 100, {"Tackle"});
-  s2.teams[1][0] = engine::test::buildCombatant(d2, "machamp", 100, {"Growl"});
+  s2.teams[0][0] = engine::test::buildCombatant(d2, "Snorlax", 100, {"Tackle"});
+  s2.teams[0][1] = engine::test::buildCombatant(d2, "Gyarados", 100, {"Tackle"});
+  s2.teams[1][0] = engine::test::buildCombatant(d2, "Conkeldurr", 100, {"Growl"});
   s2.team_size = {2, 1};
   s2.teams[0][0].status = Status::Poison;
   e2.resolveTurn(s2, SwitchAction{1}, UseMove{0}, rng);
@@ -547,11 +560,11 @@ TEST_CASE("Regenerator heals a third on the way out; NaturalCure purges the stat
 
 TEST_CASE("Prankster bumps Status moves a bracket up", "[abilities13]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
-  overrideAbility(data, "venusaur", "Prankster"); // 80 base speed vs Charizard's 100
+  engine::test::loadAll(data);
+  overrideAbility(data, "Toxapex", "Prankster"); // 80 base speed vs Charizard's 100
   BattleEngine engine(data);
 
-  auto state = duel(data, "venusaur", {"Growl"}, "charizard", {"Tackle"});
+  auto state = duel(data, "Toxapex", {"Growl"}, "Infernape", {"Tackle"});
   FixedRNG rng(0.99f);
   auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   for (const auto &ev : events)
@@ -563,13 +576,13 @@ TEST_CASE("Prankster bumps Status moves a bracket up", "[abilities13]") {
 
 TEST_CASE("MagicBounce bounces status and hazards back at the sender", "[abilities13]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
-  overrideAbility(data, "snorlax", "MagicBounce");
+  engine::test::loadAll(data);
+  overrideAbility(data, "Snorlax", "MagicBounce");
   BattleEngine engine(data);
 
   // Machamp, not Venusaur: a Poison-type is immune to its own bounced Toxic.
   auto state =
-      duel(data, "machamp", {"Toxic", "StealthRock", "Tackle"}, "snorlax", {"SwordsDance"});
+      duel(data, "Conkeldurr", {"Toxic", "StealthRock", "Tackle"}, "Snorlax", {"SwordsDance"});
   FixedRNG rng(0.99f);
 
   engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
@@ -586,11 +599,11 @@ TEST_CASE("MagicBounce bounces status and hazards back at the sender", "[abiliti
 
 TEST_CASE("Pressure doubles the PP bill of moves aimed at it", "[abilities13]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
-  overrideAbility(data, "snorlax", "Pressure");
+  engine::test::loadAll(data);
+  overrideAbility(data, "Snorlax", "Pressure");
   BattleEngine engine(data);
 
-  auto state = duel(data, "machamp", {"Tackle", "SwordsDance"}, "snorlax", {"Growl"});
+  auto state = duel(data, "Conkeldurr", {"Tackle", "SwordsDance"}, "Snorlax", {"Growl"});
   FixedRNG rng(0.99f);
   engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(state.teams[0][0].pp[0] == 33); // 35 - 2
@@ -601,11 +614,11 @@ TEST_CASE("Pressure doubles the PP bill of moves aimed at it", "[abilities13]") 
 
 TEST_CASE("Unnerve keeps the opposing Sitrus in its wrapper", "[abilities13]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
-  overrideAbility(data, "machamp", "Unnerve");
+  engine::test::loadAll(data);
+  overrideAbility(data, "Conkeldurr", "Unnerve");
   BattleEngine engine(data);
 
-  auto state = duel(data, "machamp", {"Tackle"}, "snorlax", {"Growl"});
+  auto state = duel(data, "Conkeldurr", {"Tackle"}, "Snorlax", {"Growl"});
   state.teams[1][0].item_id = data.findItemId("SitrusBerry");
   state.teams[1][0].currentHp = state.teams[1][0].stats.hp / 2 + 10;
   FixedRNG rng(0.99f);
@@ -616,11 +629,11 @@ TEST_CASE("Unnerve keeps the opposing Sitrus in its wrapper", "[abilities13]") {
 
 TEST_CASE("RockHead cancels recoil; Struggle's stays canon", "[abilities13]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
-  overrideAbility(data, "charizard", "RockHead");
+  engine::test::loadAll(data);
+  overrideAbility(data, "Infernape", "RockHead");
   BattleEngine engine(data);
 
-  auto state = duel(data, "charizard", {"BraveBird"}, "snorlax", {"Growl"});
+  auto state = duel(data, "Infernape", {"BraveBird"}, "Snorlax", {"Growl"});
   FixedRNG rng(0.99f);
   auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(dmgOn(events, 1) > 0);
@@ -634,11 +647,11 @@ TEST_CASE("RockHead cancels recoil; Struggle's stays canon", "[abilities13]") {
 
 TEST_CASE("LeafGuard blocks status under the sun only", "[abilities13]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
-  overrideAbility(data, "venusaur", "LeafGuard");
+  engine::test::loadAll(data);
+  overrideAbility(data, "Toxapex", "LeafGuard");
   BattleEngine engine(data);
 
-  auto state = duel(data, "charizard", {"WillOWisp"}, "venusaur", {"Growl"});
+  auto state = duel(data, "Infernape", {"WillOWisp"}, "Toxapex", {"Growl"});
   state.weather = Weather::Sun;
   state.weather_turns_left = 5;
   FixedRNG rng(0.99f);
@@ -653,11 +666,11 @@ TEST_CASE("LeafGuard blocks status under the sun only", "[abilities13]") {
 
 TEST_CASE("Disguise eats the first hit for 1/8 and stays popped", "[abilities13]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
-  overrideAbility(data, "pikachu", "Disguise");
+  engine::test::loadAll(data);
+  overrideAbility(data, "Luxray", "Disguise");
   BattleEngine engine(data);
 
-  auto state = duel(data, "machamp", {"CloseCombat"}, "pikachu", {"Growl"});
+  auto state = duel(data, "Conkeldurr", {"CloseCombat"}, "Luxray", {"Growl"});
   int max = state.teams[1][0].stats.hp;
   FixedRNG rng(0.99f);
 
@@ -672,12 +685,12 @@ TEST_CASE("Disguise eats the first hit for 1/8 and stays popped", "[abilities13]
 
 TEST_CASE("Magician pockets the target's item on a hit", "[abilities13]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
-  overrideAbility(data, "gengar", "Magician");
+  engine::test::loadAll(data);
+  overrideAbility(data, "MegaGengar", "Magician");
   BattleEngine engine(data);
 
   // SludgeBomb: ShadowBall would bounce off a Normal-type for 0x.
-  auto state = duel(data, "gengar", {"SludgeBomb"}, "snorlax", {"Growl"});
+  auto state = duel(data, "MegaGengar", {"SludgeBomb"}, "Snorlax", {"Growl"});
   state.teams[1][0].item_id = data.findItemId("Leftovers");
   FixedRNG rng(0.99f);
   auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
@@ -688,12 +701,12 @@ TEST_CASE("Magician pockets the target's item on a hit", "[abilities13]") {
 
 TEST_CASE("SnowWarning and ElectricSurge set their field on switch-in", "[abilities13]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
-  overrideAbility(data, "snorlax", "SnowWarning");
-  overrideAbility(data, "machamp", "ElectricSurge");
+  engine::test::loadAll(data);
+  overrideAbility(data, "Snorlax", "SnowWarning");
+  overrideAbility(data, "Conkeldurr", "ElectricSurge");
   BattleEngine engine(data);
 
-  auto state = duel(data, "snorlax", {"Tackle"}, "machamp", {"Growl"});
+  auto state = duel(data, "Snorlax", {"Tackle"}, "Conkeldurr", {"Growl"});
   FixedRNG rng(0.99f);
   auto events = engine.startBattle(state, rng);
   REQUIRE(state.weather == Weather::Snow);
@@ -704,15 +717,15 @@ TEST_CASE("SnowWarning and ElectricSurge set their field on switch-in", "[abilit
 TEST_CASE("DeltaStream: presence-bound, unremplacable, shields the Flying component",
           "[abilities13]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
-  overrideAbility(data, "gyarados", "DeltaStream");
+  engine::test::loadAll(data);
+  overrideAbility(data, "Gyarados", "DeltaStream");
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = engine::test::buildCombatant(data, "gyarados", 100, {"Tackle"});
-  state.teams[0][1] = engine::test::buildCombatant(data, "snorlax", 100, {"Tackle"});
+  state.teams[0][0] = engine::test::buildCombatant(data, "Gyarados", 100, {"Tackle"});
+  state.teams[0][1] = engine::test::buildCombatant(data, "Snorlax", 100, {"Tackle"});
   state.teams[1][0] =
-      engine::test::buildCombatant(data, "pikachu", 100, {"Thunderbolt", "RainDance"});
+      engine::test::buildCombatant(data, "Luxray", 100, {"Thunderbolt", "RainDance"});
   state.team_size = {2, 1};
   FixedRNG rng(0.99f);
 
@@ -742,12 +755,12 @@ TEST_CASE("DeltaStream: presence-bound, unremplacable, shields the Flying compon
 
 TEST_CASE("SlushRush doubles Speed under snow and flips the order", "[abilities13]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
-  overrideAbility(data, "Mamoswine", "SlushRush"); // 80 base vs Charizard's 100
+  engine::test::loadAll(data);
+  overrideAbility(data, "Mamoswine", "SlushRush"); // 259 vs Infernape 346: x2 flips it
   BattleEngine engine(data);
 
   auto first = [&](bool snow) {
-    auto state = duel(data, "Mamoswine", {"Growl"}, "charizard", {"Growl"});
+    auto state = duel(data, "Mamoswine", {"Growl"}, "Infernape", {"Growl"});
     if (snow) {
       state.weather = Weather::Snow;
       state.weather_turns_left = 5;
@@ -767,20 +780,20 @@ TEST_CASE("SlushRush doubles Speed under snow and flips the order", "[abilities1
 TEST_CASE("ToughClaws boosts contact moves only", "[abilities13]") {
   auto hit = [&](const char *attacker, const char *move, bool clawed) {
     DataLoader d;
-    d.loadAll(BATTLE_ENGINE_DATA_DIR);
+    engine::test::loadAll(d);
     if (clawed)
       overrideAbility(d, attacker, "ToughClaws");
     BattleEngine e(d);
-    auto state = duel(d, attacker, {move}, "machamp", {"Growl"});
+    auto state = duel(d, attacker, {move}, "Conkeldurr", {"Growl"});
     FixedRNG rng(0.99f);
     auto events = e.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
     return dmgOn(events, 1);
   };
 
-  int plain = hit("snorlax", "Tackle", false);
-  REQUIRE(hit("snorlax", "Tackle", true) > static_cast<int>(static_cast<float>(plain) * 1.2f));
+  int plain = hit("Snorlax", "Tackle", false);
+  REQUIRE(hit("Snorlax", "Tackle", true) > static_cast<int>(static_cast<float>(plain) * 1.2f));
   // Flamethrower makes no contact: the claws stay in the pocket.
-  REQUIRE(hit("charizard", "Flamethrower", true) == hit("charizard", "Flamethrower", false));
+  REQUIRE(hit("Infernape", "Flamethrower", true) == hit("Infernape", "Flamethrower", false));
 }
 
 TEST_CASE("SwiftSwim and SandRush are wired to their own weather", "[abilities13]") {
@@ -788,10 +801,10 @@ TEST_CASE("SwiftSwim and SandRush are wired to their own weather", "[abilities13
   // wiring (ability name -> weather), not the shared mechanism.
   auto firstMover = [&](const char *ability, Weather weather) {
     DataLoader d;
-    d.loadAll(BATTLE_ENGINE_DATA_DIR);
-    overrideAbility(d, "Mamoswine", ability); // 80 base speed vs Charizard's 100
+    engine::test::loadAll(d);
+    overrideAbility(d, "Mamoswine", ability); // same speed window as SlushRush
     BattleEngine e(d);
-    auto state = duel(d, "Mamoswine", {"Growl"}, "charizard", {"Growl"});
+    auto state = duel(d, "Mamoswine", {"Growl"}, "Infernape", {"Growl"});
     state.weather = weather;
     state.weather_turns_left = 5;
     FixedRNG rng(0.99f);

@@ -1,0 +1,30 @@
+{
+  "id": "MarowakAlola",
+  "displayName": "Marowak-Alola",
+  "baseStats": {
+    "hp": 60,
+    "atk": 80,
+    "def": 110,
+    "specAtk": 50,
+    "specDef": 80,
+    "speed": 45
+  },
+  "type1": "Fire",
+  "type2": "Ghost",
+  "ability": "LightningRod",
+  "nature": "Adamant",
+  "evs": {
+    "hp": 252,
+    "atk": 252,
+    "def": 4
+  },
+  "weight": 45.0,
+  "item": "ThickClub",
+  "legendary": false,
+  "movepool": [
+    "SwordsDance",
+    "Poltergeist",
+    "FlareBlitz",
+    "ShadowSneak"
+  ]
+}

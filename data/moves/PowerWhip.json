@@ -1,0 +1,14 @@
+{
+  "name": "PowerWhip",
+  "type": "Grass",
+  "category": "Physical",
+  "power": 120,
+  "accuracy": 85,
+  "pp": 10,
+  "contact": true,
+  "effects": [
+    {
+      "kind": "Damage"
+    }
+  ]
+}

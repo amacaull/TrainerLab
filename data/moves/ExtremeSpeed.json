@@ -1,0 +1,15 @@
+{
+  "name": "ExtremeSpeed",
+  "type": "Normal",
+  "category": "Physical",
+  "power": 80,
+  "accuracy": 100,
+  "pp": 5,
+  "priority": 2,
+  "contact": true,
+  "effects": [
+    {
+      "kind": "Damage"
+    }
+  ]
+}

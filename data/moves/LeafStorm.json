@@ -1,0 +1,19 @@
+{
+  "name": "LeafStorm",
+  "type": "Grass",
+  "category": "Special",
+  "power": 130,
+  "accuracy": 90,
+  "pp": 5,
+  "effects": [
+    {
+      "kind": "Damage"
+    },
+    {
+      "kind": "StatChange",
+      "stat": "SpA",
+      "delta": -2,
+      "affectsUser": true
+    }
+  ]
+}

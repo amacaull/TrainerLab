@@ -35,9 +35,11 @@ struct Species {
 
   // Fixed set data (ADR #33/#34): stats and held item are locked per species.
   std::string nature = "Serious";
-  std::string item;      // empty = no held item (Megas, test fixtures)
-  Stats evs;             // 0-252 per stat, sum <= 510 (validated at load)
-  double weightKg = 0.0; // consumed by weight-based moves (phase 14)
+  std::string item;       // empty = no held item (Megas, test fixtures)
+  Stats evs;              // 0-252 per stat, sum <= 510 (validated at load)
+  double weightKg = 0.0;  // consumed by weight-based moves (phase 14)
+  bool legendary = false; // team rule: max 1 (official list pending, data-only flip)
+  bool mega = false;      // team rule: max 1. A data flag, not an id prefix guess
 
   bool isDualType() const { return type1 != type2; }
 };

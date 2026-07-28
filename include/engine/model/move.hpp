@@ -40,6 +40,7 @@ struct Move {
   bool usableWhileAsleep = false;          // SleepTalk (bypasses the sleep skip)
   bool thawsUser = false;                  // Scald / FlareBlitz
   bool hitsFly = false;                    // Hurricane reaches airborne targets
+  bool powerFromTargetWeight = false;      // LowKick/GrassKnot: canon weight tiers
   Type alwaysHitsIfUserType = Type::Count; // Toxic from a Poison-type never misses
   // Multi-hit: minHits==0 = single hit. Escalating powers (TripleAxel) in
   // hitPowers; perHitAccuracy retests each hit; LoadedDice raises the floor.

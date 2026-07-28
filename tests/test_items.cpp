@@ -60,17 +60,17 @@ TEST_CASE("Item catalog: stable code-side ids, name lookup (ADR #45)", "[phase11
     REQUIRE(findItemIdByName(itemByIndex(i)->name()) == i);
   }
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   REQUIRE(data.findItemId("Leftovers") == 1);
 }
 
 TEST_CASE("LifeOrb: x1.3 on damage, 10% max-HP bill after the hit", "[phase11][orbevie]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto run = [&](bool withOrb) {
-    auto state = makeDuel(data, "snorlax", {"Tackle"}, "machamp", {"Growl"});
+    auto state = makeDuel(data, "Snorlax", {"Tackle"}, "Conkeldurr", {"Growl"});
     if (withOrb)
       give(state.teams[0][0], data, "LifeOrb");
     FixedRNG rng(0.99f);
@@ -82,16 +82,16 @@ TEST_CASE("LifeOrb: x1.3 on damage, 10% max-HP bill after the hit", "[phase11][o
   auto [orbDmg, orbSelf] = run(true);
   REQUIRE(orbDmg > static_cast<int>(static_cast<float>(plainDmg) * 1.25f));
   REQUIRE(plainSelf == 0);
-  auto state = makeDuel(data, "snorlax", {"Tackle"}, "machamp", {"Growl"});
+  auto state = makeDuel(data, "Snorlax", {"Tackle"}, "Conkeldurr", {"Growl"});
   REQUIRE(orbSelf == state.teams[0][0].stats.hp / 10);
 }
 
 TEST_CASE("LifeOrb stays quiet on a status move", "[phase11][orbevie]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
-  auto state = makeDuel(data, "snorlax", {"Growl"}, "machamp", {"SwordsDance"});
+  auto state = makeDuel(data, "Snorlax", {"Growl"}, "Conkeldurr", {"SwordsDance"});
   give(state.teams[0][0], data, "LifeOrb");
   FixedRNG rng(0.99f);
   engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
@@ -101,10 +101,10 @@ TEST_CASE("LifeOrb stays quiet on a status move", "[phase11][orbevie]") {
 TEST_CASE("Leftovers heals 1/16 in the residual window, before the poison ticks",
           "[phase11][restes]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
-  auto state = makeDuel(data, "snorlax", {"Growl"}, "machamp", {"SwordsDance"});
+  auto state = makeDuel(data, "Snorlax", {"Growl"}, "Conkeldurr", {"SwordsDance"});
   give(state.teams[0][0], data, "Leftovers");
   BattlePokemon &lax = state.teams[0][0];
   lax.currentHp = lax.stats.hp - 100;
@@ -128,11 +128,11 @@ TEST_CASE("Leftovers heals 1/16 in the residual window, before the poison ticks"
 
 TEST_CASE("BlackSludge: heals its Poison-type holder, hurts anyone else", "[phase11][detritus]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   // Gengar is Ghost/Poison: 1/16 heal.
-  auto state = makeDuel(data, "gengar", {"SwordsDance"}, "machamp", {"Growl"});
+  auto state = makeDuel(data, "MegaGengar", {"SwordsDance"}, "Conkeldurr", {"Growl"});
   give(state.teams[0][0], data, "BlackSludge");
   state.teams[0][0].currentHp -= 100;
   FixedRNG rng(0.99f);
@@ -141,7 +141,7 @@ TEST_CASE("BlackSludge: heals its Poison-type holder, hurts anyone else", "[phas
           state.teams[0][0].stats.hp - 100 + state.teams[0][0].stats.hp / 16);
 
   // Snorlax is not: 1/8 chip.
-  auto state2 = makeDuel(data, "snorlax", {"Growl"}, "machamp", {"SwordsDance"});
+  auto state2 = makeDuel(data, "Snorlax", {"Growl"}, "Conkeldurr", {"SwordsDance"});
   give(state2.teams[0][0], data, "BlackSludge");
   auto events = engine.resolveTurn(state2, UseMove{0}, UseMove{0}, rng);
   REQUIRE(countEvents<ItemDamageEvent>(events) == 1);
@@ -152,10 +152,10 @@ TEST_CASE("BlackSludge: heals its Poison-type holder, hurts anyone else", "[phas
 TEST_CASE("FlameOrb burns its holder after the residuals (no tick that turn)",
           "[phase11][orbeflamme]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
-  auto state = makeDuel(data, "machamp", {"SwordsDance"}, "snorlax", {"Growl"});
+  auto state = makeDuel(data, "Conkeldurr", {"SwordsDance"}, "Snorlax", {"Growl"});
   give(state.teams[0][0], data, "FlameOrb");
 
   FixedRNG rng(0.99f);
@@ -170,18 +170,18 @@ TEST_CASE("FlameOrb burns its holder after the residuals (no tick that turn)",
 
 TEST_CASE("FlameOrb respects type immunity and existing statuses", "[phase11][orbeflamme]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   // Fire-type: never burned.
-  auto state = makeDuel(data, "charizard", {"SwordsDance"}, "snorlax", {"Growl"});
+  auto state = makeDuel(data, "Infernape", {"SwordsDance"}, "Snorlax", {"Growl"});
   give(state.teams[0][0], data, "FlameOrb");
   FixedRNG rng(0.99f);
   engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(state.teams[0][0].status == Status::None);
 
   // Already statused: the orb stays quiet.
-  auto state2 = makeDuel(data, "machamp", {"SwordsDance"}, "snorlax", {"Growl"});
+  auto state2 = makeDuel(data, "Conkeldurr", {"SwordsDance"}, "Snorlax", {"Growl"});
   give(state2.teams[0][0], data, "FlameOrb");
   state2.teams[0][0].status = Status::Paralysis;
   engine.resolveTurn(state2, UseMove{0}, UseMove{0}, rng);
@@ -190,10 +190,10 @@ TEST_CASE("FlameOrb respects type immunity and existing statuses", "[phase11][or
 
 TEST_CASE("SitrusBerry pops when crossing 50%, heals 25%, once", "[phase11][sitrus]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
-  auto state = makeDuel(data, "snorlax", {"Growl"}, "machamp", {"Tackle"});
+  auto state = makeDuel(data, "Snorlax", {"Growl"}, "Conkeldurr", {"Tackle"});
   give(state.teams[0][0], data, "SitrusBerry");
   BattlePokemon &lax = state.teams[0][0];
   lax.currentHp = lax.stats.hp / 2 + 20; // just above the threshold
@@ -215,11 +215,11 @@ TEST_CASE("SitrusBerry pops when crossing 50%, heals 25%, once", "[phase11][sitr
 
 TEST_CASE("FocusSash: survives a lethal hit at 1 HP, from full HP only", "[phase11][ceinture]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
-  // Machamp Close Combat one-shots Pikachu from full.
-  auto state = makeDuel(data, "pikachu", {"Growl"}, "machamp", {"CloseCombat"});
+  // Conkeldurr Close Combat one-shots Weavile (Dark/Ice: 4x) from full.
+  auto state = makeDuel(data, "Weavile", {"Growl"}, "Conkeldurr", {"CloseCombat"});
   give(state.teams[0][0], data, "FocusSash");
   FixedRNG rng(0.99f);
   auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
@@ -228,7 +228,7 @@ TEST_CASE("FocusSash: survives a lethal hit at 1 HP, from full HP only", "[phase
   REQUIRE(countEvents<ItemConsumedEvent>(events) == 1);
 
   // Chipped beforehand: the sash stays quiet and the holder goes down.
-  auto state2 = makeDuel(data, "pikachu", {"Growl"}, "machamp", {"CloseCombat"});
+  auto state2 = makeDuel(data, "Weavile", {"Growl"}, "Conkeldurr", {"CloseCombat"});
   give(state2.teams[0][0], data, "FocusSash");
   state2.teams[0][0].currentHp -= 1;
   engine.resolveTurn(state2, UseMove{0}, UseMove{0}, rng);
@@ -239,13 +239,13 @@ TEST_CASE("FocusSash: survives a lethal hit at 1 HP, from full HP only", "[phase
 TEST_CASE("Choice items: x1.5 on their stat and a lock on the first move used",
           "[phase11][choix]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto run = [&](bool withBand) {
     // Tackle: the banded hit must not KO, or the lock assertions below
     // would test a finished battle.
-    auto state = makeDuel(data, "machamp", {"Tackle", "CloseCombat"}, "snorlax", {"Growl"});
+    auto state = makeDuel(data, "Conkeldurr", {"Tackle", "CloseCombat"}, "Snorlax", {"Growl"});
     if (withBand)
       give(state.teams[0][0], data, "ChoiceBand");
     FixedRNG rng(0.99f);
@@ -265,13 +265,13 @@ TEST_CASE("Choice items: x1.5 on their stat and a lock on the first move used",
 
 TEST_CASE("The Choice lock ends on switch-out", "[phase11][choix]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "machamp", 100, {"CloseCombat", "Tackle"});
-  state.teams[0][1] = buildCombatant(data, "snorlax", 100, {"BodySlam"});
-  state.teams[1][0] = buildCombatant(data, "gyarados", 100, {"Growl"});
+  state.teams[0][0] = buildCombatant(data, "Conkeldurr", 100, {"CloseCombat", "Tackle"});
+  state.teams[0][1] = buildCombatant(data, "Snorlax", 100, {"BodySlam"});
+  state.teams[1][0] = buildCombatant(data, "Gyarados", 100, {"Growl"});
   state.team_size = {2, 1};
   give(state.teams[0][0], data, "ChoiceBand");
 
@@ -284,11 +284,11 @@ TEST_CASE("The Choice lock ends on switch-out", "[phase11][choix]") {
 
 TEST_CASE("ChoiceScarf flips the turn order", "[phase11][choix]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto firstMover = [&](bool withScarf) {
-    auto state = makeDuel(data, "venusaur", {"Growl"}, "charizard", {"Growl"});
+    auto state = makeDuel(data, "Excadrill", {"Growl"}, "Infernape", {"Growl"});
     if (withScarf)
       give(state.teams[0][0], data, "ChoiceScarf");
     FixedRNG rng(0.99f);
@@ -299,16 +299,16 @@ TEST_CASE("ChoiceScarf flips the turn order", "[phase11][choix]") {
     return -1;
   };
 
-  REQUIRE(firstMover(false) == 1); // Charizard (100 base speed) outruns Venusaur (80)
-  REQUIRE(firstMover(true) == 0);  // ...until the scarf (x1.5) flips it
+  REQUIRE(firstMover(false) == 1); // Infernape (346) outruns Excadrill (275)
+  REQUIRE(firstMover(true) == 0);  // ...until the scarf (x1.5 -> 412) flips it
 }
 
 TEST_CASE("Locked into a dry slot: Struggle takes over", "[phase11][choix]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
-  auto state = makeDuel(data, "machamp", {"CloseCombat", "Tackle"}, "snorlax", {"Growl"});
+  auto state = makeDuel(data, "Conkeldurr", {"CloseCombat", "Tackle"}, "Snorlax", {"Growl"});
   give(state.teams[0][0], data, "ChoiceBand");
   state.teams[0][0].locked_move_id = state.teams[0][0].move_ids[0];
   state.teams[0][0].pp[0] = 0; // dry locked slot; Tackle still has PP
@@ -326,11 +326,11 @@ TEST_CASE("Locked into a dry slot: Struggle takes over", "[phase11][choix]") {
 
 TEST_CASE("ThickClub doubles the Attack stat", "[phase11][massue]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto hit = [&](bool withClub) {
-    auto state = makeDuel(data, "snorlax", {"Tackle"}, "machamp", {"Growl"});
+    auto state = makeDuel(data, "Snorlax", {"Tackle"}, "Conkeldurr", {"Growl"});
     if (withClub)
       give(state.teams[0][0], data, "ThickClub");
     FixedRNG rng(0.99f);
@@ -345,14 +345,14 @@ TEST_CASE("ThickClub doubles the Attack stat", "[phase11][massue]") {
 
 TEST_CASE("HeavyDutyBoots: entry hazards don't apply at all", "[phase11][bottes]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto run = [&](bool withBoots) {
     BattleState state;
-    state.teams[0][0] = buildCombatant(data, "gyarados", 100, {"Growl"});
-    state.teams[0][1] = buildCombatant(data, "scizor", 100, {"Tackle"});
-    state.teams[1][0] = buildCombatant(data, "tyranitar", 100, {"StealthRock", "Spikes"});
+    state.teams[0][0] = buildCombatant(data, "Gyarados", 100, {"Growl"});
+    state.teams[0][1] = buildCombatant(data, "Excadrill", 100, {"Tackle"}); // grounded
+    state.teams[1][0] = buildCombatant(data, "Aerodactyl", 100, {"StealthRock", "Spikes"});
     state.team_size = {2, 1};
     if (withBoots)
       give(state.teams[0][1], data, "HeavyDutyBoots");
@@ -369,9 +369,9 @@ TEST_CASE("HeavyDutyBoots: entry hazards don't apply at all", "[phase11][bottes]
 
 TEST_CASE("validateState checks the item invariants", "[phase11][validate]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
 
-  auto state = makeDuel(data, "snorlax", {"Tackle"}, "machamp", {"Growl"});
+  auto state = makeDuel(data, "Snorlax", {"Tackle"}, "Conkeldurr", {"Growl"});
   give(state.teams[0][0], data, "Leftovers");
   REQUIRE_NOTHROW(validateState(state, data));
 
@@ -389,7 +389,7 @@ TEST_CASE("validateState checks the item invariants", "[phase11][validate]") {
 
 TEST_CASE("Integration: Cran + FlameOrb, the Betochef combo on Machamp", "[phase11][integration]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   // Turn 1: the orb burns Machamp (Guts holder) at the end of the turn.
@@ -397,7 +397,7 @@ TEST_CASE("Integration: Cran + FlameOrb, the Betochef combo on Machamp", "[phase
   // not Close Combat: a turn-1 KO would end the battle before the item
   // window even opens.
   auto damageOnTurn2 = [&](bool withOrb) {
-    auto state = makeDuel(data, "machamp", {"Tackle"}, "snorlax", {"Growl"});
+    auto state = makeDuel(data, "Conkeldurr", {"Tackle"}, "Snorlax", {"Growl"});
     if (withOrb)
       give(state.teams[0][0], data, "FlameOrb");
     FixedRNG rng(0.99f);

@@ -1,0 +1,29 @@
+{
+  "id": "Snorlax",
+  "displayName": "Snorlax",
+  "baseStats": {
+    "hp": 160,
+    "atk": 110,
+    "def": 65,
+    "specAtk": 65,
+    "specDef": 110,
+    "speed": 30
+  },
+  "type1": "Normal",
+  "ability": "ThickFat",
+  "nature": "Careful",
+  "evs": {
+    "hp": 252,
+    "atk": 4,
+    "specDef": 252
+  },
+  "weight": 460.0,
+  "item": "Leftovers",
+  "legendary": false,
+  "movepool": [
+    "Curse",
+    "BodySlam",
+    "Rest",
+    "SleepTalk"
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "id": "Quagsire",
+  "displayName": "Quagsire",
+  "baseStats": {
+    "hp": 95,
+    "atk": 85,
+    "def": 85,
+    "specAtk": 65,
+    "specDef": 65,
+    "speed": 35
+  },
+  "type1": "Water",
+  "type2": "Ground",
+  "ability": "Unaware",
+  "nature": "Bold",
+  "evs": {
+    "hp": 252,
+    "def": 252,
+    "specDef": 4
+  },
+  "weight": 75.0,
+  "item": "Leftovers",
+  "legendary": false,
+  "movepool": [
+    "Scald",
+    "Recover",
+    "Earthquake",
+    "Toxic"
+  ]
+}

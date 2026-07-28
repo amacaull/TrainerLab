@@ -1,0 +1,30 @@
+{
+  "id": "ZoroarkHisui",
+  "displayName": "Zoroark-Hisui",
+  "baseStats": {
+    "hp": 55,
+    "atk": 100,
+    "def": 60,
+    "specAtk": 125,
+    "specDef": 60,
+    "speed": 110
+  },
+  "type1": "Normal",
+  "type2": "Ghost",
+  "ability": "",
+  "nature": "Timid",
+  "evs": {
+    "specAtk": 252,
+    "specDef": 4,
+    "speed": 252
+  },
+  "weight": 73.0,
+  "item": "HeavyDutyBoots",
+  "legendary": false,
+  "movepool": [
+    "NastyPlot",
+    "ShadowBall",
+    "HyperVoice",
+    "Flamethrower"
+  ]
+}

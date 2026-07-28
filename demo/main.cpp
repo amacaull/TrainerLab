@@ -196,16 +196,16 @@ void runMatch(const Scenario &sc, const DataLoader &data, const BattleEngine &en
 
 void runSwitchShowcase(const DataLoader &data, const BattleEngine &engine) {
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "gyarados", 100, {"UTurn"});
-  state.teams[0][1] = buildCombatant(data, "machamp", 100, {"CloseCombat"});
-  state.teams[1][0] = buildCombatant(data, "blastoise", 100, {"Surf"});
-  state.teams[1][1] = buildCombatant(data, "snorlax", 100, {"BodySlam"});
+  state.teams[0][0] = buildCombatant(data, "Zarude", 100, {"UTurn"});
+  state.teams[0][1] = buildCombatant(data, "Luxray", 100, {"WildCharge"});
+  state.teams[1][0] = buildCombatant(data, "Inteleon", 100, {"HydroPump"});
+  state.teams[1][1] = buildCombatant(data, "Snorlax", 100, {"BodySlam"});
   state.team_size = {2, 2};
   validateState(state, data);
 
-  std::cout << "=== Match 8: Intimidate lead, U-Turn pivot, KO replacement ===\n";
-  std::cout << "    Showcases: startBattle abilities, pivot switch, resolveReplacement\n";
-  std::cout << "    Gyarados+Machamp vs Blastoise+Snorlax\n\n";
+  std::cout << "=== Match 8: U-Turn pivot into an Intimidate switch-in, KO replacement ===\n";
+  std::cout << "    Showcases: pivot switch, ability on entry, resolveReplacement\n";
+  std::cout << "    Zarude+Luxray vs Inteleon+Snorlax\n\n";
 
   MersenneRNG rng(7);
   for (const auto &e : engine.startBattle(state, rng))
@@ -215,7 +215,7 @@ void runSwitchShowcase(const DataLoader &data, const BattleEngine &engine) {
   while (!state.isOver() && turn < 12) {
     ++turn;
     std::cout << "  Turn " << turn << "\n";
-    // Turn 1: Gyarados pivots into Machamp; then spam slot 0 on both sides.
+    // Turn 1: Zarude U-turns into Luxray, whose Intimidate greets Inteleon.
     Action a0 = (turn == 1) ? Action{UseMove{0, 1}} : Action{UseMove{0}};
     Action a1 = UseMove{0};
     auto events = engine.resolveTurn(state, a0, a1, rng);
@@ -242,16 +242,17 @@ void runSwitchShowcase(const DataLoader &data, const BattleEngine &engine) {
 
 void runFieldShowcase(const DataLoader &data, const BattleEngine &engine) {
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "tyranitar", 100, {"StealthRock", "StoneEdge"});
-  state.teams[0][1] = buildCombatant(data, "scizor", 100, {"UTurn"});
-  state.teams[1][0] = buildCombatant(data, "politoed", 100, {"Surf"});
-  state.teams[1][1] = buildCombatant(data, "charizard", 100, {"Flamethrower"});
+  state.teams[0][0] = buildCombatant(data, "NinetalesAlola", 100, {"AuroraVeil", "Blizzard"});
+  state.teams[0][1] = buildCombatant(data, "Mamoswine", 100, {"IcicleCrash", "Earthquake"});
+  state.teams[1][0] = buildCombatant(data, "Aerodactyl", 100, {"StealthRock", "StoneEdge"});
+  state.teams[1][1] = buildCombatant(data, "Infernape", 100, {"FlareBlitz"});
   state.team_size = {2, 2};
   validateState(state, data);
 
-  std::cout << "=== Match 9: weather war, Stealth Rock, sand chip ===\n";
-  std::cout << "    Showcases: Drizzle vs SandStream, hazards on switch, weather residuals\n";
-  std::cout << "    Tyranitar+Scizor vs Politoed+Charizard\n\n";
+  std::cout << "=== Match 9: snow, Aurora Veil, SlushRush, Stealth Rock ===\n";
+  std::cout << "    Showcases: weather from an ability, screen halving, doubled speed in snow, "
+               "hazards on switch\n";
+  std::cout << "    NinetalesAlola+Mamoswine vs Aerodactyl+Infernape\n\n";
 
   MersenneRNG rngStart(11);
   for (const auto &e : engine.startBattle(state, rngStart))
@@ -262,10 +263,10 @@ void runFieldShowcase(const DataLoader &data, const BattleEngine &engine) {
     Action a1;
   };
   const TurnScript script[] = {
-      {UseMove{0}, UseMove{0}},      // Stealth Rock / Surf
-      {UseMove{1}, SwitchAction{1}}, // Stone Edge / Charizard eats the rocks
-      {SwitchAction{1}, UseMove{0}}, // Scizor comes in / Flamethrower (4x!)
-      {UseMove{0}, UseMove{0}},      // U-Turn or fallback / Flamethrower
+      {UseMove{0}, UseMove{0}},      // Aurora Veil (snow is already up) / Stealth Rock
+      {SwitchAction{1}, UseMove{1}}, // Mamoswine eats the rocks / Stone Edge, halved by the veil
+      {UseMove{0}, UseMove{1}},      // SlushRush: Mamoswine strikes first / Stone Edge
+      {UseMove{0}, SwitchAction{1}}, // Mamoswine is Choice-locked / Infernape onto the rocks
   };
 
   MersenneRNG rng(11);
@@ -297,17 +298,17 @@ void runFieldShowcase(const DataLoader &data, const BattleEngine &engine) {
 
 void runPhase89Showcase(const DataLoader &data, const BattleEngine &engine) {
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "charizard", 100, {"SolarBeam", "Fly", "FlareBlitz"});
-  state.teams[0][1] = buildCombatant(data, "snorlax", 100, {"Rest", "BodySlam"});
-  state.teams[1][0] = buildCombatant(data, "blastoise", 100, {"Surf", "Protect"});
-  state.teams[1][1] = buildCombatant(data, "garchomp", 100, {"StoneEdge"});
+  state.teams[0][0] = buildCombatant(data, "Dragapult", 100, {"PhantomForce"});
+  state.teams[0][1] = buildCombatant(data, "Weavile", 100, {"TripleAxel"});
+  state.teams[1][0] = buildCombatant(data, "Toxapex", 100, {"BanefulBunker", "Scald"});
+  state.teams[1][1] = buildCombatant(data, "Infernape", 100, {"FlareBlitz"});
   state.team_size = {2, 2};
   validateState(state, data);
 
-  std::cout << "=== Match 10: two-turn moves, Protect, Rest, recoil, crits ===\n";
-  std::cout << "    Showcases: SolarBeam charge, Fly invulnerability, Protect, Rest, Flare Blitz "
-               "recoil\n";
-  std::cout << "    Charizard+Snorlax vs Blastoise+Garchomp\n\n";
+  std::cout << "=== Match 10: Phantom Force, Baneful Bunker, multi-hit ===\n";
+  std::cout << "    Showcases: two-turn vanish, protection pierced, Triple Axel's escalating "
+               "20/40/60 volley\n";
+  std::cout << "    Dragapult+Weavile vs Toxapex+Infernape\n\n";
 
   MersenneRNG rngStart(3);
   for (const auto &e : engine.startBattle(state, rngStart))
@@ -318,10 +319,10 @@ void runPhase89Showcase(const DataLoader &data, const BattleEngine &engine) {
     Action a1;
   };
   const TurnScript script[] = {
-      {UseMove{0}, UseMove{1}}, // SolarBeam charges / Blastoise Protects
-      {UseMove{0}, UseMove{0}}, // SolarBeam fires (super effective) / Surf
-      {UseMove{1}, UseMove{1}}, // Fly (up) / Protect whiffs on the airborne target
-      {UseMove{1}, UseMove{0}}, // Fly strikes / Surf
+      {UseMove{0}, UseMove{1}},      // Dragapult vanishes / Scald finds nobody home
+      {UseMove{0}, UseMove{0}},      // Phantom Force lands THROUGH Baneful Bunker
+      {SwitchAction{1}, UseMove{1}}, // Weavile comes in / Scald
+      {UseMove{0}, UseMove{1}},      // Triple Axel: three hits, rising power / Scald
   };
 
   MersenneRNG rng(5);
@@ -361,68 +362,66 @@ int main() {
               << data.moveCount() << " moves loaded\n\n";
 
     const std::vector<Scenario> scenarios = {
-        {"Match 1: STAB super-effective",
-         "STAB (x1.5) + super-effective (x2) on a Grass/Poison target",
-         "charizard",
-         {"Flamethrower"},
-         "venusaur",
-         {"VineWhip"},
+        {"Match 1: STAB, super-effective, recoil",
+         "Fire STAB (x1.5) x2 on Flying/Steel; both sides pay 1/3 recoil",
+         "Infernape",
+         {"FlareBlitz"},
+         "Corviknight",
+         {"BraveBird"},
          42,
          10},
 
         {"Match 2: 4x weakness via dual type",
-         "Rock vs Fire/Flying = 2x * 2x = 4x; one-shot OHKO",
-         "garchomp",
-         {"StoneEdge"},
-         "charizard",
-         {"AirSlash"},
+         "Fighting vs Dark/Ice = 2x * 2x = 4x; Drain Punch heals half of it back",
+         "Conkeldurr",
+         {"DrainPunch"},
+         "Weavile",
+         {"KnockOff"},
          42,
          5},
 
         {"Match 3: priority bracket beats raw speed",
-         "Pikachu (Spd 95) uses QuickAttack (+1 priority) before Gengar (Spd 115); Normal hits "
-         "Ghost for 0",
-         "pikachu",
-         {"QuickAttack"},
-         "gengar",
+         "Conkeldurr (126) throws Mach Punch (+1) before Mega Gengar (394) - and Fighting "
+         "hits Ghost for 0 anyway",
+         "Conkeldurr",
+         {"MachPunch"},
+         "MegaGengar",
          {"ShadowBall"},
          42,
          3},
 
         {"Match 4: accuracy roll, miss event",
-         "Machamp's StoneEdge has 80% accuracy; seed 2 forces a miss on turn 1",
-         "machamp",
+         "Two 80%-accuracy moves trade blows: Stone Edge against Hydro Pump",
+         "Aerodactyl",
          {"StoneEdge"},
-         "blastoise",
-         {"Surf"},
+         "Inteleon",
+         {"HydroPump"},
          2,
          5},
 
         {"Match 5: bulk vs frailty",
-         "Snorlax (220 HP, 115 SpD) sponges a Thunderbolt; Pikachu (95 HP, 45 Def) folds to "
-         "BodySlam",
-         "snorlax",
+         "Snorlax sponges Wild Charge and answers with Body Slam; Luxray also pays the recoil",
+         "Snorlax",
          {"BodySlam"},
-         "pikachu",
-         {"Thunderbolt"},
+         "Luxray",
+         {"WildCharge"},
          7,
          5},
 
         {"Match 6: burn cripples a physical attacker",
-         "WillOWisp burns Machamp: CloseCombat halved (resisted on Fire/Flying) + 1/16 chip per "
-         "turn",
-         "charizard",
+         "Mega Sableye burns Excadrill: Earthquake halved + 1/16 chip every turn",
+         "MegaSableye",
          {"WillOWisp"},
-         "machamp",
-         {"CloseCombat"},
+         "Excadrill",
+         {"Earthquake"},
          42,
          5},
 
-        {"Match 7: Spore, sleep turns, wake-up",
-         "Venusaur sleeps Snorlax (1-3 turns); Snorlax skips, wakes, gets re-Spored",
-         "venusaur",
-         {"Spore"},
-         "snorlax",
+        {"Match 7: the Toxic ladder",
+         "Quagsire poisons Snorlax badly: 1/16, 2/16, 3/16... and a second Toxic fails",
+         "Quagsire",
+         {"Toxic"},
+         "Snorlax",
          {"BodySlam"},
          42,
          6},

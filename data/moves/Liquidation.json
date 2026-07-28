@@ -1,0 +1,20 @@
+{
+  "name": "Liquidation",
+  "type": "Water",
+  "category": "Physical",
+  "power": 85,
+  "accuracy": 100,
+  "pp": 10,
+  "contact": true,
+  "effects": [
+    {
+      "kind": "Damage"
+    },
+    {
+      "kind": "StatChange",
+      "stat": "Def",
+      "delta": -1,
+      "chance": 20
+    }
+  ]
+}

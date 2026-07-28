@@ -1,0 +1,26 @@
+{
+  "name": "Superpower",
+  "type": "Fighting",
+  "category": "Physical",
+  "power": 120,
+  "accuracy": 100,
+  "pp": 5,
+  "contact": true,
+  "effects": [
+    {
+      "kind": "Damage"
+    },
+    {
+      "kind": "StatChange",
+      "stat": "Atk",
+      "delta": -1,
+      "affectsUser": true
+    },
+    {
+      "kind": "StatChange",
+      "stat": "Def",
+      "delta": -1,
+      "affectsUser": true
+    }
+  ]
+}

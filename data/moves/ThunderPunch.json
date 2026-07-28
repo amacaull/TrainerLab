@@ -1,0 +1,20 @@
+{
+  "name": "ThunderPunch",
+  "type": "Electric",
+  "category": "Physical",
+  "power": 75,
+  "accuracy": 100,
+  "pp": 15,
+  "contact": true,
+  "punch": true,
+  "effects": [
+    {
+      "kind": "Damage"
+    },
+    {
+      "kind": "ApplyStatus",
+      "status": "Paralysis",
+      "chance": 10
+    }
+  ]
+}

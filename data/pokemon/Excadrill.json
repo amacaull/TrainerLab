@@ -1,0 +1,30 @@
+{
+  "id": "Excadrill",
+  "displayName": "Excadrill",
+  "baseStats": {
+    "hp": 110,
+    "atk": 135,
+    "def": 60,
+    "specAtk": 50,
+    "specDef": 65,
+    "speed": 88
+  },
+  "type1": "Ground",
+  "type2": "Steel",
+  "ability": "SandRush",
+  "nature": "Adamant",
+  "evs": {
+    "atk": 252,
+    "def": 4,
+    "speed": 252
+  },
+  "weight": 40.4,
+  "item": "ChoiceBand",
+  "legendary": false,
+  "movepool": [
+    "Earthquake",
+    "IronHead",
+    "StoneEdge",
+    "RapidSpin"
+  ]
+}

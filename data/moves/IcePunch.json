@@ -1,0 +1,20 @@
+{
+  "name": "IcePunch",
+  "type": "Ice",
+  "category": "Physical",
+  "power": 75,
+  "accuracy": 100,
+  "pp": 15,
+  "contact": true,
+  "punch": true,
+  "effects": [
+    {
+      "kind": "Damage"
+    },
+    {
+      "kind": "ApplyStatus",
+      "status": "Freeze",
+      "chance": 10
+    }
+  ]
+}

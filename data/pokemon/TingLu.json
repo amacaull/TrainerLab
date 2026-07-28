@@ -1,0 +1,30 @@
+{
+  "id": "TingLu",
+  "displayName": "Ting-Lu",
+  "baseStats": {
+    "hp": 155,
+    "atk": 110,
+    "def": 125,
+    "specAtk": 55,
+    "specDef": 80,
+    "speed": 45
+  },
+  "type1": "Dark",
+  "type2": "Ground",
+  "ability": "VesselOfRuin",
+  "nature": "Careful",
+  "evs": {
+    "hp": 252,
+    "def": 4,
+    "specDef": 252
+  },
+  "weight": 699.7,
+  "item": "Leftovers",
+  "legendary": false,
+  "movepool": [
+    "StealthRock",
+    "Earthquake",
+    "Ruination",
+    "Whirlwind"
+  ]
+}

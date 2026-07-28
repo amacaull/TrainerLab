@@ -138,6 +138,60 @@ void validatePokemon(const BattlePokemon &p, const DataLoader &data, int side, i
 
 } // namespace
 
+void validateTeam(const std::array<BattlePokemon, kTeamSize> &team, int teamSize,
+                  const DataLoader &data) {
+  auto teamFail = [](const std::string &msg) -> void {
+    throw std::invalid_argument("validateTeam: " + msg);
+  };
+
+  if (teamSize < 1 || teamSize > kTeamSize)
+    teamFail("team_size out of range [1, " + std::to_string(kTeamSize) + "], got " +
+             std::to_string(teamSize));
+
+  int megas = 0;
+  int legendaries = 0;
+  for (int i = 0; i < teamSize; ++i) {
+    const BattlePokemon &p = team[static_cast<size_t>(i)];
+    if (!data.isValidSpeciesId(p.species_id))
+      teamFail("slot " + std::to_string(i) + ": invalid species_id " +
+               std::to_string(p.species_id));
+
+    const Species &sp = data.speciesByIndex(p.species_id);
+
+    for (int j = 0; j < i; ++j) {
+      if (team[static_cast<size_t>(j)].species_id == p.species_id)
+        teamFail("Species Clause: '" + sp.id + "' appears in slots " + std::to_string(j) + " and " +
+                 std::to_string(i));
+    }
+
+    if (sp.mega)
+      ++megas;
+    if (sp.legendary)
+      ++legendaries;
+
+    // A submitted set may only draw from the species' own movepool.
+    for (int m = 0; m < kMaxMovesPerPokemon; ++m) {
+      int mid = p.move_ids[static_cast<size_t>(m)];
+      if (mid == kNoMove)
+        continue;
+      if (!data.isValidMoveId(mid))
+        teamFail("slot " + std::to_string(i) + ": invalid move id " + std::to_string(mid));
+      const std::string &moveName = data.moveByIndex(mid).name;
+      bool learnable = false;
+      for (const auto &known : sp.movepool)
+        if (known == moveName)
+          learnable = true;
+      if (!learnable)
+        teamFail("'" + sp.id + "' cannot learn '" + moveName + "'");
+    }
+  }
+
+  if (megas > 1)
+    teamFail("at most one Mega per team, got " + std::to_string(megas));
+  if (legendaries > 1)
+    teamFail("at most one legendary per team, got " + std::to_string(legendaries));
+}
+
 void validateState(const BattleState &state, const DataLoader &data) {
   if (state.weather < Weather::None || state.weather >= Weather::Count)
     fail("weather has an invalid enum value");

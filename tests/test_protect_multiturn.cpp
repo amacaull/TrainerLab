@@ -35,13 +35,13 @@ int damageOn(const EventLog &events, int side) {
 
 TEST_CASE("Whirlwind drags a benched opponent in, at -6 priority", "[phase9][forceswitch]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "gyarados", 100, {"Whirlwind"});
-  state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"Tackle"});
-  state.teams[1][1] = buildCombatant(data, "machamp", 100, {"CloseCombat"});
+  state.teams[0][0] = buildCombatant(data, "Gyarados", 100, {"Whirlwind"});
+  state.teams[1][0] = buildCombatant(data, "Snorlax", 100, {"Tackle"});
+  state.teams[1][1] = buildCombatant(data, "Conkeldurr", 100, {"CloseCombat"});
   state.team_size = {1, 2};
 
   FixedRNG rng(0.5f);
@@ -57,12 +57,12 @@ TEST_CASE("Whirlwind drags a benched opponent in, at -6 priority", "[phase9][for
 
 TEST_CASE("Whirlwind fails on an empty bench", "[phase9][forceswitch]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "gyarados", 100, {"Whirlwind"});
-  state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"Growl"});
+  state.teams[0][0] = buildCombatant(data, "Gyarados", 100, {"Whirlwind"});
+  state.teams[1][0] = buildCombatant(data, "Snorlax", 100, {"Growl"});
   state.team_size = {1, 1};
 
   FixedRNG rng(0.5f);
@@ -73,13 +73,13 @@ TEST_CASE("Whirlwind fails on an empty bench", "[phase9][forceswitch]") {
 TEST_CASE("Dragon Tail damages, then drags; damage-only on an empty bench",
           "[phase9][forceswitch]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "gyarados", 100, {"DragonTail"});
-  state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"Growl"});
-  state.teams[1][1] = buildCombatant(data, "machamp", 100, {"CloseCombat"});
+  state.teams[0][0] = buildCombatant(data, "Gyarados", 100, {"DragonTail"});
+  state.teams[1][0] = buildCombatant(data, "Snorlax", 100, {"Growl"});
+  state.teams[1][1] = buildCombatant(data, "Conkeldurr", 100, {"CloseCombat"});
   state.team_size = {1, 2};
 
   FixedRNG rng(0.5f);
@@ -89,8 +89,8 @@ TEST_CASE("Dragon Tail damages, then drags; damage-only on an empty bench",
 
   // Empty bench: the damage stands, no failure, no switch.
   BattleState solo;
-  solo.teams[0][0] = buildCombatant(data, "gyarados", 100, {"DragonTail"});
-  solo.teams[1][0] = buildCombatant(data, "snorlax", 100, {"Growl"});
+  solo.teams[0][0] = buildCombatant(data, "Gyarados", 100, {"DragonTail"});
+  solo.teams[1][0] = buildCombatant(data, "Snorlax", 100, {"Growl"});
   solo.team_size = {1, 1};
   auto e2 = engine.resolveTurn(solo, UseMove{0}, UseMove{0}, rng);
   REQUIRE(damageOn(e2, 1) > 0);
@@ -100,20 +100,21 @@ TEST_CASE("Dragon Tail damages, then drags; damage-only on an empty bench",
 
 TEST_CASE("A dragged-in Pokemon takes hazards and fires its ability", "[phase9][forceswitch]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
+  engine::test::overrideAbility(data, "Gyarados", "Intimidate"); // roster: Moxie
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "snorlax", 100, {"Whirlwind"});
-  state.teams[1][0] = buildCombatant(data, "machamp", 100, {"Growl"});
-  state.teams[1][1] = buildCombatant(data, "gyarados", 100, {"Surf"});
+  state.teams[0][0] = buildCombatant(data, "Snorlax", 100, {"Whirlwind"});
+  state.teams[1][0] = buildCombatant(data, "Conkeldurr", 100, {"Growl"});
+  state.teams[1][1] = buildCombatant(data, "Gyarados", 100, {"Surf"});
   state.team_size = {1, 2};
   state.hazards[1].stealth_rock = 1;
 
   FixedRNG rng(0.5f);
   auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
 
-  REQUIRE(countEvents<HazardDamageEvent>(events) == 1); // Gyarados eats the rocks (4x)
+  REQUIRE(countEvents<HazardDamageEvent>(events) == 1); // Gyarados eats the rocks (2x)
   bool intimidate = false;
   for (const auto &ev : events)
     if (auto *e = std::get_if<AbilityTriggeredEvent>(&ev))
@@ -124,12 +125,12 @@ TEST_CASE("A dragged-in Pokemon takes hazards and fires its ability", "[phase9][
 
 TEST_CASE("Protect blocks a damaging move", "[phase9][protect]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "gengar", 100, {"Protect"});
-  state.teams[1][0] = buildCombatant(data, "machamp", 100, {"StoneEdge"});
+  state.teams[0][0] = buildCombatant(data, "MegaGengar", 100, {"Protect"});
+  state.teams[1][0] = buildCombatant(data, "Conkeldurr", 100, {"StoneEdge"});
   state.team_size = {1, 1};
 
   FixedRNG rng(0.5f);
@@ -142,12 +143,12 @@ TEST_CASE("Protect blocks a damaging move", "[phase9][protect]") {
 TEST_CASE("Chained Protects succeed at 1/3^n and the chain resets after a pause",
           "[phase9][protect]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "gengar", 100, {"Protect", "ShadowBall"});
-  state.teams[1][0] = buildCombatant(data, "machamp", 100, {"StoneEdge"});
+  state.teams[0][0] = buildCombatant(data, "MegaGengar", 100, {"Protect", "ShadowBall"});
+  state.teams[1][0] = buildCombatant(data, "Conkeldurr", 100, {"StoneEdge"});
   state.team_size = {1, 1};
 
   SECTION("second Protect fails when the 1/3 roll misses") {
@@ -177,12 +178,12 @@ TEST_CASE("Chained Protects succeed at 1/3^n and the chain resets after a pause"
 
 TEST_CASE("Protect lets field moves through and Whirlwind bypasses it", "[phase9][protect]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "gengar", 100, {"Protect"});
-  state.teams[1][0] = buildCombatant(data, "tyranitar", 100, {"StealthRock", "StoneEdge"});
+  state.teams[0][0] = buildCombatant(data, "MegaGengar", 100, {"Protect"});
+  state.teams[1][0] = buildCombatant(data, "Aerodactyl", 100, {"StealthRock", "StoneEdge"});
   state.team_size = {1, 1};
 
   FixedRNG rng(0.5f);
@@ -190,9 +191,9 @@ TEST_CASE("Protect lets field moves through and Whirlwind bypasses it", "[phase9
   REQUIRE(countEvents<HazardSetEvent>(t1) == 1); // Stealth Rock ignores Protect
 
   BattleState state2;
-  state2.teams[0][0] = buildCombatant(data, "gengar", 100, {"Protect"});
-  state2.teams[1][0] = buildCombatant(data, "snorlax", 100, {"Whirlwind"});
-  state2.teams[0][1] = buildCombatant(data, "machamp", 100, {"CloseCombat"});
+  state2.teams[0][0] = buildCombatant(data, "MegaGengar", 100, {"Protect"});
+  state2.teams[1][0] = buildCombatant(data, "Snorlax", 100, {"Whirlwind"});
+  state2.teams[0][1] = buildCombatant(data, "Conkeldurr", 100, {"CloseCombat"});
   state2.team_size = {2, 1};
   auto t2 = engine.resolveTurn(state2, UseMove{0}, UseMove{0}, rng);
   (void)t2;
@@ -201,13 +202,13 @@ TEST_CASE("Protect lets field moves through and Whirlwind bypasses it", "[phase9
 
 TEST_CASE("Two-turn Fly: charge, semi-invulnerability, forced release", "[phase9][twoturn]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "charizard", 100, {"Fly", "Flamethrower"});
-  state.teams[0][1] = buildCombatant(data, "gyarados", 100, {"Surf"});
-  state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"Tackle"});
+  state.teams[0][0] = buildCombatant(data, "Infernape", 100, {"Fly", "Flamethrower"});
+  state.teams[0][1] = buildCombatant(data, "Gyarados", 100, {"Surf"});
+  state.teams[1][0] = buildCombatant(data, "Snorlax", 100, {"Tackle"});
   state.team_size = {2, 1};
 
   FixedRNG rng(0.99f);
@@ -228,15 +229,15 @@ TEST_CASE("Two-turn Fly: charge, semi-invulnerability, forced release", "[phase9
 
 TEST_CASE("Earthquake reaches a digging target and hits twice as hard", "[phase9][twoturn]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto eqDamage = [&](bool digging) {
     BattleState state;
     // SwordsDance (self) as the baseline: unlike Growl it doesn't weaken the
     // incoming Earthquake, and it doesn't change the damage Garchomp takes.
-    state.teams[0][0] = buildCombatant(data, "garchomp", 100, {digging ? "Dig" : "SwordsDance"});
-    state.teams[1][0] = buildCombatant(data, "machamp", 100, {"Earthquake"});
+    state.teams[0][0] = buildCombatant(data, "Excadrill", 100, {digging ? "Dig" : "SwordsDance"});
+    state.teams[1][0] = buildCombatant(data, "Conkeldurr", 100, {"Earthquake"});
     state.team_size = {1, 1};
     FixedRNG rng(0.99f);
     auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
@@ -252,13 +253,13 @@ TEST_CASE("Earthquake reaches a digging target and hits twice as hard", "[phase9
 
 TEST_CASE("SolarBeam skips the charge in the sun and is halved in the rain", "[phase9][twoturn]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   auto fire = [&](Weather w) {
     BattleState state;
-    state.teams[0][0] = buildCombatant(data, "venusaur", 100, {"SolarBeam"});
-    state.teams[1][0] = buildCombatant(data, "machamp", 100, {"Growl"});
+    state.teams[0][0] = buildCombatant(data, "Toxapex", 100, {"SolarBeam"});
+    state.teams[1][0] = buildCombatant(data, "Conkeldurr", 100, {"Growl"});
     state.team_size = {1, 1};
     state.weather = w;
     state.weather_turns_left = (w == Weather::None) ? 0 : 5;
@@ -286,12 +287,12 @@ TEST_CASE("SolarBeam skips the charge in the sun and is halved in the rain", "[p
 
 TEST_CASE("An interrupted charge is lost", "[phase9][twoturn]") {
   DataLoader data;
-  data.loadAll(BATTLE_ENGINE_DATA_DIR);
+  engine::test::loadAll(data);
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "charizard", 100, {"Fly"});
-  state.teams[1][0] = buildCombatant(data, "snorlax", 100, {"Growl"});
+  state.teams[0][0] = buildCombatant(data, "Infernape", 100, {"Fly"});
+  state.teams[1][0] = buildCombatant(data, "Snorlax", 100, {"Growl"});
   state.team_size = {1, 1};
 
   FixedRNG charge(0.99f);

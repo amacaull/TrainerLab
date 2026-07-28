@@ -1,0 +1,30 @@
+{
+  "id": "Starmie",
+  "displayName": "Starmie",
+  "baseStats": {
+    "hp": 60,
+    "atk": 75,
+    "def": 85,
+    "specAtk": 100,
+    "specDef": 85,
+    "speed": 115
+  },
+  "type1": "Water",
+  "type2": "Psychic",
+  "ability": "NaturalCure",
+  "nature": "Timid",
+  "evs": {
+    "specAtk": 252,
+    "specDef": 4,
+    "speed": 252
+  },
+  "weight": 80.0,
+  "item": "HeavyDutyBoots",
+  "legendary": false,
+  "movepool": [
+    "HydroPump",
+    "Psychic",
+    "IceBeam",
+    "RapidSpin"
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "id": "Blissey",
+  "displayName": "Blissey",
+  "baseStats": {
+    "hp": 255,
+    "atk": 10,
+    "def": 10,
+    "specAtk": 75,
+    "specDef": 135,
+    "speed": 55
+  },
+  "type1": "Normal",
+  "ability": "NaturalCure",
+  "nature": "Calm",
+  "evs": {
+    "hp": 252,
+    "def": 252,
+    "specDef": 4
+  },
+  "weight": 46.8,
+  "item": "Leftovers",
+  "legendary": false,
+  "movepool": [
+    "SoftBoiled",
+    "Wish",
+    "Teleport",
+    "SeismicToss"
+  ]
+}

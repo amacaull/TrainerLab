@@ -1,0 +1,30 @@
+{
+  "id": "Primarina",
+  "displayName": "Primarina",
+  "baseStats": {
+    "hp": 80,
+    "atk": 74,
+    "def": 74,
+    "specAtk": 126,
+    "specDef": 116,
+    "speed": 60
+  },
+  "type1": "Water",
+  "type2": "Fairy",
+  "ability": "Torrent",
+  "nature": "Modest",
+  "evs": {
+    "hp": 252,
+    "specAtk": 252,
+    "specDef": 4
+  },
+  "weight": 44.0,
+  "item": "Leftovers",
+  "legendary": false,
+  "movepool": [
+    "CalmMind",
+    "Scald",
+    "Moonblast",
+    "Psyshock"
+  ]
+}

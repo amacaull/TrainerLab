@@ -1,0 +1,15 @@
+{
+  "name": "ShadowSneak",
+  "type": "Ghost",
+  "category": "Physical",
+  "power": 40,
+  "accuracy": 100,
+  "pp": 30,
+  "priority": 1,
+  "contact": true,
+  "effects": [
+    {
+      "kind": "Damage"
+    }
+  ]
+}
