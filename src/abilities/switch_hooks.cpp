@@ -62,11 +62,11 @@ public:
 
 } // namespace
 
-void registerSwitchHookAbilities(AbilityMap &map) {
+void registerSwitchHookAbilities(AbilityTable &table) {
   static const Regenerator regeForce;
   static const NaturalCure medicNature;
   static const EmergencyExit repliTactique;
-  auto add = [&map](const Ability &a) { map.emplace(a.name(), &a); };
+  auto add = [&table](const Ability &a) { table.push_back(&a); };
   add(regeForce);
   add(medicNature);
   add(repliTactique);

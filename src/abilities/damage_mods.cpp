@@ -64,7 +64,7 @@ public:
 
 } // namespace
 
-void registerDamageModAbilities(AbilityMap &map) {
+void registerDamageModAbilities(AbilityTable &table) {
   static const HugePower coloforce;
   static const Technician technicien;
   static const Adaptability adaptabilite;
@@ -73,7 +73,7 @@ void registerDamageModAbilities(AbilityMap &map) {
   static const Sharpness incisif;
   static const Unaware benet;
   static const VesselOfRuin urneDuFleau;
-  auto add = [&map](const Ability &a) { map.emplace(a.name(), &a); };
+  auto add = [&table](const Ability &a) { table.push_back(&a); };
   add(coloforce);
   add(technicien);
   add(adaptabilite);

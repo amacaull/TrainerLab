@@ -125,6 +125,13 @@ public:
 // const singletons; the same instance serves every battle.
 const Ability *abilityByName(std::string_view name);
 
+// Indexed registry. Unlike the ability itself (implied by the species and
+// never sent as a string), the ability *id* travels in the event stream, so
+// the registration order in registration.hpp is frozen (ADR #45, ADR #12).
+const Ability *abilityByIndex(int id);           // nullptr out of range
+int findAbilityIdByName(std::string_view name);  // -1 on miss
+int abilityCount();
+
 // Ability of a combatant's species, nullptr if none (Zoroark, ADR #43).
 const Ability *abilityOf(const DataLoader &data, const BattlePokemon &p);
 

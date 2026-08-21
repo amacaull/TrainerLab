@@ -38,7 +38,8 @@ public:
   // Name lookup. Returns -1 on miss (no throw, safe for FFI probing).
   int findMoveId(const std::string &name) const;
   int findSpeciesId(const std::string &id) const;
-  int findItemId(const std::string &name) const; // facade over the code registry (ADR #45)
+  int findItemId(const std::string &name) const;    // facade over the code registry (ADR #45)
+  int findAbilityId(const std::string &name) const; // same, for the ability table
 
   int moveCount() const { return static_cast<int>(moves_.size()); }
   int speciesCount() const { return static_cast<int>(species_.size()); }
@@ -46,6 +47,7 @@ public:
   bool isValidMoveId(int id) const { return id >= 0 && id < moveCount(); }
   bool isValidSpeciesId(int id) const { return id >= 0 && id < speciesCount(); }
   bool isValidItemId(int id) const;
+  bool isValidAbilityId(int id) const;
 
 private:
   void loadTypes(const std::string &path);

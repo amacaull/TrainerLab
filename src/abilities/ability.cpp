@@ -9,8 +9,10 @@
 #include "engine/model/types.hpp"
 
 #include <algorithm>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace engine {
 
@@ -150,45 +152,83 @@ public:
 
 } // namespace
 
-const Ability *abilityByName(std::string_view name) {
-  static const PinchAbility blaze{"Blaze", Type::Fire};
-  static const PinchAbility torrent{"Torrent", Type::Water};
-  static const PinchAbility overgrow{"Overgrow", Type::Grass};
-  static const PinchAbility swarm{"Swarm", Type::Bug};
-  static const WeatherAbility sandStream{"SandStream", Weather::Sand};
-  static const WeatherAbility drizzle{"Drizzle", Weather::Rain};
-  static const Levitate levitate;
-  static const Intimidate intimidate;
-  static const Static static_;
-  static const ThickFat thickFat;
-  static const Guts guts;
-  static const RoughSkin roughSkin;
+namespace {
 
-  static const AbilityMap registry = [] {
-    AbilityMap map = {
-        {"Blaze", &blaze},
-        {"Torrent", &torrent},
-        {"Overgrow", &overgrow},
-        {"Swarm", &swarm},
-        {"SandStream", &sandStream},
-        {"Drizzle", &drizzle},
-        {"Levitate", &levitate},
-        {"Intimidate", &intimidate},
-        {"Static", &static_},
-        {"ThickFat", &thickFat},
-        {"Guts", &guts},
-        {"RoughSkin", &roughSkin},
+// FROZEN ORDER (ADR #45, extended to abilities). Position == ability id, and
+// that id crosses the FFI in the event stream. Append only, at the end of a
+// family; never reorder.
+const AbilityTable &abilityTable() {
+  static const AbilityTable table = [] {
+    static const PinchAbility blaze{"Blaze", Type::Fire};
+    static const PinchAbility torrent{"Torrent", Type::Water};
+    static const PinchAbility overgrow{"Overgrow", Type::Grass};
+    static const PinchAbility swarm{"Swarm", Type::Bug};
+    static const WeatherAbility sandStream{"SandStream", Weather::Sand};
+    static const WeatherAbility drizzle{"Drizzle", Weather::Rain};
+    static const Levitate levitate;
+    static const Intimidate intimidate;
+    static const Static static_;
+    static const ThickFat thickFat;
+    static const Guts guts;
+    static const RoughSkin roughSkin;
+
+    AbilityTable t = {
+        &blaze,     // 0
+        &torrent,   // 1
+        &overgrow,  // 2
+        &swarm,     // 3
+        &sandStream,// 4
+        &drizzle,   // 5
+        &levitate,  // 6
+        &intimidate,// 7
+        &static_,   // 8
+        &thickFat,  // 9
+        &guts,      // 10
+        &roughSkin, // 11
     };
-    registerDamageModAbilities(map);
-    registerImmunityAbilities(map);
-    registerWeatherAbilities(map);
-    registerSwitchHookAbilities(map);
-    registerTriggerAbilities(map);
-    return map;
+    registerDamageModAbilities(t);
+    registerImmunityAbilities(t);
+    registerWeatherAbilities(t);
+    registerSwitchHookAbilities(t);
+    registerTriggerAbilities(t);
+    return t;
   }();
+  return table;
+}
 
-  auto it = registry.find(std::string(name));
-  return (it == registry.end()) ? nullptr : it->second;
+// Derived from the table, so a name can never drift from its index.
+const std::unordered_map<std::string, int> &abilityIndex() {
+  static const std::unordered_map<std::string, int> index = [] {
+    std::unordered_map<std::string, int> m;
+    const AbilityTable &t = abilityTable();
+    for (size_t i = 0; i < t.size(); ++i) {
+      if (!m.emplace(t[i]->name(), static_cast<int>(i)).second)
+        throw std::runtime_error(std::string("Duplicate ability name: ") + t[i]->name());
+    }
+    return m;
+  }();
+  return index;
+}
+
+} // namespace
+
+const Ability *abilityByIndex(int id) {
+  const AbilityTable &t = abilityTable();
+  if (id < 0 || id >= static_cast<int>(t.size()))
+    return nullptr;
+  return t[static_cast<size_t>(id)];
+}
+
+int abilityCount() { return static_cast<int>(abilityTable().size()); }
+
+int findAbilityIdByName(std::string_view name) {
+  const auto &index = abilityIndex();
+  auto it = index.find(std::string(name));
+  return (it == index.end()) ? -1 : it->second;
+}
+
+const Ability *abilityByName(std::string_view name) {
+  return abilityByIndex(findAbilityIdByName(name));
 }
 
 const Ability *abilityOf(const DataLoader &data, const BattlePokemon &p) {

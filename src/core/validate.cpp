@@ -119,9 +119,6 @@ void validatePokemon(const BattlePokemon &p, const DataLoader &data, int side, i
   if (p.charging_move_id != kNoMove && !data.isValidMoveId(p.charging_move_id)) {
     fail(where.str() + ": charging_move_id invalid (" + std::to_string(p.charging_move_id) + ")");
   }
-  if (p.invulnerable_state < 0 || p.invulnerable_state > 2) {
-    fail(where.str() + ": invulnerable_state out of range [0, 2]");
-  }
   if (p.invulnerable_state != 0 && p.charging_move_id == kNoMove) {
     fail(where.str() + ": invulnerable without a charging move");
   }

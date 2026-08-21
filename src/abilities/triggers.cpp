@@ -100,7 +100,7 @@ public:
 
 } // namespace
 
-void registerTriggerAbilities(AbilityMap &map) {
+void registerTriggerAbilities(AbilityTable &table) {
   static const Moxie impudence;
   static const Defiant acharne;
   static const Berserk colerique;
@@ -111,7 +111,7 @@ void registerTriggerAbilities(AbilityMap &map) {
   static const Prankster farceur;
   static const MagicBounce miroirMagik;
   static const RockHead teteDeRoc;
-  auto add = [&map](const Ability &a) { map.emplace(a.name(), &a); };
+  auto add = [&table](const Ability &a) { table.push_back(&a); };
   add(impudence);
   add(acharne);
   add(colerique);

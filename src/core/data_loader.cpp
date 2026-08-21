@@ -387,6 +387,10 @@ int DataLoader::findSpeciesId(const std::string &id) const {
 
 int DataLoader::findItemId(const std::string &name) const { return findItemIdByName(name); }
 
+int DataLoader::findAbilityId(const std::string &name) const { return findAbilityIdByName(name); }
+
 bool DataLoader::isValidItemId(int id) const { return id >= 0 && id < itemCount(); }
+
+bool DataLoader::isValidAbilityId(int id) const { return id >= 0 && id < abilityCount(); }
 
 } // namespace engine

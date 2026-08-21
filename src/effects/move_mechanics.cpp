@@ -183,7 +183,7 @@ void BellyDrumEffect::apply(EffectContext &ctx) const {
   }
   int hpBefore = user.currentHp;
   user.currentHp -= cost;
-  ctx.events.emplace_back(ItemDamageEvent{ctx.user, "BellyDrum", cost});
+  ctx.events.emplace_back(RecoilDamageEvent{ctx.user, cost});
   int gain = kMaxStage - user.stat_stages[static_cast<size_t>(StatIndex::Atk)];
   applyStatStageDelta(user, ctx.user, StatIndex::Atk, gain, ctx.events);
   // The payment lands the user at (or below) half: the Sitrus combo (canon).

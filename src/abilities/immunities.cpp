@@ -64,13 +64,13 @@ public:
 
 } // namespace
 
-void registerImmunityAbilities(AbilityMap &map) {
+void registerImmunityAbilities(AbilityTable &table) {
   static const VoltAbsorb absorbeVolt;
   static const LightningRod paratonnerre;
   static const FlashFire torche;
   static const Bulletproof pareBalles;
   static const ClearBody corpsSain;
-  auto add = [&map](const Ability &a) { map.emplace(a.name(), &a); };
+  auto add = [&table](const Ability &a) { table.push_back(&a); };
   add(absorbeVolt);
   add(paratonnerre);
   add(torche);

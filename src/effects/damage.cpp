@@ -245,7 +245,7 @@ void DamageEffect::apply(EffectContext &ctx) const {
     int chip = std::max(1, defender.stats.hp / 8);
     int hpBeforeChip = defender.currentHp;
     defender.currentHp = std::max(0, defender.currentHp - chip);
-    ctx.events.emplace_back(ItemDamageEvent{ctx.target, defAbilityEarly->name(), chip});
+    ctx.events.emplace_back(AbilityDamageEvent{ctx.target, defAbilityEarly->name(), chip});
     if (defender.isFainted())
       ctx.events.emplace_back(FaintedEvent{ctx.target});
     else

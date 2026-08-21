@@ -124,6 +124,9 @@ void printEvent(const BattleEvent &ev, const BattleState &state, const DataLoade
         } else if constexpr (std::is_same_v<T, ItemDamageEvent>) {
           std::cout << "    " << pokeName(e.who) << " is hurt by its " << e.itemName << " ("
                     << e.damage << ")\n";
+        } else if constexpr (std::is_same_v<T, AbilityDamageEvent>) {
+          std::cout << "    " << pokeName(e.who) << " is hurt by its " << e.ability << " ("
+                    << e.damage << ")\n";
         } else if constexpr (std::is_same_v<T, RecoilDamageEvent>) {
           std::cout << "    " << pokeName(e.who) << " is hurt in return (" << e.damage << ")\n";
         } else if constexpr (std::is_same_v<T, ChargingEvent>) {

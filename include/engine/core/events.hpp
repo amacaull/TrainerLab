@@ -183,6 +183,15 @@ struct ItemDamageEvent {
   int damage;
 };
 
+// Self-damage attributed to an ability (Disguise's 1/8 chip). Kept apart from
+// ItemDamageEvent: at the FFI boundary the name resolves against a different
+// catalog, so the two must not share a payload (ADR #45, ADR #12).
+struct AbilityDamageEvent {
+  CombatantRef who;
+  std::string ability;
+  int damage;
+};
+
 // Posed for Sabotage (phase 14): the item is stripped from its holder.
 struct ItemKnockedOffEvent {
   CombatantRef who;
@@ -207,6 +216,7 @@ using BattleEvent =
                  WeatherDamageEvent, HazardSetEvent, HazardDamageEvent, HazardsClearedEvent,
                  ToxicSpikesAbsorbedEvent, HealedEvent, RecoilDamageEvent, ChargingEvent,
                  ProtectedEvent, ItemTriggeredEvent, ItemConsumedEvent, ItemDamageEvent,
+                 AbilityDamageEvent,
                  ItemKnockedOffEvent, TerrainStartedEvent, TerrainEndedEvent, ScreenStartedEvent,
                  ScreenEndedEvent, DestinyBondTriggeredEvent>;
 using EventLog = std::vector<BattleEvent>;

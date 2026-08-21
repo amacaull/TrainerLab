@@ -74,7 +74,7 @@ public:
 
 } // namespace
 
-void registerWeatherAbilities(AbilityMap &map) {
+void registerWeatherAbilities(AbilityTable &table) {
   static const SnowWarning alerteNeige;
   static const ElectricSurge creaElec;
   static const DeltaStream souffleDelta;
@@ -82,7 +82,7 @@ void registerWeatherAbilities(AbilityMap &map) {
   static const WeatherSpeed baigneSable{"SandRush", Weather::Sand};
   static const WeatherSpeed chasseNeige{"SlushRush", Weather::Snow};
   static const LeafGuard feuilleGarde;
-  auto add = [&map](const Ability &a) { map.emplace(a.name(), &a); };
+  auto add = [&table](const Ability &a) { table.push_back(&a); };
   add(alerteNeige);
   add(creaElec);
   add(souffleDelta);

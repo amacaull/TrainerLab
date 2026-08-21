@@ -820,3 +820,45 @@ TEST_CASE("SwiftSwim and SandRush are wired to their own weather", "[abilities13
   REQUIRE(firstMover("SandRush", Weather::Sand) == 0);
   REQUIRE(firstMover("SandRush", Weather::Rain) == 1);
 }
+
+TEST_CASE("the ability table is indexed and its order is frozen", "[ability][ffi]") {
+  // Ability ids cross the FFI inside the event stream (ADR #12): this test is
+  // the lock. A failure here means someone reordered a registration, which
+  // silently repoints every id in flight - not a test to "just update".
+  REQUIRE(abilityCount() == 45);
+
+  SECTION("the legacy block holds slots 0-11") {
+    const char *legacy[] = {"Blaze",    "Torrent",  "Overgrow", "Swarm",
+                            "SandStream", "Drizzle", "Levitate", "Intimidate",
+                            "Static",   "ThickFat", "Guts",     "RoughSkin"};
+    for (int i = 0; i < 12; ++i) {
+      INFO("slot " << i);
+      REQUIRE(findAbilityIdByName(legacy[i]) == i);
+      REQUIRE(std::string(abilityByIndex(i)->name()) == legacy[i]);
+    }
+  }
+
+  SECTION("the weather family sits where phase 13 left it") {
+    REQUIRE(findAbilityIdByName("DeltaStream") == 27);
+    REQUIRE(findAbilityIdByName("SwiftSwim") == 28);
+    REQUIRE(findAbilityIdByName("SandRush") == 29);
+    REQUIRE(findAbilityIdByName("SlushRush") == 30);
+  }
+
+  SECTION("every id round-trips through its name") {
+    for (int i = 0; i < abilityCount(); ++i) {
+      const Ability *a = abilityByIndex(i);
+      REQUIRE(a != nullptr);
+      INFO("slot " << i << " = " << a->name());
+      REQUIRE(findAbilityIdByName(a->name()) == i);
+    }
+  }
+
+  SECTION("misses and out-of-range are quiet") {
+    REQUIRE(findAbilityIdByName("NoSuchAbility") == -1);
+    REQUIRE(findAbilityIdByName("") == -1); // Zoroark (ADR #43)
+    REQUIRE(abilityByName("") == nullptr);
+    REQUIRE(abilityByIndex(-1) == nullptr);
+    REQUIRE(abilityByIndex(abilityCount()) == nullptr);
+  }
+}

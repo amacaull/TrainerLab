@@ -392,4 +392,16 @@ TEST_CASE("validateState checks the new volatile fields", "[phase8][validate]") 
     state.teams[0][0].invulnerable_state = 2;
     REQUIRE_NOTHROW(validateState(state, data));
   }
+  SECTION("PhantomForce vanish is a legal invulnerable state") {
+    int phantom = data.findMoveId("PhantomForce");
+    REQUIRE(phantom >= 0);
+    state.teams[0][0].charging_move_id = phantom;
+    state.teams[0][0].invulnerable_state = 3;
+    REQUIRE_NOTHROW(validateState(state, data));
+  }
+  SECTION("invulnerable_state above the Disappear slot is rejected") {
+    state.teams[0][0].charging_move_id = 0;
+    state.teams[0][0].invulnerable_state = 4;
+    REQUIRE_THROWS_AS(validateState(state, data), std::invalid_argument);
+  }
 }
