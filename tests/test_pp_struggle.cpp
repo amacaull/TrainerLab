@@ -43,8 +43,8 @@ public:
 BattleState makeDuel(const DataLoader &data, const char *s0, std::vector<std::string> m0,
                      const char *s1, std::vector<std::string> m1) {
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, s0, 100, m0);
-  state.teams[1][0] = buildCombatant(data, s1, 100, m1);
+  state.teams[0][0] = buildCombatant(data, s0, m0);
+  state.teams[1][0] = buildCombatant(data, s1, m1);
   state.team_size = {1, 1};
   return state;
 }
@@ -194,7 +194,7 @@ TEST_CASE("6v6: full teams are valid and slot 5 is reachable", "[phase10][6v6]")
   for (int side = 0; side < 2; ++side)
     for (int i = 0; i < 6; ++i)
       state.teams[static_cast<size_t>(side)][static_cast<size_t>(i)] =
-          buildCombatant(data, roster[i], 100, {"Tackle"});
+          buildCombatant(data, roster[i], {"Tackle"});
   state.team_size = {6, 6};
   REQUIRE_NOTHROW(validateState(state, data));
 

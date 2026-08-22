@@ -16,8 +16,8 @@ TEST_CASE("Flamethrower on Zarude is super-effective", "[damage]") {
   engine::test::loadAll(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "Infernape", 100, {"Flamethrower"});
-  state.teams[1][0] = buildCombatant(data, "Zarude", 100, {"VineWhip"}); // Dark/Grass: x2
+  state.teams[0][0] = buildCombatant(data, "Infernape", {"Flamethrower"});
+  state.teams[1][0] = buildCombatant(data, "Zarude", {"VineWhip"}); // Dark/Grass: x2
   state.team_size = {1, 1};
 
   BattleEngine engine(data);
@@ -45,8 +45,8 @@ TEST_CASE("Charizard outspeeds Venusaur", "[order]") {
   engine::test::loadAll(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "Infernape", 100, {"Flamethrower"});
-  state.teams[1][0] = buildCombatant(data, "Toxapex", 100, {"VineWhip"});
+  state.teams[0][0] = buildCombatant(data, "Infernape", {"Flamethrower"});
+  state.teams[1][0] = buildCombatant(data, "Toxapex", {"VineWhip"});
   state.team_size = {1, 1};
 
   BattleEngine engine(data);
@@ -67,8 +67,8 @@ TEST_CASE("Earthquake on Pikachu is super-effective (Ground vs Electric)", "[dam
   engine::test::loadAll(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "Excadrill", 100, {"Earthquake"});
-  state.teams[1][0] = buildCombatant(data, "Luxray", 100, {"QuickAttack"});
+  state.teams[0][0] = buildCombatant(data, "Excadrill", {"Earthquake"});
+  state.teams[1][0] = buildCombatant(data, "Luxray", {"QuickAttack"});
   state.team_size = {1, 1};
 
   BattleEngine engine(data);
@@ -88,8 +88,8 @@ TEST_CASE("Immunity event emitted when type chart says 0x", "[damage][types]") {
   engine::test::loadAll(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "Luxray", 100, {"QuickAttack"});
-  state.teams[1][0] = buildCombatant(data, "MegaGengar", 100, {"ShadowBall"});
+  state.teams[0][0] = buildCombatant(data, "Luxray", {"QuickAttack"});
+  state.teams[1][0] = buildCombatant(data, "MegaGengar", {"ShadowBall"});
   state.team_size = {1, 1};
 
   BattleEngine engine(data);

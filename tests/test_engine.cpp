@@ -15,8 +15,8 @@ TEST_CASE("Full battle ends in a KO", "[engine][integration]") {
   engine::test::loadAll(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "Infernape", 100, {"Flamethrower"});
-  state.teams[1][0] = buildCombatant(data, "Toxapex", 100, {"VineWhip"});
+  state.teams[0][0] = buildCombatant(data, "Infernape", {"Flamethrower"});
+  state.teams[1][0] = buildCombatant(data, "Toxapex", {"VineWhip"});
   state.team_size = {1, 1};
 
   BattleEngine engine(data);

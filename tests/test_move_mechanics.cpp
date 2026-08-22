@@ -19,8 +19,8 @@ namespace {
 BattleState duel(const DataLoader &data, const char *s0, std::vector<std::string> m0,
                  const char *s1, std::vector<std::string> m1) {
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, s0, 100, m0);
-  state.teams[1][0] = buildCombatant(data, s1, 100, m1);
+  state.teams[0][0] = buildCombatant(data, s0, m0);
+  state.teams[1][0] = buildCombatant(data, s1, m1);
   state.team_size = {1, 1};
   return state;
 }
@@ -227,9 +227,9 @@ TEST_CASE("SuckerPunch connects on attackers and whiffs on everything else", "[m
 
   auto sucker = [&](std::vector<std::string> foeMoves, int foeChoice) {
     BattleState state;
-    state.teams[0][0] = buildCombatant(data, "MegaGengar", 100, {"SuckerPunch"});
-    state.teams[1][0] = buildCombatant(data, "Conkeldurr", 100, foeMoves);
-    state.teams[1][1] = buildCombatant(data, "Snorlax", 100, {"Tackle"});
+    state.teams[0][0] = buildCombatant(data, "MegaGengar", {"SuckerPunch"});
+    state.teams[1][0] = buildCombatant(data, "Conkeldurr", foeMoves);
+    state.teams[1][1] = buildCombatant(data, "Snorlax", {"Tackle"});
     state.team_size = {1, 2};
     FixedRNG r(0.99f);
     Action foe = foeChoice < 0 ? Action{SwitchAction{1}} : Action{UseMove{foeChoice}};
@@ -399,9 +399,9 @@ TEST_CASE("Teleport pivots out at -6 priority", "[mech]") {
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "Luxray", 100, {"Teleport"});
-  state.teams[0][1] = buildCombatant(data, "Snorlax", 100, {"Tackle"});
-  state.teams[1][0] = buildCombatant(data, "Conkeldurr", 100, {"Tackle"});
+  state.teams[0][0] = buildCombatant(data, "Luxray", {"Teleport"});
+  state.teams[0][1] = buildCombatant(data, "Snorlax", {"Tackle"});
+  state.teams[1][0] = buildCombatant(data, "Conkeldurr", {"Tackle"});
   state.team_size = {2, 1};
   FixedRNG rng(0.99f);
   auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);

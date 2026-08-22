@@ -21,6 +21,11 @@ constexpr int kNoItem = -1;
 enum class StatIndex : int { Atk = 0, Def, SpA, SpD, Spe, Accuracy, Evasion, Count };
 
 constexpr int kStatStageCount = static_cast<int>(StatIndex::Count);
+
+// Every combatant fights at 100 (ADR #33). Not a choice, hence not a
+// parameter anywhere: a hand-built BattlePokemon inheriting a stale default
+// would compute wrong damage with nothing to flag it.
+constexpr int kBattleLevel = 100;
 constexpr int kMaxStage = 6;
 constexpr int kMinStage = -6;
 
@@ -48,7 +53,7 @@ struct Species {
 // All references to game content are integer indices into DataLoader catalogs.
 struct BattlePokemon {
   int species_id = kNoSpecies;
-  int level = 50;
+  int level = kBattleLevel;
   Stats stats;
   int currentHp = 0;
   std::array<int, kMaxMovesPerPokemon> move_ids{kNoMove, kNoMove, kNoMove, kNoMove};

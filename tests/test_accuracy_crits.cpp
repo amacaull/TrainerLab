@@ -35,8 +35,8 @@ int damageOn(const EventLog &events, int side) {
 BattleState makeDuel(const DataLoader &data, const char *s0, std::vector<std::string> m0,
                      const char *s1, std::vector<std::string> m1) {
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, s0, 50, m0);
-  state.teams[1][0] = buildCombatant(data, s1, 50, m1);
+  state.teams[0][0] = buildCombatant(data, s0, m0);
+  state.teams[1][0] = buildCombatant(data, s1, m1);
   state.team_size = {1, 1};
   return state;
 }
@@ -204,9 +204,9 @@ TEST_CASE("Rest fully heals, cures the old status and sleeps 2 turns outside the
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "Snorlax", 100, {"Rest", "Tackle"});
-  state.teams[0][1] = buildCombatant(data, "Conkeldurr", 100, {"CloseCombat"});
-  state.teams[1][0] = buildCombatant(data, "Toxapex", 100, {"Spore"});
+  state.teams[0][0] = buildCombatant(data, "Snorlax", {"Rest", "Tackle"});
+  state.teams[0][1] = buildCombatant(data, "Conkeldurr", {"CloseCombat"});
+  state.teams[1][0] = buildCombatant(data, "Toxapex", {"Spore"});
   state.team_size = {2, 1};
 
   state.teams[0][0].currentHp = 30;

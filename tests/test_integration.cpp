@@ -23,8 +23,8 @@ namespace {
 BattleState loadoutDuel(const DataLoader &data, const char *s0, std::vector<std::string> m0,
                         const char *s1, std::vector<std::string> m1) {
   BattleState state;
-  state.teams[0][0] = buildLoadout(data, s0, 100, m0);
-  state.teams[1][0] = buildLoadout(data, s1, 100, m1);
+  state.teams[0][0] = buildLoadout(data, s0, m0);
+  state.teams[1][0] = buildLoadout(data, s1, m1);
   state.team_size = {1, 1};
   return state;
 }
@@ -65,9 +65,9 @@ TEST_CASE("validateTeam accepts a legal team", "[integration][team]") {
   engine::test::loadAll(data);
 
   std::array<BattlePokemon, kTeamSize> team{};
-  team[0] = buildLoadout(data, "Mimikyu", 100, {"SwordsDance", "ShadowSneak"});
-  team[1] = buildLoadout(data, "Conkeldurr", 100, {"DrainPunch", "MachPunch"});
-  team[2] = buildLoadout(data, "MegaGengar", 100, {"ShadowBall", "NastyPlot"});
+  team[0] = buildLoadout(data, "Mimikyu", {"SwordsDance", "ShadowSneak"});
+  team[1] = buildLoadout(data, "Conkeldurr", {"DrainPunch", "MachPunch"});
+  team[2] = buildLoadout(data, "MegaGengar", {"ShadowBall", "NastyPlot"});
 
   REQUIRE_NOTHROW(validateTeam(team, 3, data));
 }
@@ -77,9 +77,9 @@ TEST_CASE("validateTeam enforces the Species Clause", "[integration][team]") {
   engine::test::loadAll(data);
 
   std::array<BattlePokemon, kTeamSize> team{};
-  team[0] = buildLoadout(data, "Snorlax", 100, {"BodySlam"});
-  team[1] = buildLoadout(data, "Conkeldurr", 100, {"DrainPunch"});
-  team[2] = buildLoadout(data, "Snorlax", 100, {"Curse"});
+  team[0] = buildLoadout(data, "Snorlax", {"BodySlam"});
+  team[1] = buildLoadout(data, "Conkeldurr", {"DrainPunch"});
+  team[2] = buildLoadout(data, "Snorlax", {"Curse"});
 
   REQUIRE_THROWS_AS(validateTeam(team, 3, data), std::invalid_argument);
 }
@@ -89,22 +89,22 @@ TEST_CASE("validateTeam allows one Mega and one legendary, never two", "[integra
   engine::test::loadAll(data);
 
   std::array<BattlePokemon, kTeamSize> team{};
-  team[0] = buildLoadout(data, "MegaGengar", 100, {"ShadowBall"});
-  team[1] = buildLoadout(data, "Snorlax", 100, {"BodySlam"});
+  team[0] = buildLoadout(data, "MegaGengar", {"ShadowBall"});
+  team[1] = buildLoadout(data, "Snorlax", {"BodySlam"});
   REQUIRE_NOTHROW(validateTeam(team, 2, data));
 
-  team[1] = buildLoadout(data, "MegaMawile", 100, {"PlayRough"});
+  team[1] = buildLoadout(data, "MegaMawile", {"PlayRough"});
   REQUIRE_THROWS_AS(validateTeam(team, 2, data), std::invalid_argument);
 
   // The official legendary list is still pending, so the rule is proven on
   // flipped flags: the day the sheet lands, only the JSON changes.
   overrideLegendary(data, "Snorlax", true);
   overrideLegendary(data, "Conkeldurr", true);
-  team[0] = buildLoadout(data, "Snorlax", 100, {"BodySlam"});
-  team[1] = buildLoadout(data, "Mimikyu", 100, {"ShadowSneak"});
+  team[0] = buildLoadout(data, "Snorlax", {"BodySlam"});
+  team[1] = buildLoadout(data, "Mimikyu", {"ShadowSneak"});
   REQUIRE_NOTHROW(validateTeam(team, 2, data));
 
-  team[1] = buildLoadout(data, "Conkeldurr", 100, {"DrainPunch"});
+  team[1] = buildLoadout(data, "Conkeldurr", {"DrainPunch"});
   REQUIRE_THROWS_AS(validateTeam(team, 2, data), std::invalid_argument);
 }
 
@@ -113,10 +113,10 @@ TEST_CASE("validateTeam refuses a move outside the species' movepool", "[integra
   engine::test::loadAll(data);
 
   std::array<BattlePokemon, kTeamSize> team{};
-  team[0] = buildLoadout(data, "Snorlax", 100, {"BodySlam"});
+  team[0] = buildLoadout(data, "Snorlax", {"BodySlam"});
   REQUIRE_NOTHROW(validateTeam(team, 1, data));
 
-  team[0] = buildLoadout(data, "Snorlax", 100, {"CloseCombat"}); // not on its sheet
+  team[0] = buildLoadout(data, "Snorlax", {"CloseCombat"}); // not on its sheet
   REQUIRE_THROWS_AS(validateTeam(team, 1, data), std::invalid_argument);
 }
 
@@ -137,8 +137,8 @@ TEST_CASE("LowKick climbs the canon weight tiers", "[integration][weight]") {
     overrideWeight(d, "Snorlax", kg);
     BattleEngine e(d);
     BattleState state;
-    state.teams[0][0] = buildCombatant(d, "Weavile", 100, {"LowKick"});
-    state.teams[1][0] = buildCombatant(d, "Snorlax", 100, {"Curse"});
+    state.teams[0][0] = buildCombatant(d, "Weavile", {"LowKick"});
+    state.teams[1][0] = buildCombatant(d, "Snorlax", {"Curse"});
     state.team_size = {1, 1};
     FixedRNG rng(0.99f);
     return firstDamageOn(e.resolveTurn(state, UseMove{0}, UseMove{0}, rng), 1);
@@ -264,9 +264,9 @@ TEST_CASE("SnowWarning + AuroraVeil + SlushRush all pull on the same weather",
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildLoadout(data, "NinetalesAlola", 100, {"AuroraVeil", "Blizzard"});
-  state.teams[0][1] = buildLoadout(data, "Mamoswine", 100, {"IcicleCrash"});
-  state.teams[1][0] = buildLoadout(data, "Aerodactyl", 100, {"StoneEdge"});
+  state.teams[0][0] = buildLoadout(data, "NinetalesAlola", {"AuroraVeil", "Blizzard"});
+  state.teams[0][1] = buildLoadout(data, "Mamoswine", {"IcicleCrash"});
+  state.teams[1][0] = buildLoadout(data, "Aerodactyl", {"StoneEdge"});
   state.team_size = {2, 1};
 
   FixedRNG srng(0.5f);
@@ -281,8 +281,8 @@ TEST_CASE("SnowWarning + AuroraVeil + SlushRush all pull on the same weather",
   int halved = firstDamageOn(veiled, 0);
 
   BattleState bare;
-  bare.teams[0][0] = buildLoadout(data, "NinetalesAlola", 100, {"AuroraVeil", "Blizzard"});
-  bare.teams[1][0] = buildLoadout(data, "Aerodactyl", 100, {"StoneEdge"});
+  bare.teams[0][0] = buildLoadout(data, "NinetalesAlola", {"AuroraVeil", "Blizzard"});
+  bare.teams[1][0] = buildLoadout(data, "Aerodactyl", {"StoneEdge"});
   bare.team_size = {1, 1};
   FixedRNG rng2(0.99f);
   int full = firstDamageOn(engine.resolveTurn(bare, UseMove{1}, UseMove{0}, rng2), 0);

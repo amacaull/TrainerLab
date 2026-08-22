@@ -35,9 +35,9 @@ bool switchedInTo(const EventLog &events, int side, int teamIndex) {
 // Snorlax + Machamp vs Blastoise; slow, statusless matchup for switch tests.
 BattleState makeTwoVsOne(const DataLoader &data) {
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "Snorlax", 100, {"BodySlam"});
-  state.teams[0][1] = buildCombatant(data, "Conkeldurr", 100, {"CloseCombat"});
-  state.teams[1][0] = buildCombatant(data, "Inteleon", 100, {"Surf"});
+  state.teams[0][0] = buildCombatant(data, "Snorlax", {"BodySlam"});
+  state.teams[0][1] = buildCombatant(data, "Conkeldurr", {"CloseCombat"});
+  state.teams[1][0] = buildCombatant(data, "Inteleon", {"Surf"});
   state.team_size = {2, 1};
   return state;
 }
@@ -197,9 +197,9 @@ TEST_CASE("UTurn deals damage then switches the user out", "[switch][pivot]") {
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "Gyarados", 100, {"UTurn"});
-  state.teams[0][1] = buildCombatant(data, "Snorlax", 100, {"BodySlam"});
-  state.teams[1][0] = buildCombatant(data, "Inteleon", 100, {"Surf"});
+  state.teams[0][0] = buildCombatant(data, "Gyarados", {"UTurn"});
+  state.teams[0][1] = buildCombatant(data, "Snorlax", {"BodySlam"});
+  state.teams[1][0] = buildCombatant(data, "Inteleon", {"Surf"});
   state.team_size = {2, 1};
 
   int blastoiseHp = state.teams[1][0].currentHp;
@@ -218,9 +218,9 @@ TEST_CASE("Opponent's slower move hits the Pokemon brought in by the pivot", "[s
 
   BattleState state;
   // Gyarados (81) outspeeds Snorlax's side? Opponent: Snorlax (30), slower.
-  state.teams[0][0] = buildCombatant(data, "Gyarados", 100, {"UTurn"});
-  state.teams[0][1] = buildCombatant(data, "Conkeldurr", 100, {"CloseCombat"});
-  state.teams[1][0] = buildCombatant(data, "Snorlax", 100, {"BodySlam"});
+  state.teams[0][0] = buildCombatant(data, "Gyarados", {"UTurn"});
+  state.teams[0][1] = buildCombatant(data, "Conkeldurr", {"CloseCombat"});
+  state.teams[1][0] = buildCombatant(data, "Snorlax", {"BodySlam"});
   state.team_size = {2, 1};
 
   int gyaradosHp = state.teams[0][0].currentHp;
@@ -238,8 +238,8 @@ TEST_CASE("Pivot with an empty bench is damage-only", "[switch][pivot]") {
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "Gyarados", 100, {"UTurn"});
-  state.teams[1][0] = buildCombatant(data, "Snorlax", 100, {"BodySlam"});
+  state.teams[0][0] = buildCombatant(data, "Gyarados", {"UTurn"});
+  state.teams[1][0] = buildCombatant(data, "Snorlax", {"BodySlam"});
   state.team_size = {1, 1};
 
   int snorlaxHp = state.teams[1][0].currentHp;
@@ -257,10 +257,10 @@ TEST_CASE("Pivot with pivotTarget -1 auto-picks the first healthy teammate", "[s
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "Luxray", 100, {"VoltSwitch"});
-  state.teams[0][1] = buildCombatant(data, "Snorlax", 100, {"BodySlam"});
-  state.teams[0][2] = buildCombatant(data, "Conkeldurr", 100, {"CloseCombat"});
-  state.teams[1][0] = buildCombatant(data, "Inteleon", 100, {"Surf"});
+  state.teams[0][0] = buildCombatant(data, "Luxray", {"VoltSwitch"});
+  state.teams[0][1] = buildCombatant(data, "Snorlax", {"BodySlam"});
+  state.teams[0][2] = buildCombatant(data, "Conkeldurr", {"CloseCombat"});
+  state.teams[1][0] = buildCombatant(data, "Inteleon", {"Surf"});
   state.team_size = {3, 1};
   state.teams[0][1].currentHp = 0; // slot 1 fainted: auto must pick slot 2
 

@@ -65,9 +65,9 @@ TEST_CASE("Intimidate lowers the opposing Attack on switch-in", "[ability][switc
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "Snorlax", 100, {"BodySlam"});
-  state.teams[0][1] = buildCombatant(data, "Gyarados", 100, {"UTurn"});
-  state.teams[1][0] = buildCombatant(data, "Conkeldurr", 100, {"CloseCombat"});
+  state.teams[0][0] = buildCombatant(data, "Snorlax", {"BodySlam"});
+  state.teams[0][1] = buildCombatant(data, "Gyarados", {"UTurn"});
+  state.teams[1][0] = buildCombatant(data, "Conkeldurr", {"CloseCombat"});
   state.team_size = {2, 1};
 
   FixedRNG rng(0.5f);
@@ -84,9 +84,9 @@ TEST_CASE("Intimidate fires on a KO replacement", "[ability][replacement]") {
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "Snorlax", 100, {"BodySlam"});
-  state.teams[0][1] = buildCombatant(data, "Gyarados", 100, {"UTurn"});
-  state.teams[1][0] = buildCombatant(data, "Conkeldurr", 100, {"CloseCombat"});
+  state.teams[0][0] = buildCombatant(data, "Snorlax", {"BodySlam"});
+  state.teams[0][1] = buildCombatant(data, "Gyarados", {"UTurn"});
+  state.teams[1][0] = buildCombatant(data, "Conkeldurr", {"CloseCombat"});
   state.team_size = {2, 1};
   state.teams[0][0].currentHp = 0;
 
@@ -103,8 +103,8 @@ TEST_CASE("startBattle fires the leads' switch-in abilities", "[ability]") {
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "Gyarados", 100, {"UTurn"});
-  state.teams[1][0] = buildCombatant(data, "Conkeldurr", 100, {"CloseCombat"});
+  state.teams[0][0] = buildCombatant(data, "Gyarados", {"UTurn"});
+  state.teams[1][0] = buildCombatant(data, "Conkeldurr", {"CloseCombat"});
   state.team_size = {1, 1};
 
   FixedRNG srng(0.5f);
@@ -121,8 +121,8 @@ TEST_CASE("Intimidate at the -6 cap emits StatChangeFailed", "[ability][stage]")
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "Gyarados", 100, {"UTurn"});
-  state.teams[1][0] = buildCombatant(data, "Conkeldurr", 100, {"CloseCombat"});
+  state.teams[0][0] = buildCombatant(data, "Gyarados", {"UTurn"});
+  state.teams[1][0] = buildCombatant(data, "Conkeldurr", {"CloseCombat"});
   state.team_size = {1, 1};
   state.teams[1][0].stat_stages[static_cast<size_t>(StatIndex::Atk)] = -6;
 
@@ -143,8 +143,8 @@ TEST_CASE("Levitate voids Ground moves entirely", "[ability][immunity]") {
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "Excadrill", 100, {"Earthquake", "DragonClaw"});
-  state.teams[1][0] = buildCombatant(data, "MegaGengar", 100, {"SwordsDance"});
+  state.teams[0][0] = buildCombatant(data, "Excadrill", {"Earthquake", "DragonClaw"});
+  state.teams[1][0] = buildCombatant(data, "MegaGengar", {"SwordsDance"});
   state.team_size = {1, 1};
 
   int gengarHp = state.teams[1][0].currentHp;
@@ -183,8 +183,8 @@ TEST_CASE("Pinch abilities boost same-type damage at 1/3 HP", "[ability][damage]
     BattleState state;
     // Level 100 into a frail neutral target: the x1.5 must stay well
     // clear of the damage floor for the tolerance check below.
-    state.teams[0][0] = buildCombatant(data, c.species, 100, {c.move});
-    state.teams[1][0] = buildCombatant(data, "Luxray", 100, {"Tackle"});
+    state.teams[0][0] = buildCombatant(data, c.species, {c.move});
+    state.teams[1][0] = buildCombatant(data, "Luxray", {"Tackle"});
     state.team_size = {1, 1};
     if (pinched)
       state.teams[0][0].currentHp = state.teams[0][0].stats.hp / 3;
@@ -211,8 +211,8 @@ TEST_CASE("Pinch abilities are inert above 1/3 HP and on off-type moves", "[abil
 
   auto hitDamage = [&](const char *move, int hpFraction) {
     BattleState state;
-    state.teams[0][0] = buildCombatant(data, "Infernape", 100, {move});
-    state.teams[1][0] = buildCombatant(data, "Snorlax", 100, {"Tackle"});
+    state.teams[0][0] = buildCombatant(data, "Infernape", {move});
+    state.teams[1][0] = buildCombatant(data, "Snorlax", {"Tackle"});
     state.team_size = {1, 1};
     if (hpFraction > 0)
       state.teams[0][0].currentHp = state.teams[0][0].stats.hp / hpFraction;
@@ -242,8 +242,8 @@ namespace {
 BattleState duel(const DataLoader &data, const char *s0, std::vector<std::string> m0,
                  const char *s1, std::vector<std::string> m1) {
   BattleState state;
-  state.teams[0][0] = engine::test::buildCombatant(data, s0, 100, m0);
-  state.teams[1][0] = engine::test::buildCombatant(data, s1, 100, m1);
+  state.teams[0][0] = engine::test::buildCombatant(data, s0, m0);
+  state.teams[1][0] = engine::test::buildCombatant(data, s1, m1);
   state.team_size = {1, 1};
   return state;
 }
@@ -399,9 +399,9 @@ TEST_CASE("FlashFire: Fire immunity, then a x1.5 boost that dies on switch-out",
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = engine::test::buildCombatant(data, "Infernape", 100, {"Flamethrower"});
-  state.teams[0][1] = engine::test::buildCombatant(data, "Snorlax", 100, {"Tackle"});
-  state.teams[1][0] = engine::test::buildCombatant(data, "Toxapex", 100, {"Flamethrower"});
+  state.teams[0][0] = engine::test::buildCombatant(data, "Infernape", {"Flamethrower"});
+  state.teams[0][1] = engine::test::buildCombatant(data, "Snorlax", {"Tackle"});
+  state.teams[1][0] = engine::test::buildCombatant(data, "Toxapex", {"Flamethrower"});
   state.team_size = {2, 1};
   FixedRNG rng(0.99f);
 
@@ -514,9 +514,9 @@ TEST_CASE("EmergencyExit auto-switches below half (ADR #47 divergence)", "[abili
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = engine::test::buildCombatant(data, "Snorlax", 100, {"Tackle"});
-  state.teams[0][1] = engine::test::buildCombatant(data, "Gyarados", 100, {"Tackle"});
-  state.teams[1][0] = engine::test::buildCombatant(data, "Conkeldurr", 100, {"Tackle"});
+  state.teams[0][0] = engine::test::buildCombatant(data, "Snorlax", {"Tackle"});
+  state.teams[0][1] = engine::test::buildCombatant(data, "Gyarados", {"Tackle"});
+  state.teams[1][0] = engine::test::buildCombatant(data, "Conkeldurr", {"Tackle"});
   state.team_size = {2, 1};
   state.teams[0][0].currentHp = state.teams[0][0].stats.hp / 2 + 30;
 
@@ -533,9 +533,9 @@ TEST_CASE("Regenerator heals a third on the way out; NaturalCure purges the stat
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = engine::test::buildCombatant(data, "Snorlax", 100, {"Tackle"});
-  state.teams[0][1] = engine::test::buildCombatant(data, "Gyarados", 100, {"Tackle"});
-  state.teams[1][0] = engine::test::buildCombatant(data, "Conkeldurr", 100, {"Growl"});
+  state.teams[0][0] = engine::test::buildCombatant(data, "Snorlax", {"Tackle"});
+  state.teams[0][1] = engine::test::buildCombatant(data, "Gyarados", {"Tackle"});
+  state.teams[1][0] = engine::test::buildCombatant(data, "Conkeldurr", {"Growl"});
   state.team_size = {2, 1};
   int max = state.teams[0][0].stats.hp;
   state.teams[0][0].currentHp = max / 2;
@@ -549,9 +549,9 @@ TEST_CASE("Regenerator heals a third on the way out; NaturalCure purges the stat
   overrideAbility(d2, "Snorlax", "NaturalCure");
   BattleEngine e2(d2);
   BattleState s2;
-  s2.teams[0][0] = engine::test::buildCombatant(d2, "Snorlax", 100, {"Tackle"});
-  s2.teams[0][1] = engine::test::buildCombatant(d2, "Gyarados", 100, {"Tackle"});
-  s2.teams[1][0] = engine::test::buildCombatant(d2, "Conkeldurr", 100, {"Growl"});
+  s2.teams[0][0] = engine::test::buildCombatant(d2, "Snorlax", {"Tackle"});
+  s2.teams[0][1] = engine::test::buildCombatant(d2, "Gyarados", {"Tackle"});
+  s2.teams[1][0] = engine::test::buildCombatant(d2, "Conkeldurr", {"Growl"});
   s2.team_size = {2, 1};
   s2.teams[0][0].status = Status::Poison;
   e2.resolveTurn(s2, SwitchAction{1}, UseMove{0}, rng);
@@ -722,10 +722,10 @@ TEST_CASE("DeltaStream: presence-bound, unremplacable, shields the Flying compon
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = engine::test::buildCombatant(data, "Gyarados", 100, {"Tackle"});
-  state.teams[0][1] = engine::test::buildCombatant(data, "Snorlax", 100, {"Tackle"});
+  state.teams[0][0] = engine::test::buildCombatant(data, "Gyarados", {"Tackle"});
+  state.teams[0][1] = engine::test::buildCombatant(data, "Snorlax", {"Tackle"});
   state.teams[1][0] =
-      engine::test::buildCombatant(data, "Luxray", 100, {"Thunderbolt", "RainDance"});
+      engine::test::buildCombatant(data, "Luxray", {"Thunderbolt", "RainDance"});
   state.team_size = {2, 1};
   FixedRNG rng(0.99f);
 

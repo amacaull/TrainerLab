@@ -36,8 +36,8 @@ int damageOn(const EventLog &events, int side) {
 BattleState makeDuel(const DataLoader &data, const char *s0, const char *m0, const char *s1,
                      const char *m1) {
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, s0, 50, {m0});
-  state.teams[1][0] = buildCombatant(data, s1, 50, {m1});
+  state.teams[0][0] = buildCombatant(data, s0, {m0});
+  state.teams[1][0] = buildCombatant(data, s1, {m1});
   state.team_size = {1, 1};
   return state;
 }
@@ -50,7 +50,7 @@ TEST_CASE("SetWeather starts the weather for 5 turns; same weather fails", "[wea
   BattleEngine engine(data);
 
   auto state = makeDuel(data, "Quagsire", "RainDance", "Snorlax", "Tackle");
-  state.teams[0][0] = buildCombatant(data, "Snorlax", 100, {"RainDance"}); // no Drizzle side effect
+  state.teams[0][0] = buildCombatant(data, "Snorlax", {"RainDance"}); // no Drizzle side effect
   FixedRNG rng(0.5f);
 
   auto t1 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
@@ -212,9 +212,9 @@ TEST_CASE("SandStream and Drizzle set their weather on switch-in", "[weather][ab
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "Snorlax", 100, {"Tackle"});
-  state.teams[0][1] = buildCombatant(data, "Aerodactyl", 100, {"StoneEdge"});
-  state.teams[1][0] = buildCombatant(data, "Conkeldurr", 100, {"CloseCombat"});
+  state.teams[0][0] = buildCombatant(data, "Snorlax", {"Tackle"});
+  state.teams[0][1] = buildCombatant(data, "Aerodactyl", {"StoneEdge"});
+  state.teams[1][0] = buildCombatant(data, "Conkeldurr", {"CloseCombat"});
   state.team_size = {2, 1};
 
   FixedRNG rng(0.5f);
@@ -232,8 +232,8 @@ TEST_CASE("startBattle: the slower weather ability wins the war", "[weather][abi
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "Aerodactyl", 100, {"StoneEdge"}); // 394 speed
-  state.teams[1][0] = buildCombatant(data, "Quagsire", 100, {"Surf"});        // 106 speed
+  state.teams[0][0] = buildCombatant(data, "Aerodactyl", {"StoneEdge"}); // 394 speed
+  state.teams[1][0] = buildCombatant(data, "Quagsire", {"Surf"});        // 106 speed
   state.team_size = {1, 1};
 
   FixedRNG srng(0.5f);
@@ -250,9 +250,9 @@ TEST_CASE("Weather ability is silent if its weather is already up", "[weather][a
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "Snorlax", 100, {"Tackle"});
-  state.teams[0][1] = buildCombatant(data, "Quagsire", 100, {"Surf"});
-  state.teams[1][0] = buildCombatant(data, "Conkeldurr", 100, {"CloseCombat"});
+  state.teams[0][0] = buildCombatant(data, "Snorlax", {"Tackle"});
+  state.teams[0][1] = buildCombatant(data, "Quagsire", {"Surf"});
+  state.teams[1][0] = buildCombatant(data, "Conkeldurr", {"CloseCombat"});
   state.team_size = {2, 1};
   state.weather = Weather::Rain;
   state.weather_turns_left = 5;

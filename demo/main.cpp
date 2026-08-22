@@ -16,7 +16,7 @@ using namespace engine;
 
 namespace {
 
-BattlePokemon buildCombatant(const DataLoader &data, const std::string &speciesName, int level,
+BattlePokemon buildCombatant(const DataLoader &data, const std::string &speciesName,
                              const std::vector<std::string> &moveNames) {
   BattlePokemon p;
   p.species_id = data.findSpeciesId(speciesName);
@@ -24,8 +24,8 @@ BattlePokemon buildCombatant(const DataLoader &data, const std::string &speciesN
     throw std::runtime_error("Unknown species: " + speciesName);
 
   const Species &sp = data.speciesByIndex(p.species_id);
-  p.level = level;
-  p.stats = computeSpeciesStats(sp, level);
+  p.level = kBattleLevel;
+  p.stats = computeSpeciesStats(sp, kBattleLevel);
   p.currentHp = p.stats.hp;
   p.item_id = sp.item.empty() ? kNoItem : data.findItemId(sp.item);
 
@@ -157,8 +157,8 @@ struct Scenario {
 
 void runMatch(const Scenario &sc, const DataLoader &data, const BattleEngine &engine) {
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, sc.species0, 50, sc.moves0);
-  state.teams[1][0] = buildCombatant(data, sc.species1, 50, sc.moves1);
+  state.teams[0][0] = buildCombatant(data, sc.species0, sc.moves0);
+  state.teams[1][0] = buildCombatant(data, sc.species1, sc.moves1);
   state.team_size = {1, 1};
   state.activeIndex = {0, 0};
   validateState(state, data);
@@ -199,10 +199,10 @@ void runMatch(const Scenario &sc, const DataLoader &data, const BattleEngine &en
 
 void runSwitchShowcase(const DataLoader &data, const BattleEngine &engine) {
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "Zarude", 100, {"UTurn"});
-  state.teams[0][1] = buildCombatant(data, "Luxray", 100, {"WildCharge"});
-  state.teams[1][0] = buildCombatant(data, "Inteleon", 100, {"HydroPump"});
-  state.teams[1][1] = buildCombatant(data, "Snorlax", 100, {"BodySlam"});
+  state.teams[0][0] = buildCombatant(data, "Zarude", {"UTurn"});
+  state.teams[0][1] = buildCombatant(data, "Luxray", {"WildCharge"});
+  state.teams[1][0] = buildCombatant(data, "Inteleon", {"HydroPump"});
+  state.teams[1][1] = buildCombatant(data, "Snorlax", {"BodySlam"});
   state.team_size = {2, 2};
   validateState(state, data);
 
@@ -245,10 +245,10 @@ void runSwitchShowcase(const DataLoader &data, const BattleEngine &engine) {
 
 void runFieldShowcase(const DataLoader &data, const BattleEngine &engine) {
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "NinetalesAlola", 100, {"AuroraVeil", "Blizzard"});
-  state.teams[0][1] = buildCombatant(data, "Mamoswine", 100, {"IcicleCrash", "Earthquake"});
-  state.teams[1][0] = buildCombatant(data, "Aerodactyl", 100, {"StealthRock", "StoneEdge"});
-  state.teams[1][1] = buildCombatant(data, "Infernape", 100, {"FlareBlitz"});
+  state.teams[0][0] = buildCombatant(data, "NinetalesAlola", {"AuroraVeil", "Blizzard"});
+  state.teams[0][1] = buildCombatant(data, "Mamoswine", {"IcicleCrash", "Earthquake"});
+  state.teams[1][0] = buildCombatant(data, "Aerodactyl", {"StealthRock", "StoneEdge"});
+  state.teams[1][1] = buildCombatant(data, "Infernape", {"FlareBlitz"});
   state.team_size = {2, 2};
   validateState(state, data);
 
@@ -301,10 +301,10 @@ void runFieldShowcase(const DataLoader &data, const BattleEngine &engine) {
 
 void runPhase89Showcase(const DataLoader &data, const BattleEngine &engine) {
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "Dragapult", 100, {"PhantomForce"});
-  state.teams[0][1] = buildCombatant(data, "Weavile", 100, {"TripleAxel"});
-  state.teams[1][0] = buildCombatant(data, "Toxapex", 100, {"BanefulBunker", "Scald"});
-  state.teams[1][1] = buildCombatant(data, "Infernape", 100, {"FlareBlitz"});
+  state.teams[0][0] = buildCombatant(data, "Dragapult", {"PhantomForce"});
+  state.teams[0][1] = buildCombatant(data, "Weavile", {"TripleAxel"});
+  state.teams[1][0] = buildCombatant(data, "Toxapex", {"BanefulBunker", "Scald"});
+  state.teams[1][1] = buildCombatant(data, "Infernape", {"FlareBlitz"});
   state.team_size = {2, 2};
   validateState(state, data);
 

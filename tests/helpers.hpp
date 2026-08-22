@@ -20,14 +20,14 @@ inline void loadAll(DataLoader &data) {
 }
 
 inline BattlePokemon buildCombatant(const DataLoader &data, const std::string &speciesName,
-                                    int level, const std::vector<std::string> &moveNames) {
+                                    const std::vector<std::string> &moveNames) {
   BattlePokemon p;
   p.species_id = data.findSpeciesId(speciesName);
   REQUIRE(p.species_id >= 0);
 
   const Species &sp = data.speciesByIndex(p.species_id);
-  p.level = level;
-  p.stats = computeSpeciesStats(sp, level);
+  p.level = kBattleLevel;
+  p.stats = computeSpeciesStats(sp, kBattleLevel);
   p.currentHp = p.stats.hp;
   // Bare fixture: unit tests inject items explicitly. buildLoadout equips
   // the species' real held item for integration scenarios.
@@ -42,9 +42,9 @@ inline BattlePokemon buildCombatant(const DataLoader &data, const std::string &s
   return p;
 }
 
-inline BattlePokemon buildLoadout(const DataLoader &data, const std::string &speciesId, int level,
+inline BattlePokemon buildLoadout(const DataLoader &data, const std::string &speciesId,
                                   const std::vector<std::string> &moves) {
-  BattlePokemon p = buildCombatant(data, speciesId, level, moves);
+  BattlePokemon p = buildCombatant(data, speciesId, moves);
   const Species &sp = data.speciesByIndex(p.species_id);
   p.item_id = sp.item.empty() ? kNoItem : data.findItemId(sp.item);
   return p;

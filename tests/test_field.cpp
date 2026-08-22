@@ -43,8 +43,8 @@ public:
 BattleState makeDuel(const DataLoader &data, const char *s0, std::vector<std::string> m0,
                      const char *s1, std::vector<std::string> m1) {
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, s0, 100, m0);
-  state.teams[1][0] = buildCombatant(data, s1, 100, m1);
+  state.teams[0][0] = buildCombatant(data, s0, m0);
+  state.teams[1][0] = buildCombatant(data, s1, m1);
   state.team_size = {1, 1};
   return state;
 }

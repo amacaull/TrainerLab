@@ -80,6 +80,10 @@ void validatePokemon(const BattlePokemon &p, const DataLoader &data, int side, i
   if (p.last_move_id != kNoMove && !data.isValidMoveId(p.last_move_id)) {
     fail(where.str() + ": last_move_id invalid");
   }
+  if (p.level != kBattleLevel) {
+    fail(where.str() + ": level must be " + std::to_string(kBattleLevel) + ", got " +
+         std::to_string(p.level));
+  }
   if (p.invulnerable_state < 0 || p.invulnerable_state > 3) {
     fail(where.str() + ": invulnerable_state out of range [0, 3]");
   }

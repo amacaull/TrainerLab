@@ -37,8 +37,8 @@ int damageOn(const EventLog &events, int side) {
 BattleState makeDuel(const DataLoader &data, const char *s0, std::vector<std::string> m0,
                      const char *s1, std::vector<std::string> m1) {
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, s0, 100, m0);
-  state.teams[1][0] = buildCombatant(data, s1, 100, m1);
+  state.teams[0][0] = buildCombatant(data, s0, m0);
+  state.teams[1][0] = buildCombatant(data, s1, m1);
   state.team_size = {1, 1};
   return state;
 }
@@ -269,9 +269,9 @@ TEST_CASE("The Choice lock ends on switch-out", "[phase11][choix]") {
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "Conkeldurr", 100, {"CloseCombat", "Tackle"});
-  state.teams[0][1] = buildCombatant(data, "Snorlax", 100, {"BodySlam"});
-  state.teams[1][0] = buildCombatant(data, "Gyarados", 100, {"Growl"});
+  state.teams[0][0] = buildCombatant(data, "Conkeldurr", {"CloseCombat", "Tackle"});
+  state.teams[0][1] = buildCombatant(data, "Snorlax", {"BodySlam"});
+  state.teams[1][0] = buildCombatant(data, "Gyarados", {"Growl"});
   state.team_size = {2, 1};
   give(state.teams[0][0], data, "ChoiceBand");
 
@@ -350,9 +350,9 @@ TEST_CASE("HeavyDutyBoots: entry hazards don't apply at all", "[phase11][bottes]
 
   auto run = [&](bool withBoots) {
     BattleState state;
-    state.teams[0][0] = buildCombatant(data, "Gyarados", 100, {"Growl"});
-    state.teams[0][1] = buildCombatant(data, "Excadrill", 100, {"Tackle"}); // grounded
-    state.teams[1][0] = buildCombatant(data, "Aerodactyl", 100, {"StealthRock", "Spikes"});
+    state.teams[0][0] = buildCombatant(data, "Gyarados", {"Growl"});
+    state.teams[0][1] = buildCombatant(data, "Excadrill", {"Tackle"}); // grounded
+    state.teams[1][0] = buildCombatant(data, "Aerodactyl", {"StealthRock", "Spikes"});
     state.team_size = {2, 1};
     if (withBoots)
       give(state.teams[0][1], data, "HeavyDutyBoots");
