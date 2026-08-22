@@ -18,13 +18,13 @@ add_executable(battle_engine_tests
     test_field.cpp
     test_move_mechanics.cpp
     test_integration.cpp
+    test_ffi.cpp
 )
 
 target_link_libraries(battle_engine_tests PRIVATE battle_engine_lib Catch2::Catch2WithMain)
 
 target_compile_definitions(battle_engine_tests PRIVATE
     BATTLE_ENGINE_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures"
-    BATTLE_ENGINE_DATA_DIR="${BATTLE_ENGINE_DATA_PATH}"
 )
 
 include(CTest)

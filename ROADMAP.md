@@ -299,6 +299,8 @@ Branche : `feat/battle-engine-ffi-prep`. **240 tests.** Tout ce qui devait être
 - ⬜ **D1** crate FFI · **D2** qui alloue le `BattleState` · **D3** obtention des index · **D4** intégration build
 - ⬜ **D5** comment le RNG traverse la frontière — *absent de la liste initiale, bloquant*
 - ⬜ **D6** ordre des remplacements simultanés · **D7** durée de vie du `DataLoader`
+- ⬜ **D8** garantie forte sur `BattleState` : la couche FFI travaille sur une copie et ne commit qu'en sortie, sinon un throw en milieu de `resolveTurn` laisse l'état de Rust à moitié écrit — *découvert en cartographiant les sites de throw*
+- ⬜ Convention d'erreurs : `cxx` ne transporte que `what()`, le **type** de l'exception est perdu. Préfixes stables (`E_STATE`, `E_TEAM`, `E_ACTION`, `E_DATA`) ou `FfiResult` typé ?
 
 ### Phase 17 — Polish  ⬜
 

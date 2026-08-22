@@ -10,39 +10,27 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Both default ON so the local workflow is unchanged. The Rust build.rs turns
-# them OFF: it needs the library alone, with no test framework fetched.
-option(BATTLE_ENGINE_BUILD_TESTS "Build the Catch2 test suite" ON)
-option(BATTLE_ENGINE_BUILD_DEMO "Build the demo executable" ON)
-
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(-Wall -Wextra -Wpedantic -Wshadow -Wconversion)
 endif()
 
 include(FetchContent)
 
-# Prefer a system or vendored copy: a Docker build stage has no reason to
-# reach GitHub, and a network hiccup should not break the backend image.
-find_package(nlohmann_json 3.11 QUIET)
-if(NOT nlohmann_json_FOUND)
-    FetchContent_Declare(
-        nlohmann_json
-        GIT_REPOSITORY https://github.com/nlohmann/json.git
-        GIT_TAG v3.11.3
-        GIT_SHALLOW TRUE
-    )
-    FetchContent_MakeAvailable(nlohmann_json)
-endif()
+FetchContent_Declare(
+    nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG v3.11.3
+    GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(nlohmann_json)
 
-if(BATTLE_ENGINE_BUILD_TESTS)
-    FetchContent_Declare(
-        Catch2
-        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-        GIT_TAG v3.5.4
-        GIT_SHALLOW TRUE
-    )
-    FetchContent_MakeAvailable(Catch2)
-endif()
+FetchContent_Declare(
+    Catch2
+    GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+    GIT_TAG v3.5.4
+    GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(Catch2)
 
 add_library(battle_engine_lib STATIC
     # model: le vocabulaire du jeu (structs, tables, enums)
@@ -85,36 +73,20 @@ add_library(battle_engine_lib STATIC
     src/effects/recovery.cpp
     src/effects/force_switch.cpp
     src/effects/protect.cpp
+    # frontiere: couche consommee par cxx (Rust) et pybind11 (service IA)
+    src/ffi/ffi.cpp
 )
 
 target_include_directories(battle_engine_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 target_link_libraries(battle_engine_lib PUBLIC nlohmann_json::nlohmann_json)
 
-# Where the shipped catalog lives. Deliberately NOT a compile definition on
-# the library: an absolute path baked into a static archive that Rust links is
-# a landmine in Docker, and a silent fallback to a different data/ would shift
-# the frozen FFI indices (ADR #12). Library callers pass the path to loadAll()
-# explicitly; only the demo and the tests get the convenience macro.
-set(BATTLE_ENGINE_DATA_PATH "${CMAKE_CURRENT_SOURCE_DIR}/data")
+target_compile_definitions(battle_engine_lib PUBLIC
+    BATTLE_ENGINE_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data"
+)
 
-# Required to link the archive into a Rust cdylib.
-set_target_properties(battle_engine_lib PROPERTIES POSITION_INDEPENDENT_CODE ON)
+add_executable(battle_engine_demo demo/main.cpp)
+target_link_libraries(battle_engine_demo PRIVATE battle_engine_lib)
 
-if(BATTLE_ENGINE_BUILD_DEMO)
-    add_executable(battle_engine_demo demo/main.cpp)
-    target_link_libraries(battle_engine_demo PRIVATE battle_engine_lib)
-    target_compile_definitions(battle_engine_demo PRIVATE
-        BATTLE_ENGINE_DATA_DIR="${BATTLE_ENGINE_DATA_PATH}"
-    )
-endif()
-
-if(BATTLE_ENGINE_BUILD_TESTS)
-    enable_testing()
-    add_subdirectory(tests)
-endif()
-
-# build.rs drives `cmake --build . --target install` with the prefix in OUT_DIR.
-include(GNUInstallDirs)
-install(TARGETS battle_engine_lib ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
-install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+enable_testing()
+add_subdirectory(tests)

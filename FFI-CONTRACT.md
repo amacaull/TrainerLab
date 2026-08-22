@@ -75,13 +75,23 @@ un mutex global.
 
 ## 3. Les décisions **[À TRANCHER]**
 
-### D1 — Crate FFI
+### D1 — Crate FFI ✅ **TRANCHÉ : `cxx`** (2026-08-21)
 
-**Reco : `cxx`.** La conversion automatique d'une exception C++ en `Result::Err`
-vaut à elle seule le choix (ADR #13). `bindgen`/`cc` obligeraient à écrire à la
-main la couche de traduction d'erreurs.
+La conversion automatique d'une exception C++ en `Result::Err` vaut à elle
+seule le choix (ADR #13). `bindgen`/`cc` auraient imposé d'écrire à la main la
+couche de traduction d'erreurs.
 
-> Décision : ................................................................
+**Où vit l'adaptateur `rust::Str`.** `ffi.hpp` prend des `const std::string &`
+et n'inclut aucun header `cxx`. C'est délibéré : `rust/cxx.h` est généré par la
+crate au build Rust, donc en faire une dépendance de `battle_engine_lib`
+inverserait le couplage — le moteur dépendrait de l'écosystème Rust alors qu'il
+doit aussi servir pybind11 (ADR #52).
+
+L'adaptateur est donc un `.cc` **dans la crate Rust**, compilé par `cxx_build`
+via `.file("src/engine_shim.cc")`. Il convertit `rust::Str` ↔ `std::string` et
+`std::string` → `rust::String`, et n'a aucune logique. Côté Rust, le bridge
+écrit `fn engine_init(data_dir: &str) -> Result<()>` — plus de
+`let_cxx_string!`.
 
 ### D2 — Qui alloue le `BattleState` ? **(bloquant)**
 
@@ -167,6 +177,38 @@ que de figer la règle dans le moteur. Canon = le plus rapide d'abord.
 **Reco :** `DataLoader` et `BattleEngine` en singletons côté C++, initialisés
 une fois par `engine_init(path)`, qui throw si le dossier est absent (ADR #57).
 Lecture seule ensuite, donc thread-safe.
+
+> Décision : ................................................................
+
+### D8 — Garantie forte sur `BattleState` **(découle du plan A de D2)**
+
+Si Rust possède le `BattleState` et le passe en `&mut`, le C++ **mute le buffer
+de Rust en place**. `checkAction` protège l'entrée du tour — il valide les deux
+actions *avant* toute mutation, donc un tour rejeté laisse l'état intact. Mais
+au-delà de ce point, un throw au milieu de `resolveTurn` (un `out_of_range`
+depuis `moveByIndex`, par exemple) laisserait le `BattleState` **à moitié
+écrit** : PP décrémentés, dégâts appliqués, upkeep non fait. Rust reçoit un
+`Err`, croit son état intact, et le persiste.
+
+**Reco :** la couche FFI travaille sur une copie et ne valide qu'en sortie.
+`BattleState` étant un POD de taille fixe, c'est un `memcpy` d'environ 1,5 Ko —
+négligeable devant un tour de combat.
+
+```cpp
+rust::Vec<FfiEvent> resolve_turn(BattleState &state, FfiAction a0,
+                                 FfiAction a1, uint64_t seed) {
+  validateState(state, loader());   // ADR #13
+  BattleState scratch = state;      // copie
+  MersenneRNG rng(seed);
+  auto events = engine().resolveTurn(scratch, toAction(a0), toAction(a1), rng);
+  state = scratch;                  // commit seulement si on arrive ici
+  return flatten(events);
+}
+```
+
+La frontière offre alors la **garantie forte par construction** : soit le tour
+s'applique entièrement, soit rien ne bouge. Rust n'a aucun snapshot à gérer,
+aucune transaction à annuler.
 
 > Décision : ................................................................
 
@@ -347,7 +389,23 @@ par partie :
 
 ## 8. Politique d'erreurs (ADR #13)
 
-Trois couches, dans cet ordre :
+### 8.1 Le principe
+
+> **Une exception signale une violation de contrat, jamais un événement de jeu.**
+
+Une attaque qui rate → `MissedEvent`. Un Volt Switch contre un Sol →
+`MoveFailedEvent`. Une équipe illégale → `invalid_argument`. Un `move_id = 999`
+→ `out_of_range`.
+
+**Conséquence directe pour Rust, et c'est le point le plus important de cette
+section : un `Result::Err` en retour de `resolve_turn` est TOUJOURS un bug côté
+appelant, jamais une issue normale de partie.** Ça se logge en `error!` et ça
+remonte en 500 — jamais en message joueur. Traiter les `Err` comme « le coup
+n'est pas passé » masquerait des bugs pendant des semaines.
+
+### 8.2 Les trois couches de validation
+
+Dans cet ordre :
 
 1. **`validateState`** en tête de chaque fonction exposée. ~40 invariants,
    message descriptif :
@@ -361,8 +419,75 @@ Trois couches, dans cet ordre :
    illégale, slot vide, 0 PP, verrou Choix violé. **Throw avant toute
    mutation** — un `resolveTurn` rejeté laisse l'état intact.
 
-Aucune exception ne traverse la frontière : `cxx` les convertit en
-`Result::Err` à condition que les signatures Rust soient déclarées `Result`.
+### 8.3 Ce que le moteur lance
+
+Trois types, et le découpage n'est pas arbitraire :
+
+| Type | Sites | Signifie |
+|---|---|---|
+| `std::invalid_argument` | `validate.cpp`, `checkAction`, parsing d'enums | l'appelant a fourni une entrée illégale |
+| `std::out_of_range` | `moveByIndex`, `speciesByIndex`, `typeName`, `statusName` | index hors catalogue |
+| `std::runtime_error` | `data_loader.cpp` (14 sites), `computeSpeciesStats` | données disque cassées ou absentes |
+
+S'y ajoutent les types de nlohmann (`json::parse_error`, `json::type_error`),
+qui dérivent de `std::exception` et ne surviennent qu'à `engine_init`.
+
+### 8.4 Le mécanisme exact à la frontière
+
+**Une exception C++ qui atteint une fonction `extern "C"` appelle
+`std::terminate`.** Le processus meurt : pas de panic Rust, pas d'unwinding,
+pas de log applicatif. C'est la raison principale du choix de `cxx` (D1).
+
+Quand une fonction est déclarée avec `-> Result<T>` dans le bridge :
+
+```rust
+#[cxx::bridge]
+mod ffi {
+    unsafe extern "C++" {
+        fn resolve_turn(state: &mut BattleState, a0: FfiAction,
+                        a1: FfiAction, seed: u64) -> Result<Vec<FfiEvent>>;
+    }
+}
+```
+
+`cxx` génère un shim C++ `noexcept` qui enveloppe l'appel dans un `try/catch`
+et convertit l'exception en `Err(cxx::Exception)` côté Rust.
+
+> ⚠️ **Le `noexcept` est sur le shim.** Une fonction déclarée **sans** `Result`
+> n'obtient pas de `try/catch` : l'exception atteint le `noexcept` et c'est
+> `terminate`. **Toute fonction du bridge susceptible de throw doit être
+> déclarée `Result<T>`.** À vérifier ligne par ligne, pas au jugé.
+
+### 8.5 Ce qu'on perd, et la convention de préfixes **[À TRANCHER]**
+
+`cxx` ne transporte que `what()`. **Le type de l'exception est perdu** : côté
+Rust, `invalid_argument` et `runtime_error` sont indiscernables. Or Taj doit
+distinguer « équipe illégale soumise par le joueur » (→ 400) de « `data/`
+corrompu » (→ 500).
+
+`validate.cpp` a déjà l'amorce de la solution (`fail()` préfixe tout par
+`"validateState: "`). Proposition : généraliser en préfixe stable et
+documenté, sur lequel Rust matche.
+
+```
+E_STATE:  side 0 slot 2: pp[1] out of range [0, 15], got 20
+E_TEAM:   species clause violated (Snorlax appears twice)
+E_ACTION: side 1: move slot 2 has 0 pp
+E_DATA:   data/moves/Blizzard.json: missing key 'power'
+```
+
+**Alternative** : retourner un `struct FfiResult { code: i32, message: String }`
+au lieu d'un `Result`. Typé et propre, mais plus verbeux à tous les sites
+d'appel et on perd le `?` de Rust.
+
+> Décision : ................................................................
+
+### 8.6 Côté Python (ADR #52)
+
+`pybind11` fait le même travail dans l'autre sens, mais **le type survit** :
+`std::invalid_argument` → `ValueError`, `std::out_of_range` → `IndexError`,
+`std::runtime_error` → `RuntimeError`. Le service IA distinguera donc les cas
+sans avoir besoin de la convention de préfixes du §8.5.
 
 ---
 
@@ -395,7 +520,7 @@ headers.
 |---|---|
 | 9 h 00 – 9 h 30 | Alex : visite de la frontière. Les 3 fonctions, le protocole §7, le fait que `EventLog` et `Action` ne sont pas des PODs |
 | 9 h 30 – 10 h 30 | Taj : prototype `cxx` sur un `BattleState` bidon à tableaux imbriqués → **verdict D2** |
-| 10 h 30 – 12 h 00 | À deux : trancher D1, D3-D7 et figer le §6. **C'est le livrable de la journée** |
+| 10 h 30 – 12 h 00 | À deux : trancher D1, D3-D8, la convention d'erreurs du §8.5, et figer le §6. **C'est le livrable de la journée** |
 | Après-midi | Taj : `build.rs` + squelette de bridge sur des stubs C++ qui renvoient du vide. Alex : items A et B |
 | Fin de journée | Un appel trivial (`engine_init` + `find_species_id`) qui traverse réellement depuis un test Rust |
 
