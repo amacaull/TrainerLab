@@ -25,6 +25,12 @@ public:
   // is invalid.
   EventLog resolveReplacement(BattleState &state, int side, int teamIndex) const;
 
+  // Which side acts first right now, speed ties included. Exposed because the
+  // engine deliberately does not impose an order when both sides must replace
+  // a fainted active at once (D6): an entry ability does not land the same way
+  // depending on who arrives first, so the caller asks and decides.
+  int fasterSide(const BattleState &state, RNG &rng) const;
+
 private:
   // Throws std::invalid_argument on any illegal action, before any mutation.
   void checkAction(const BattleState &state, int side, const Action &action) const;

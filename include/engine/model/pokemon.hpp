@@ -18,6 +18,8 @@ constexpr int kNoItem = -1;
 // Boostable stats, stable ordering for the stat_stages array.
 // Atk..Spe drive damage/speed; Accuracy/Evasion are stored and clamped now
 // but not yet wired into the accuracy roll (comes with phase 8).
+//
+// Crosses the FFI boundary as int inside FfiEvent. Do not reorder.
 enum class StatIndex : int { Atk = 0, Def, SpA, SpD, Spe, Accuracy, Evasion, Count };
 
 constexpr int kStatStageCount = static_cast<int>(StatIndex::Count);

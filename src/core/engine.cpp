@@ -68,6 +68,11 @@ int effectiveSpeed(const BattleState &state, int side, const DataLoader &data) {
 }
 
 // Speed ties are broken randomly (ADR #31).
+//
+// BattleEngine has a public fasterSide/2 member forwarding here (D6). Class
+// scope beats namespace scope, so every call from inside a member must stay
+// explicitly qualified: dropping the :: silently resolves to the member and
+// fails to compile on the argument count.
 int fasterSide(const BattleState &state, const DataLoader &data, RNG &rng) {
   int s0 = effectiveSpeed(state, 0, data);
   int s1 = effectiveSpeed(state, 1, data);
@@ -210,7 +215,7 @@ std::array<int, 2> BattleEngine::computeOrder(const BattleState &state, const Ac
   if (p0 != p1)
     return (p0 > p1) ? std::array<int, 2>{0, 1} : std::array<int, 2>{1, 0};
 
-  int first = fasterSide(state, data_, rng);
+  int first = ::engine::fasterSide(state, data_, rng);
   return {first, 1 - first};
 }
 
@@ -477,7 +482,7 @@ void BattleEngine::checkAction(const BattleState &state, int side, const Action 
 
 EventLog BattleEngine::startBattle(BattleState &state, RNG &rng) const {
   EventLog events;
-  int first = fasterSide(state, data_, rng);
+  int first = ::engine::fasterSide(state, data_, rng);
   for (int side : {first, 1 - first}) {
     CombatantRef ref{side, state.activeIndex[static_cast<size_t>(side)]};
     const Species &sp = data_.speciesByIndex(state.active(side).species_id);
@@ -487,6 +492,10 @@ EventLog BattleEngine::startBattle(BattleState &state, RNG &rng) const {
     }
   }
   return events;
+}
+
+int BattleEngine::fasterSide(const BattleState &state, RNG &rng) const {
+  return ::engine::fasterSide(state, data_, rng);
 }
 
 EventLog BattleEngine::resolveReplacement(BattleState &state, int side, int teamIndex) const {
@@ -533,7 +542,7 @@ EventLog BattleEngine::resolveTurn(BattleState &state, const Action &a0, const A
       state.weather = Weather::None;
       state.weather_turns_left = 0;
     } else if (state.weather == Weather::Sand) {
-      int first = fasterSide(state, data_, rng);
+      int first = ::engine::fasterSide(state, data_, rng);
       applyWeatherChip(state, data_, first, events);
       applyWeatherChip(state, data_, 1 - first, events);
     }
@@ -572,21 +581,21 @@ EventLog BattleEngine::resolveTurn(BattleState &state, const Action &a0, const A
 
   // Item heals before the status ticks (Leftovers/BlackSludge, canon order).
   if (!state.isOver()) {
-    int first = fasterSide(state, data_, rng);
+    int first = ::engine::fasterSide(state, data_, rng);
     applyItemHook(state, data_, first, events, &Item::onResidual);
     applyItemHook(state, data_, 1 - first, events, &Item::onResidual);
   }
 
   // End-of-turn residuals (burn/poison/toxic), faster side first.
   if (!state.isOver()) {
-    int first = fasterSide(state, data_, rng);
+    int first = ::engine::fasterSide(state, data_, rng);
     applyResidual(state, data_, first, events);
     applyResidual(state, data_, 1 - first, events);
   }
 
   // Status orbs activate last: an FlameOrb burn only ticks next turn.
   if (!state.isOver()) {
-    int first = fasterSide(state, data_, rng);
+    int first = ::engine::fasterSide(state, data_, rng);
     applyItemHook(state, data_, first, events, &Item::onTurnEnd);
     applyItemHook(state, data_, 1 - first, events, &Item::onTurnEnd);
   }

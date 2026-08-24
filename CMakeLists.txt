@@ -15,8 +15,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 option(BATTLE_ENGINE_BUILD_TESTS "Build the Catch2 test suite" ON)
 option(BATTLE_ENGINE_BUILD_DEMO "Build the demo executable" ON)
 
+# Scoped to our own targets below: add_compile_options() is directory-wide and
+# also lands on the FetchContent dependencies, whose warnings are not ours to
+# fix and drown ours in the noise.
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    add_compile_options(-Wall -Wextra -Wpedantic -Wshadow -Wconversion)
+    set(BATTLE_ENGINE_WARNINGS -Wall -Wextra -Wpedantic -Wshadow -Wconversion)
 endif()
 
 include(FetchContent)
@@ -87,6 +90,7 @@ add_library(battle_engine_lib STATIC
     src/effects/protect.cpp
     # frontiere: couche consommee par cxx (Rust) et pybind11 (service IA)
     src/ffi/ffi.cpp
+    src/ffi/convert.cpp
 )
 
 target_include_directories(battle_engine_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -100,12 +104,15 @@ target_link_libraries(battle_engine_lib PUBLIC nlohmann_json::nlohmann_json)
 # explicitly; only the demo and the tests get the convenience macro.
 set(BATTLE_ENGINE_DATA_PATH "${CMAKE_CURRENT_SOURCE_DIR}/data")
 
+target_compile_options(battle_engine_lib PRIVATE ${BATTLE_ENGINE_WARNINGS})
+
 # Required to link the archive into a Rust cdylib.
 set_target_properties(battle_engine_lib PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 if(BATTLE_ENGINE_BUILD_DEMO)
     add_executable(battle_engine_demo demo/main.cpp)
     target_link_libraries(battle_engine_demo PRIVATE battle_engine_lib)
+    target_compile_options(battle_engine_demo PRIVATE ${BATTLE_ENGINE_WARNINGS})
     target_compile_definitions(battle_engine_demo PRIVATE
         BATTLE_ENGINE_DATA_DIR="${BATTLE_ENGINE_DATA_PATH}"
     )

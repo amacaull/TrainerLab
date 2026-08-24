@@ -3,6 +3,9 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <cstdint>
+#include <iomanip>
+#include <set>
 #include <stdexcept>
 #include <string>
 
@@ -145,4 +148,57 @@ TEST_CASE("ids stay dense and stable across the boundary", "[ffi][catalog]") {
   REQUIRE(find_species_id(species_id_string(species_count() - 1)) == species_count() - 1);
   REQUIRE(find_ability_id("Blaze") == 0);
   REQUIRE(find_item_id("LifeOrb") == 0);
+}
+
+TEST_CASE("the Struggle sentinels are distinct from 'no name'", "[ffi][catalog]") {
+  ensureInit();
+  // Struggle is hardcoded (ADR #35): it has no catalog entry, so a lookup
+  // legitimately misses and the flattener must not treat that as an error.
+  REQUIRE(find_move_id("Struggle") == -1);
+  REQUIRE(find_ability_id("StruggleRecoil") == -1);
+
+  REQUIRE(struggle_move_id() == kFfiStruggle);
+  REQUIRE(struggle_recoil_ability_id() == kFfiStruggleRecoil);
+
+  std::set<int> reserved{kFfiNoName, kFfiStruggle, kFfiStruggleRecoil};
+  REQUIRE(reserved.size() == 3);
+  REQUIRE(kFfiStruggle < kFfiNoName);
+  REQUIRE(kFfiStruggleRecoil < kFfiStruggle);
+}
+
+TEST_CASE("the catalog fingerprint is stable and content-sensitive", "[ffi][catalog]") {
+  ensureInit();
+
+  SECTION("it does not vary between calls") {
+    REQUIRE(catalog_fingerprint() == catalog_fingerprint());
+    REQUIRE(catalog_fingerprint() != 0);
+  }
+
+  SECTION("it locks the shipped catalog") {
+    // 49 species / 95 moves / 13 items / 45 abilities.
+    //
+    // Updating this constant must be a deliberate act: when it moves, every
+    // BattleState already in the database is reinterpreted (ADR #58, ADR #12).
+    // If this fails after adding content, that is the question to answer
+    // before touching the number - not a value to refresh on reflex.
+    constexpr uint64_t kShippedCatalog = 0x9848D2D3F76497E5ULL;
+    INFO("actual fingerprint: 0x" << std::hex << catalog_fingerprint());
+    REQUIRE(catalog_fingerprint() == kShippedCatalog);
+  }
+}
+
+TEST_CASE("the flat structs default to 'absent' rather than to zero", "[ffi][convert]") {
+  // A default-constructed FfiEvent must not look like "side 0, slot 0, move 0".
+  FfiEvent e{};
+  REQUIRE(e.side == -1);
+  REQUIRE(e.slot == -1);
+  REQUIRE(e.name_id == kFfiNoName);
+  REQUIRE(e.i0 == 0);
+  REQUIRE(e.flags == 0);
+
+  FfiAction a{};
+  REQUIRE(a.pivot_target == -1); // -1 = auto, never slot 0
+
+  REQUIRE(kFfiFlagStab == 1);
+  REQUIRE(kFfiFlagCrit == 2);
 }

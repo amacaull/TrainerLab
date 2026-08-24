@@ -9,9 +9,13 @@
 **Tests** : Catch2 v3
 **Données** : JSON (nlohmann/json)
 **Niveau de combat** : 100 (ADR #33)
-**Dernière MAJ** : 2026-08-21 (phase 16a — préparatifs FFI livrés : borne obsolète sur `invulnerable_state` corrigée, `ItemDamageEvent` purgé des noms de talents et de moves, registry de talents indexé et gelé, CMake rendu autonome/offline/PIC avec règles `install` — 240/240 tests. Reste 16b : l'exposition FFI elle-même, bloquée sur les décisions D2 et D5 à trancher avec Taj le 2026-08-22, voir `FFI-CONTRACT.md`)
+**Dernière MAJ** : 2026-08-24 (**phase 16b livrée — la surface FFI est complète.** Les huit décisions D1-D8 sont tranchées avec Taj (2026-08-22) et implémentées ; `FFI-CONTRACT.md` fait référence. Gels d'enums, sentinelles de Lutte, empreinte de catalogue, `FfiAction`/`FfiEvent`, `flatten`/`toAction` sur les 36 kinds, et les douze façades de combat — 262 tests, zéro warning. Reste côté Rust : bridge, `build.rs`, boucle de partie. Reste côté C++ : `legalActions` et le binding pybind11 du service IA)
+
+*Historique* : 2026-08-21 (phase 16a — préparatifs FFI livrés : borne obsolète sur `invulnerable_state` corrigée, `ItemDamageEvent` purgé des noms de talents et de moves, registry de talents indexé et gelé, CMake rendu autonome/offline/PIC avec règles `install` — 240/240 tests. Reste 16b : l'exposition FFI elle-même, bloquée sur les décisions D2 et D5 à trancher avec Taj le 2026-08-22, voir `FFI-CONTRACT.md`)
 
 *Historique* : 2026-07-28 (phase 15 terminée : 49 espèces + 95 moves générés et vérifiés, validateTeam, puissance au poids, suite d'intégration, legacy supprimé — 239/239 tests. Le catalogue est stable : le gel des index FFI peut avoir lieu. Le contrat BattleState de Taj est à régénérer au gel : +6 champs POD de la phase 14, `wish[2]`, et `legendary`/`mega` côté Species)*
+
+*Historique* : 2026-07-28 — voir ci-dessus.
 
 ---
 
@@ -275,32 +279,48 @@ Branche : `feat/battle-engine-ffi-prep`. **240 tests.** Tout ce qui devait être
 - ✅ `BATTLE_ENGINE_DATA_DIR` sort de `battle_engine_lib` (il n'était utilisé que par la démo et les tests) et va sur ces deux cibles via `BATTLE_ENGINE_DATA_PATH`
 - ✅ `POSITION_INDEPENDENT_CODE ON` (sans quoi le link dans une cdylib Rust échoue) + règles `install` pour que `build.rs` récupère `.a` et headers depuis `OUT_DIR`
 
-### Phase 16b — Exposition FFI  🔵 (bloquée sur D2 et D5, voir `FFI-CONTRACT.md`)
+### Phase 16b — Exposition FFI  ✅  (spec de référence : `FFI-CONTRACT.md`)
 
 > Changement d'architecture validé avec l'équipe 2026-05-19 : pas de REST, le moteur est embarqué dans le backend Rust via FFI. Le service IA Python parle au backend Rust.
 
-**Côté C++ (Alex) :**
-- ⬜ `FfiAction` et `FfiEvent` plats + conversions (`EventLog` est un `vector<variant<35>>` avec des `std::string` : rien de C-compatible). **Le vrai gros morceau, absent de la roadmap jusqu'ici** — mutualisé avec le binding pybind11 du service IA
-- ⬜ TU `src/ffi/ffi.cpp` : `engine_init(path)`, singletons `DataLoader`/`BattleEngine`, `validateState` en tête de chaque fonction exposée (ADR #13), try/catch en frontière
-- ⬜ `makeCombatant(species_id, level)` exposé (Rust ne doit pas reconstruire un `BattlePokemon` à la main) + export du catalogue (`id`, `id_string`, `displayName`) pour le front et l'IA
-- ⬜ `fasterSide(state, seed)` exposé — ordre des remplacements simultanés (D6)
-- ⬜ Audit layout C-compatible de `BattleState` (PP, objets, terrain, écrans, `teams[2][6]`, `wish[2]`)
-- ⬜ Tests C++ sur l'aller-retour event → `FfiEvent`
+**Les huit décisions, tranchées avec Taj le 2026-08-22 :**
 
-**Côté Rust (Taj) :**
-- ⬜ `#[cxx::bridge]`, fonctions déclarées `Result<T>` pour que les exceptions deviennent des `Err`
-- ⬜ `build.rs` + crate `cmake` (options tests/démo à OFF), link libstdc++/libc++
-- ⬜ `data/` embarqué dans l'image Docker, chemin passé à `engine_init`
+| | Décision | Retenu |
+|---|---|---|
+| D1 | crate FFI | `cxx` — la conversion exception → `Result::Err` vaut à elle seule le choix |
+| D2 | allocation du `BattleState` | Rust alloue, C++ mute en place (ADR #11 confirmé par prototype) |
+| D3 | obtention des index | `find_*_id()` cachés au démarrage + empreinte de catalogue (ADR #58) |
+| D4 | intégration build | `build.rs` + crate `cmake`, options tests/démo à OFF |
+| D5 | RNG | `seed: u64` par appel, `turn_seed = hash(battle_seed, state.turn)` dérivé par Rust |
+| D6 | remplacements simultanés | `faster_side(state, seed)` exposé, Rust ordonne |
+| D7 | durée de vie du `DataLoader` | singletons C++, `engine_init(path)` idempotent |
+| D8 | garantie forte | la frontière travaille sur une copie et ne commit qu'en sortie |
+
+**Livré (262 tests, zéro warning) :**
+- ✅ **Gels** : annotations « do not reorder » sur `StatIndex`, `Weather`, `Terrain`, `HazardKind` ; `SkipReason` passe en `: int` avec première valeur explicite — elle n'avait pas de type sous-jacent fixé alors qu'elle traverse dans `i0`
+- ✅ **Sentinelles de Lutte** : `-1` = aucun nom, `-2` = Lutte, `-3` = `StruggleRecoil`. Lutte est codée en dur (ADR #35) et n'a donc pas d'id de catalogue, mais `-1` était déjà pris
+- ✅ **`catalog_fingerprint()`** : FNV-1a 64 écrit à la main sur les quatre catalogues, séparateur `\0`. Valeur du catalogue livré : **`0x9848D2D3F76497E5`**, verrouillée par un test. Vérifiée par une seconde implémentation indépendante — ce qui a validé au passage l'ordre du registry de talents et l'hypothèse « ordre alphabétique des fichiers = ordre des ids »
+- ✅ **`FfiAction` / `FfiEvent`** plats, avec des défauts qui signifient *absent* (`-1`) et non *zéro* : un event mal rempli doit être visiblement vide, pas plausible et faux
+- ✅ **`convert.cpp`** : `toAction` et `flatten` sur les **36** kinds. La numérotation vient du tableau du §6 du contrat, **pas** de l'ordre du `variant` — les deux divergent, et un `static_assert` dépendant fait échouer la compilation si un type d'event arrive sans mapping
+- ✅ **Les douze façades** dans `ffi.cpp` : `species_entry`, `move_entry`, `make_combatant`, `validate_team`, `validate_state`, `start_battle`, `resolve_turn`, `resolve_replacement`, `faster_side`, `is_over`, `side_has_lost`, plus l'init et les catalogues de 16b-0
+- ✅ **D8 implémenté et testé** : après un tour rejeté, tour, PV et PP sont inchangés
+- ✅ **Préfixes d'erreur** (`E_INIT`, `E_DATA`, `E_ARG`, `E_STATE`, `E_TEAM`, `E_ACTION`) verrouillés par un test — une convention que rien ne compile devient un invariant
+- ✅ **`BattleEngine::fasterSide`** exposé pour D6. Piège associé documenté dans `engine.cpp` : la portée de classe primant sur celle du namespace, les six appels internes à la fonction libre homonyme doivent rester explicitement qualifiés
+- ✅ **Flags d'avertissement recentrés** sur nos cibles : `add_compile_options()` est global et atteignait aussi Catch2 et nlohmann, dont les warnings noyaient les nôtres
+
+**Reste côté Rust (Taj) :**
+- ⬜ `#[cxx::bridge]`, **toute fonction pouvant throw déclarée `Result<T>`** — sans quoi l'exception atteint le `noexcept` du shim généré et c'est `std::terminate`
+- ⬜ `engine_shim.cc` : adaptateur `rust::Str` ↔ `std::string` et `FfiEvent` → shared struct. Il vit dans la crate parce que `cmake::Config::build()` tourne avant `cxx_build::bridge()` dans `build.rs` : le header généré n'existe pas encore quand CMake compile `ffi.cpp`
+- ⬜ `build.rs` + crate `cmake`, **`.std("c++20")`** (le projet est en C++20 sans extensions)
+- ⬜ `data/` embarqué dans l'image Docker, chemin passé à `engine_init` ; `nlohmann-json3-dev` installé pour que `find_package` réussisse et qu'aucun clone GitHub n'ait lieu
 - ⬜ `serde` sur `BattleState` — définit *de facto* le schéma que le service IA Python lira aussi
 - ⬜ Boucle de partie complète, phase de remplacement incluse
 - ⬜ Tests d'intégration : rejouer un match scripté et comparer la séquence d'events à la démo C++ au même seed
 
-**Décisions à trancher (détail, argumentaire et recommandations dans `FFI-CONTRACT.md`) :**
-- ⬜ **D1** crate FFI · **D2** qui alloue le `BattleState` · **D3** obtention des index · **D4** intégration build
-- ⬜ **D5** comment le RNG traverse la frontière — *absent de la liste initiale, bloquant*
-- ⬜ **D6** ordre des remplacements simultanés · **D7** durée de vie du `DataLoader`
-- ⬜ **D8** garantie forte sur `BattleState` : la couche FFI travaille sur une copie et ne commit qu'en sortie, sinon un throw en milieu de `resolveTurn` laisse l'état de Rust à moitié écrit — *découvert en cartographiant les sites de throw*
-- ⬜ Convention d'erreurs : `cxx` ne transporte que `what()`, le **type** de l'exception est perdu. Préfixes stables (`E_STATE`, `E_TEAM`, `E_ACTION`, `E_DATA`) ou `FfiResult` typé ?
+### Phase 16c — Ce que la frontière n'expose pas encore  ⬜
+
+- ⬜ **`legalActions(state, side)`** : identifié comme nécessaire indépendamment par le front et par l'IA, toujours pas exposé. Sans lui, l'IA devine les actions légales ou duplique `checkAction` — ce que tout le contrat interdit
+- ⬜ **Binding pybind11** (ADR #52) : réutilise `convert.cpp` tel quel, il ne reste que la couche `py::class_`. Contrairement à `cxx`, pybind11 préserve le *type* de l'exception, donc le service IA n'a pas besoin des préfixes
 
 ### Phase 17 — Polish  ⬜
 
@@ -373,8 +393,8 @@ Branche : `feat/battle-engine-ffi-prep`. **240 tests.** Tout ce qui devait être
 | 49 | **Le catalogue livré est exactement le roster ; les instruments de test vivent hors de `data/`** | 18 des 19 moves devenus orphelins servaient de fixtures neutres aux tests (Tackle, Growl, Abri, Surf…) et aucun n'appartient à un movepool du roster. Les garder aurait fait entrer 19 moves injouables dans la table d'indices gelée en phase 16 — et les supprimer *après* le gel décalerait tous les indices suivants. Ils partent dans `tests/fixtures/moves/`, chargés par `loadExtraContent()` que seuls les tests appellent. Un test verrouille l'invariant : tout move livré appartient à au moins un movepool | 2026-07-28 |
 | 51 | **Catalogue de talents indexé, ordre d'enregistrement gelé** | jusqu'ici les talents étaient impliqués par l'espèce et ne traversaient jamais la frontière — mais `AbilityTriggeredEvent` et `AbilityDamageEvent` transportent un nom, qui devient un `ability_id` dans `FfiEvent`. Même raisonnement que l'ADR #45 pour les objets : `AbilityTable` ordonnée, append-only, map nom → index *dérivée* de la table (un nom ne peut pas dériver de son index, un doublon throw). L'ordre gelé est celui hérité des phases 13-14, figé maintenant parce que rien ne l'a encore consommé | 2026-08-21 |
 | 57 | **Le chemin de `data/` ne vit pas dans la lib ; aucun fallback** | `BATTLE_ENGINE_DATA_DIR` était une compile definition PUBLIC sur `battle_engine_lib` : un chemin absolu de machine de dev figé dans une archive statique que Rust linke. En Docker ça ne vaut rien, et surtout **un `data/` différent = des index différents** (ADR #12) : un repli silencieux ne crashe pas, il produit des `species_id` qui ne désignent plus les mêmes Pokémon, dans des `BattleState` déjà en base. `engine_init(path)` prend donc un chemin obligatoire et throw si le dossier manque. Le macro survit, mais seulement sur les cibles `demo` et `tests` | 2026-08-21 |
-| 58 | **(proposé)** Empreinte de catalogue vérifiée par Rust | corollaire défensif de l'ADR #57 et de l'ADR #12 : exposer `species_count`, `move_count` et un hash des noms *dans l'ordre*, que Rust stocke à la création d'une partie et revérifie au chargement. Sans ça, un `data/` modifié après coup réinterprète silencieusement les parties sauvegardées. À trancher avec Taj (D3) | 2026-08-21 |
-| 59 | **(proposé)** `FfiEvent` = une struct plate unique, pas 35 structs partagées | `EventLog` est un `vector<variant<35 types>>` avec des `std::string`. Aplatir en une struct à tag (`kind`, `side`, `slot`, `name_id`, `i0`, `i1`, `f0`, `flags`) fait perdre le typage fort mais simplifie massivement le pont — et le consommateur final (front TS) fait de toute façon un `switch` sur `kind`. Contrepartie obligatoire : un tableau documenté `kind` → sens de chaque champ, qui devient le contrat écrit. Aucun event ne porte deux `CombatantRef`, d'où un seul couple `side`/`slot`. À trancher (D2) | 2026-08-21 |
+| 58 | **Empreinte de catalogue vérifiée par Rust** | corollaire défensif de l'ADR #57 et de l'ADR #12 : exposer `species_count`, `move_count` et un hash des noms *dans l'ordre*, que Rust stocke à la création d'une partie et revérifie au chargement. Sans ça, un `data/` modifié après coup réinterprète silencieusement les parties sauvegardées. Retenu et implémenté : FNV-1a 64 écrit à la main (`std::hash` n'est stable ni entre plateformes ni entre versions de libstdc++), sur les quatre catalogues, séparateur `\0`. Valeur livrée `0x9848D2D3F76497E5`, verrouillée par un test pour que sa mise à jour reste un acte conscient | 2026-08-22 |
+| 59 | **`FfiEvent` = une struct plate unique, pas 36 structs partagées** | `EventLog` est un `vector<variant<36 types>>` avec des `std::string`. Aplatir en une struct à tag (`kind`, `side`, `slot`, `name_id`, `i0`, `i1`, `f0`, `flags`) fait perdre le typage fort mais simplifie massivement le pont — et le consommateur final (front TS) fait de toute façon un `switch` sur `kind`. Contrepartie obligatoire : un tableau documenté `kind` → sens de chaque champ, qui devient le contrat écrit. Aucun des 36 events ne porte deux `CombatantRef`, d'où un seul couple `side`/`slot`. Retenu. La numérotation des `kind` est celle du tableau, **pas** celle du `variant` : les deux divergent, et mapper par position repointerait tout le jour où quelqu'un réordonne le `variant` | 2026-08-22 |
 | 48 | **Bascule anglaise intégrale : moves, talents, objets, natures, espèces et clés de schéma en anglais canon** | Décision équipe : éliminer la classe d'erreurs des traductions approximatives (cf. ADR #47) ; le doc roster fournit les noms EN ; remplace le volet français de l'ADR #40 (PascalCase ASCII conservé) ; « Pudique » du doc équipe = Bold (+Déf/−Atk d'après leurs tables) ; indices d'objets gelés inchangés (seules les strings changent) | 2026-07-18 |
 
 ---

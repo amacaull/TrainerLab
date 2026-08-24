@@ -1,8 +1,9 @@
 # Contrat FFI — moteur de combat C++ ↔ backend Rust
 
 > **Document de référence.** Toutes les décisions de la session du 2026-08-22
-> y sont actées. Ce qui est marqué **gelé** ne bouge plus sans invalider les
-> parties déjà en base.
+> y sont actées, et **la totalité de la surface décrite ici est implémentée et
+> testée** côté C++ (262 tests). Ce qui est marqué **gelé** ne bouge plus sans
+> invalider les parties déjà en base.
 >
 > Numérotation des ADR : #52-56 sont réservés au service IA Python, d'où le
 > saut à #57.
@@ -469,6 +470,14 @@ Rust stocke la valeur à la création d'une partie et la revérifie au
 chargement. Un test C++ verrouille la valeur courante : la mettre à jour doit
 être un acte conscient, avec la question « et les parties en base ? » posée au
 bon moment.
+
+**Valeur du catalogue livré (49 / 95 / 13 / 45) : `0x9848D2D3F76497E5`.**
+
+Un détail qui a son importance : l'alimentation passe explicitement par
+`unsigned char`. Sur une plateforme où `char` est signé, un octet ≥ 0x80
+alimenterait sinon le hash différemment — et une empreinte non portable ne
+protège de rien. Aucun des 202 noms actuels n'est concerné, mais le premier
+nom accentué aurait fait diverger le Mac et le conteneur Docker.
 
 ### Ce qui se stocke en base
 

@@ -15,7 +15,8 @@ struct CombatantRef {
   int teamIndex; // 0..kTeamSize-1
 };
 
-enum class SkipReason { Asleep, Frozen, FullyParalyzed, Flinched };
+// Crosses the FFI boundary as int inside FfiEvent. Do not reorder.
+enum class SkipReason : int { Asleep = 0, Frozen, FullyParalyzed, Flinched };
 
 struct MoveUsedEvent {
   CombatantRef user;
