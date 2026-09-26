@@ -407,6 +407,41 @@ E_STATE: side 0 slot 2: pp[1] out of range [0, 15], got 20
 E_TEAM:  species clause violated (Snorlax appears twice)
 ```
 
+### Sous-codes `E_ACTION` — GELÉS
+
+`E_ACTION` est le seul préfixe qui remonte jusqu'au joueur : les cinq autres
+signalent un déploiement cassé, celui-ci signale un coup refusé en plein
+combat. Une phrase anglaise n'y suffit pas — le client doit pouvoir la
+traduire et griser le bouton fautif.
+
+Un refus d'action a donc la forme `E_ACTION:SOUS_CODE: <phrase>`, **sans
+espace avant le sous-code** : Rust découpe sur les deux premiers `:` et ne lit
+jamais la phrase, qui reste utile dans le log serveur.
+
+| Sous-code | Refus | Le front peut-il l'éviter ? |
+|---|---|---|
+| `CHOICE_LOCKED` | objet Choix : verrouillé sur une autre attaque | oui — `locked_move_id` traverse le pont |
+| `NO_PP` | plus de PP dans l'emplacement | oui |
+| `EMPTY_SLOT` | emplacement d'attaque vide | oui |
+| `BAD_SLOT` | `moveIndex` hors de 0-3 | oui |
+| `INVALID_SWITCH` | cible de changement illégale (actif, K.O., slot vide) | oui |
+| `FAINTED` | actif K.O. : `resolveReplacement` d'abord | oui |
+| `NOT_FAINTED` | `resolveReplacement` sur un actif debout | oui |
+| `BAD_SIDE` | camp hors de 0-1 | oui |
+| `BAD_KIND` | `FfiAction.kind` inconnu | oui |
+
+```
+E_ACTION:CHOICE_LOCKED: resolveTurn: side 1: choice-locked into another move
+E_ACTION:NO_PP: resolveTurn: side 0: no PP left in slot 2
+```
+
+Tous ces refus sont évitables côté client : aucun ne devrait atteindre un
+joueur en jeu normal. Quand l'un d'eux arrive, c'est que le front a proposé
+une action qu'il aurait dû griser — le sous-code dit laquelle. **Un `Err` reste
+donc un bug, pas une issue de partie** (§9.1).
+
+La liste est verrouillée par un test, au même titre que les préfixes.
+
 Faiblesse assumée : **un préfixe est une convention que rien ne compile.** Elle
 est donc verrouillée par un test C++ qui vérifie que tout message levé par la
 couche FFI commence par un préfixe de cette liste — la convention devient un

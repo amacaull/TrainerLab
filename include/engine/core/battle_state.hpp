@@ -56,4 +56,12 @@ struct BattleState {
   bool isOver() const { return sideHasLost(0) || sideHasLost(1); }
 };
 
+// True while that team slot still holds the field. EmergencyExit swaps a
+// Pokemon out in the middle of a move (ADR #47), so anything that captured a
+// CombatantRef before the damage landed must re-check before using it again:
+// remaining hits, secondary status, stat drops, item theft.
+inline bool stillOnField(const BattleState &state, int side, int teamIndex) {
+  return state.activeIndex[static_cast<size_t>(side)] == teamIndex;
+}
+
 } // namespace engine

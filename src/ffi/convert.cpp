@@ -309,7 +309,7 @@ Action toAction(const FfiAction &action) {
   case 1:
     return SwitchAction{action.index};
   default:
-    throw std::invalid_argument("E_ACTION: unknown action kind " +
+    throw std::invalid_argument("E_ACTION:BAD_KIND: unknown action kind " +
                                 std::to_string(static_cast<int>(action.kind)));
   }
 }

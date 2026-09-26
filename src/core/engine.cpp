@@ -413,6 +413,9 @@ void BattleEngine::executeAction(BattleState &state, int side, const Action &act
     effect->apply(ctx);
     if (ctx.moveFailed)
       break; // immunity or failed set: the rest of the chain doesn't run
+    if (!stillOnField(state, targetRef.side, targetRef.teamIndex))
+      break; // EmergencyExit pulled the target out: no status, no stat drop,
+             // no phazing aimed at a Pokemon that is no longer there
   }
 
   {
@@ -435,7 +438,8 @@ void BattleEngine::executeAction(BattleState &state, int side, const Action &act
         state.teams[static_cast<size_t>(targetRef.side)][static_cast<size_t>(targetRef.teamIndex)];
     if (const Ability *moverAbility = abilityOf(data_, mover)) {
       AbilityContext actx{state, data_, events, userRef};
-      if (!struck.isFainted())
+      // Magician must not lift an item off a Pokemon that left the field.
+      if (!struck.isFainted() && stillOnField(state, targetRef.side, targetRef.teamIndex))
         moverAbility->onAfterDamagingMove(actx, targetRef);
       if (struck.isFainted() && !mover.isFainted())
         moverAbility->onAfterKO(actx);
@@ -443,12 +447,24 @@ void BattleEngine::executeAction(BattleState &state, int side, const Action &act
   }
 }
 
+namespace {
+
+// FFI-CONTRACT.md section 9: the subcode is the only machine-readable part of
+// a refusal. cxx transports what() and loses the exception type, and an
+// English sentence is not something a client can translate or act on. The
+// sentence stays behind it, for the server log.
+[[noreturn]] void refuse(const char *code, const std::string &detail) {
+  throw std::invalid_argument(std::string(code) + ": " + detail);
+}
+
+} // namespace
+
 void BattleEngine::checkAction(const BattleState &state, int side, const Action &action) const {
   std::string where = "side " + std::to_string(side) + ": ";
 
   if (state.active(side).isFainted())
-    throw std::invalid_argument("resolveTurn: " + where +
-                                "active is fainted, resolveReplacement required first");
+    refuse("FAINTED",
+           "resolveTurn: " + where + "active is fainted, resolveReplacement required first");
 
   // Locked into a two-turn move: the action is ignored, accept anything.
   if (state.active(side).charging_move_id != kNoMove)
@@ -456,8 +472,8 @@ void BattleEngine::checkAction(const BattleState &state, int side, const Action 
 
   if (const auto *sw = std::get_if<SwitchAction>(&action)) {
     if (!isValidSwitchTarget(state, side, sw->teamIndex))
-      throw std::invalid_argument("resolveTurn: " + where + "invalid switch target " +
-                                  std::to_string(sw->teamIndex));
+      refuse("INVALID_SWITCH",
+             "resolveTurn: " + where + "invalid switch target " + std::to_string(sw->teamIndex));
     return;
   }
 
@@ -466,16 +482,16 @@ void BattleEngine::checkAction(const BattleState &state, int side, const Action 
   if (!canUseAnyMove(actor))
     return; // out of PP (lock included): the engine substitutes Struggle (ADR #35)
   if (useMove.moveIndex < 0 || useMove.moveIndex >= kMaxMovesPerPokemon)
-    throw std::invalid_argument("resolveTurn: " + where + "moveIndex out of range");
+    refuse("BAD_SLOT", "resolveTurn: " + where + "moveIndex out of range");
   if (state.active(side).move_ids[static_cast<size_t>(useMove.moveIndex)] == kNoMove)
-    throw std::invalid_argument("resolveTurn: " + where + "empty move slot " +
-                                std::to_string(useMove.moveIndex));
+    refuse("EMPTY_SLOT",
+           "resolveTurn: " + where + "empty move slot " + std::to_string(useMove.moveIndex));
   if (state.active(side).pp[static_cast<size_t>(useMove.moveIndex)] <= 0)
-    throw std::invalid_argument("resolveTurn: " + where + "no PP left in slot " +
-                                std::to_string(useMove.moveIndex));
+    refuse("NO_PP",
+           "resolveTurn: " + where + "no PP left in slot " + std::to_string(useMove.moveIndex));
   if (choiceLockActive(actor) &&
       actor.move_ids[static_cast<size_t>(useMove.moveIndex)] != actor.locked_move_id)
-    throw std::invalid_argument("resolveTurn: " + where + "choice-locked into another move");
+    refuse("CHOICE_LOCKED", "resolveTurn: " + where + "choice-locked into another move");
   // pivotTarget is not checked here: it may become stale mid-turn (target
   // faints); PivotEffect re-validates and falls back to auto.
 }
@@ -500,13 +516,13 @@ int BattleEngine::fasterSide(const BattleState &state, RNG &rng) const {
 
 EventLog BattleEngine::resolveReplacement(BattleState &state, int side, int teamIndex) const {
   if (side < 0 || side >= kSideCount)
-    throw std::invalid_argument("resolveReplacement: invalid side " + std::to_string(side));
+    refuse("BAD_SIDE", "resolveReplacement: invalid side " + std::to_string(side));
   if (!state.active(side).isFainted())
-    throw std::invalid_argument("resolveReplacement: side " + std::to_string(side) +
-                                " active is not fainted");
+    refuse("NOT_FAINTED",
+           "resolveReplacement: side " + std::to_string(side) + " active is not fainted");
   if (!isValidSwitchTarget(state, side, teamIndex))
-    throw std::invalid_argument("resolveReplacement: invalid target " + std::to_string(teamIndex) +
-                                " for side " + std::to_string(side));
+    refuse("INVALID_SWITCH", "resolveReplacement: invalid target " + std::to_string(teamIndex) +
+                                 " for side " + std::to_string(side));
 
   EventLog events;
   performSwitch(state, data_, side, teamIndex, events);

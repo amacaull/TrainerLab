@@ -292,6 +292,13 @@ void DamageEffect::apply(EffectContext &ctx) const {
     return;
   }
 
+  // The HP checks above can trigger EmergencyExit: nothing below still
+  // concerns a Pokemon that left the field. The contact punishment further up
+  // is deliberately left outside this guard — canon fires it on contact,
+  // before the switch.
+  if (!stillOnField(ctx.state, ctx.target.side, ctx.target.teamIndex))
+    return;
+
   // Canon: a damaging Fire move thaws a frozen target.
   if (damage > 0 && (move.type == Type::Fire || move.thawsUser) &&
       defender.status == Status::Freeze) {

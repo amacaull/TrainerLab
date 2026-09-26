@@ -862,3 +862,100 @@ TEST_CASE("the ability table is indexed and its order is frozen", "[ability][ffi
     REQUIRE(abilityByIndex(abilityCount()) == nullptr);
   }
 }
+
+// A move keeps a CombatantRef from before the damage landed. EmergencyExit is
+// the only thing in the roster that can move a Pokemon off the field in the
+// middle of one (ADR #47), so every case below runs through it.
+TEST_CASE("a move stops chasing a target that EmergencyExit pulled out", "[abilities13][midchain]") {
+  DataLoader data;
+  engine::test::loadAll(data);
+  overrideAbility(data, "Snorlax", "EmergencyExit");
+  BattleEngine engine(data);
+
+  auto duel = [&data](const std::string &attackerMove,
+                      const std::string &attacker = "Conkeldurr") {
+    BattleState state;
+    state.teams[0][0] = engine::test::buildCombatant(data, attacker, {attackerMove});
+    state.teams[1][0] = engine::test::buildCombatant(data, "Snorlax", {"Tackle"});
+    state.teams[1][1] = engine::test::buildCombatant(data, "Gyarados", {"Tackle"});
+    state.teams[1][2] = engine::test::buildCombatant(data, "Quagsire", {"Tackle"});
+    state.team_size = {1, 3};
+    return state;
+  };
+
+  SECTION("the volley stops instead of killing it on the bench") {
+    BattleState state = duel("PopulationBomb");
+    state.teams[1][0].currentHp = state.teams[1][0].stats.hp / 2 + 30;
+
+    FixedRNG rng(0.99f); // no crits; chancePct still hits (rangeInt returns min)
+    EventLog events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
+
+    REQUIRE(state.activeIndex[1] == 1); // fled to Gyarados
+    REQUIRE_FALSE(state.teams[1][0].isFainted());
+
+    // Nothing may hit slot {1,0} once it has left.
+    bool left = false;
+    for (const auto &ev : events) {
+      if (std::get_if<SwitchedOutEvent>(&ev))
+        left = true;
+      if (left)
+        if (const auto *d = std::get_if<DamageDealtEvent>(&ev))
+          REQUIRE_FALSE((d->target.side == 1 && d->target.teamIndex == 0));
+    }
+  }
+
+  SECTION("the secondary status does not land on the bench") {
+    BattleState state = duel("Scald");
+    state.teams[1][0].currentHp = state.teams[1][0].stats.hp / 2 + 30;
+
+    FixedRNG rng(0.0f); // every secondary fires
+    engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
+
+    REQUIRE(state.activeIndex[1] == 1);
+    REQUIRE(state.teams[1][0].status == Status::None); // Snorlax left before the burn
+    REQUIRE(state.teams[1][1].status == Status::None); // and Gyarados never took the hit
+  }
+
+  SECTION("DragonTail phazes once, not twice") {
+    BattleState state = duel("DragonTail");
+    state.teams[1][0].currentHp = state.teams[1][0].stats.hp / 2 + 30;
+
+    FixedRNG rng(0.99f);
+    EventLog events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
+
+    int switchedIn = 0;
+    for (const auto &ev : events)
+      if (const auto *s = std::get_if<SwitchedInEvent>(&ev))
+        if (s->who.side == 1)
+          ++switchedIn;
+    REQUIRE(switchedIn == 1); // EmergencyExit only; ForceSwitch must not re-phaze
+  }
+
+  // The control that matters as much as the rest: above half nothing changes,
+  // so a guard that is too wide fails here rather than silently.
+  SECTION("above half the move runs to the end as before") {
+    BattleState state = duel("Scald");
+    FixedRNG rng(0.0f);
+    engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
+
+    REQUIRE(state.activeIndex[1] == 0);            // nobody fled
+    REQUIRE(state.teams[1][0].status == Status::Burn); // the secondary landed
+  }
+
+  SECTION("above half the whole volley lands") {
+    // Blissey barely scratches, so ten hits never take Snorlax past half and
+    // EmergencyExit never fires. With Conkeldurr the volley crosses the
+    // threshold around hit 8 and the guard legitimately cuts it short — which
+    // is the behaviour the sections above assert.
+    BattleState state = duel("PopulationBomb", "Blissey");
+    FixedRNG rng(0.99f);
+    EventLog events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
+
+    int hits = 0;
+    for (const auto &ev : events)
+      if (const auto *d = std::get_if<DamageDealtEvent>(&ev))
+        if (d->target.side == 1)
+          ++hits;
+    REQUIRE(hits == 10); // PopulationBomb is a fixed ten
+  }
+}

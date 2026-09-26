@@ -55,6 +55,8 @@ void MultiHitEffect::apply(EffectContext &ctx) const {
   DamageEffect damage;
   int landed = 0;
   for (int i = 0; i < hits; ++i) {
+    if (!stillOnField(ctx.state, ctx.target.side, ctx.target.teamIndex))
+      break; // EmergencyExit fled mid-volley: the rest does not chase it
     BattlePokemon &defender = monAt(ctx, ctx.target);
     if (defender.isFainted())
       break;

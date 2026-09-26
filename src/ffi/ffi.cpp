@@ -47,6 +47,17 @@ const BattleEngine &engine() {
 
 // Prefix rewriting is the only channel Rust has: cxx transports what() and
 // loses the exception type (FFI-CONTRACT.md section 9).
+// E_ACTION refusals already start with their subcode, so the prefix is joined
+// without a space: Rust splits on the first two ':' and never reads the
+// sentence behind them (FFI-CONTRACT.md section 9).
+template <typename F> void rethrowAction(F &&f) {
+  try {
+    f();
+  } catch (const std::exception &e) {
+    throw std::invalid_argument("E_ACTION:" + std::string(e.what()));
+  }
+}
+
 template <typename F> void rethrowAs(const char *prefix, F &&f) {
   try {
     f();
@@ -223,7 +234,7 @@ std::vector<FfiEvent> resolve_turn(BattleState &state, FfiAction a0, FfiAction a
   BattleState scratch = state;
   MersenneRNG rng(seed);
   EventLog events;
-  rethrowAs("E_ACTION", [&] { events = engine().resolveTurn(scratch, p0, p1, rng); });
+  rethrowAction([&] { events = engine().resolveTurn(scratch, p0, p1, rng); });
   std::vector<FfiEvent> flat = flatten(events);
   state = scratch;
   return flat;
@@ -233,7 +244,7 @@ std::vector<FfiEvent> resolve_replacement(BattleState &state, int side, int team
   validate_state(state);
   BattleState scratch = state;
   EventLog events;
-  rethrowAs("E_ACTION", [&] { events = engine().resolveReplacement(scratch, side, team_index); });
+  rethrowAction([&] { events = engine().resolveReplacement(scratch, side, team_index); });
   std::vector<FfiEvent> flat = flatten(events);
   state = scratch;
   return flat;

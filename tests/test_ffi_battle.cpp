@@ -198,3 +198,37 @@ TEST_CASE("every error crossing the boundary carries a known prefix", "[ffi][bat
     REQUIRE(matched);
   }
 }
+
+TEST_CASE("every action refusal carries a frozen subcode", "[ffi][battle]") {
+  ensureInit();
+  // E_ACTION is the only prefix that reaches a player, so its subcode is a
+  // contract (FFI-CONTRACT.md section 9). A convention nothing compiles is a
+  // convention that drifts; this test is the lock.
+  BattleState s = duel("Dragapult", "Snorlax");
+  start_battle(s, 42);
+
+  BattleState fainted = duel("Dragapult", "Snorlax");
+  fainted.teams[0][0].currentHp = 0;
+
+  const std::pair<const char *, std::string> cases[] = {
+      {"E_ACTION:BAD_KIND:",
+       messageOf([&] { return resolve_turn(s, FfiAction{9, 0, -1}, FfiAction{0, 0, -1}, 1); })},
+      {"E_ACTION:BAD_SLOT:",
+       messageOf([&] { return resolve_turn(s, FfiAction{0, 7, -1}, FfiAction{0, 0, -1}, 1); })},
+      {"E_ACTION:INVALID_SWITCH:",
+       messageOf([&] { return resolve_turn(s, FfiAction{1, 5, -1}, FfiAction{0, 0, -1}, 1); })},
+      {"E_ACTION:FAINTED:",
+       messageOf([&] { return resolve_turn(fainted, FfiAction{0, 0, -1}, FfiAction{0, 0, -1}, 1); })},
+      {"E_ACTION:NOT_FAINTED:", messageOf([&] { return resolve_replacement(s, 0, 1); })},
+      {"E_ACTION:BAD_SIDE:", messageOf([&] { return resolve_replacement(s, 7, 0); })},
+  };
+
+  for (const auto &[expected, actual] : cases) {
+    INFO(actual);
+    REQUIRE(startsWith(actual, expected));
+  }
+
+  // No space after the prefix: Rust splits on the first two ':'.
+  const std::string msg = cases[0].second;
+  REQUIRE(msg.find("E_ACTION: ") == std::string::npos);
+}
