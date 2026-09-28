@@ -17,5 +17,6 @@
       "delta": 1,
       "affectsUser": true
     }
-  ]
+  ],
+  "selfOrField": true
 }

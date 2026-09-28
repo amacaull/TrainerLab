@@ -4,7 +4,7 @@
   "category": "Physical",
   "power": 90,
   "accuracy": 100,
-  "pp": 5,
+  "pp": 10,
   "contact": true,
   "effects": [
     {

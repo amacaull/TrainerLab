@@ -9,6 +9,11 @@
   "effects": [
     {
       "kind": "Damage"
+    },
+    {
+      "kind": "ApplyStatus",
+      "status": "Freeze",
+      "chance": 10
     }
   ]
 }

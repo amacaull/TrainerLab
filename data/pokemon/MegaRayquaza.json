@@ -19,7 +19,7 @@
     "speed": 252
   },
   "weight": 392.0,
-  "legendary": false,
+  "legendary": true,
   "mega": true,
   "movepool": [
     "DragonDance",

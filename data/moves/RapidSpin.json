@@ -12,8 +12,13 @@
     {
       "kind": "ClearHazards",
       "scope": "user"
+    },
+    {
+      "kind": "StatChange",
+      "stat": "Spe",
+      "delta": 1,
+      "affectsUser": true
     }
   ],
-  "contact": true,
-  "selfOrField": true
+  "contact": true
 }

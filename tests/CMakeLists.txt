@@ -21,6 +21,7 @@ add_executable(battle_engine_tests
     test_ffi.cpp
     test_ffi_convert.cpp
     test_ffi_battle.cpp
+    test_fuzz.cpp
 )
 
 target_link_libraries(battle_engine_tests PRIVATE battle_engine_lib Catch2::Catch2WithMain)

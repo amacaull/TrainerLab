@@ -19,7 +19,7 @@
   },
   "weight": 0.3,
   "item": "LifeOrb",
-  "legendary": false,
+  "legendary": true,
   "movepool": [
     "NastyPlot",
     "Psyshock",

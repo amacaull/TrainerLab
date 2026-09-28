@@ -20,7 +20,7 @@
   },
   "weight": 58.2,
   "item": "ChoiceScarf",
-  "legendary": false,
+  "legendary": true,
   "movepool": [
     "CloseCombat",
     "BraveBird",

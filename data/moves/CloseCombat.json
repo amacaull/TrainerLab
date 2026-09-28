@@ -8,6 +8,18 @@
   "effects": [
     {
       "kind": "Damage"
+    },
+    {
+      "kind": "StatChange",
+      "stat": "Def",
+      "delta": -1,
+      "affectsUser": true
+    },
+    {
+      "kind": "StatChange",
+      "stat": "SpD",
+      "delta": -1,
+      "affectsUser": true
     }
   ],
   "contact": true

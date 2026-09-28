@@ -1,0 +1,7 @@
+{
+  "name": "showdown-diff",
+  "private": true,
+  "type": "module",
+  "scripts": { "diff": "node showdown-diff.mjs ../.." },
+  "dependencies": { "@pkmn/dex": "^0.10.0" }
+}

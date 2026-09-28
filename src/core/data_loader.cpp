@@ -85,7 +85,8 @@ EffectPtr makeEffectFromJson(const json &j) {
   if (kind == "StatChange") {
     StatIndex stat = statIndexFromString(j.at("stat").get<std::string>());
     int delta = j.at("delta").get<int>();
-    bool affectsUser = j.value("target", std::string("user")) == "user";
+    bool affectsUser =
+        j.value("affectsUser", false) || j.value("target", std::string("target")) == "user";
     return std::make_unique<StatChangeEffect>(stat, delta, affectsUser);
   }
   if (kind == "Pivot")

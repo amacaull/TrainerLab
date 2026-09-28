@@ -20,7 +20,7 @@
   },
   "weight": 22.2,
   "item": "LifeOrb",
-  "legendary": false,
+  "legendary": true,
   "movepool": [
     "SpectralThief",
     "CloseCombat",

@@ -20,7 +20,7 @@
   },
   "weight": 61.0,
   "item": "LifeOrb",
-  "legendary": false,
+  "legendary": true,
   "movepool": [
     "NastyPlot",
     "Thunder",

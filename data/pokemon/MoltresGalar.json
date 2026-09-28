@@ -20,7 +20,7 @@
   },
   "weight": 66.0,
   "item": "HeavyDutyBoots",
-  "legendary": false,
+  "legendary": true,
   "movepool": [
     "NastyPlot",
     "FieryWrath",

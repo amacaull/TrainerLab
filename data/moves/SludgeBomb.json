@@ -10,6 +10,11 @@
   "effects": [
     {
       "kind": "Damage"
+    },
+    {
+      "kind": "ApplyStatus",
+      "status": "Poison",
+      "chance": 30
     }
   ]
 }

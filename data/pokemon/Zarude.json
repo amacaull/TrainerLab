@@ -20,7 +20,7 @@
   },
   "weight": 70.0,
   "item": "ChoiceBand",
-  "legendary": false,
+  "legendary": true,
   "movepool": [
     "PowerWhip",
     "KnockOff",

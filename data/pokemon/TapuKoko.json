@@ -20,7 +20,7 @@
   },
   "weight": 20.5,
   "item": "ChoiceScarf",
-  "legendary": false,
+  "legendary": true,
   "movepool": [
     "Thunder",
     "DazzlingGleam",

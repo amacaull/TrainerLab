@@ -20,7 +20,7 @@
   },
   "weight": 490.0,
   "item": "ChoiceSpecs",
-  "legendary": false,
+  "legendary": true,
   "movepool": [
     "Psyshock",
     "DarkPulse",

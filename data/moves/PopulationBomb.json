@@ -14,5 +14,6 @@
     {
       "kind": "MultiHit"
     }
-  ]
+  ],
+  "slicing": true
 }

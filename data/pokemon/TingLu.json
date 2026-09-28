@@ -20,7 +20,7 @@
   },
   "weight": 699.7,
   "item": "Leftovers",
-  "legendary": false,
+  "legendary": true,
   "movepool": [
     "StealthRock",
     "Earthquake",

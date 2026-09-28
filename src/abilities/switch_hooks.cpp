@@ -35,10 +35,12 @@ public:
     BattlePokemon &p = selfOf(ctx);
     if (p.status == Status::None)
       return;
+    const Status cured = p.status;
     p.status = Status::None;
     p.status_turns = 0;
     p.sleep_self_inflicted = 0;
     ctx.events.emplace_back(AbilityTriggeredEvent{ctx.self, name()});
+    ctx.events.emplace_back(StatusCuredEvent{ctx.self, cured});
   }
 };
 

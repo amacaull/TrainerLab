@@ -9,5 +9,6 @@
     {
       "kind": "Damage"
     }
-  ]
+  ],
+  "contact": true
 }

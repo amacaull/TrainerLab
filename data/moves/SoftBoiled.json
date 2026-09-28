@@ -9,5 +9,6 @@
       "kind": "Recovery",
       "denominator": 2
     }
-  ]
+  ],
+  "selfOrField": true
 }

@@ -10,6 +10,13 @@
   "effects": [
     {
       "kind": "Damage"
+    },
+    {
+      "kind": "StatChange",
+      "stat": "SpD",
+      "delta": -1,
+      "target": "target",
+      "chance": 20
     }
   ]
 }
