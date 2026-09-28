@@ -1,6 +1,5 @@
 // Random battles through the FFI surface, checked against invariants rather
 // than expected values. Scale with FUZZ_BATTLES=<n>; FUZZ_SEED=<s> replays.
-#include "engine/core/data_loader.hpp"
 #include "engine/ffi/ffi.hpp"
 
 #include <catch2/catch_test_macros.hpp>
@@ -100,39 +99,9 @@ Ledger ledgerOf(const BattleState &s) {
   return l;
 }
 
-const DataLoader &catalog() {
-  static DataLoader data = [] {
-    DataLoader d;
-    d.loadAll(BATTLE_ENGINE_DATA_DIR);
-    return d;
-  }();
-  return data;
-}
-
-// PP rules the frontend has to apply on top of MoveUsed: Pressure bills two
-// for a protectable move, a two-turn move pays on its charge turn, and the
-// move Sleep Talk calls is free.
-void payPp(Mirror &m, const BattlePokemon &p, int moveId, const BattlePokemon &foe, int foeHp) {
-  const Move &mv = catalog().moveByIndex(moveId);
-  int bill = 1;
-  if (foeHp > 0 && (mv.blockedByProtect || mv.bypassesProtect) &&
-      catalog().speciesByIndex(foe.species_id).ability == "Pressure")
-    bill = 2;
-  for (size_t k = 0; k < p.move_ids.size(); ++k)
-    if (p.move_ids[k] == moveId) {
-      m.pp[k] = std::max(0, m.pp[k] - bill);
-      return;
-    }
-}
-
-void replay(Ledger &l, const BattleState &before, const BattleState &s,
-            const std::vector<FfiEvent> &ev) {
-  std::array<int, kSideCount> active = before.activeIndex;
-  std::array<std::array<bool, kTeamSize>, kSideCount> freeMove{};
+void replay(Ledger &l, const BattleState &s, const std::vector<FfiEvent> &ev) {
   const FfiEvent *prev = nullptr;
   for (const FfiEvent &e : ev) {
-    if (e.kind == 12)
-      active[size_t(e.side)] = e.slot;
     if (e.side < 0 || e.slot < 0) {
       prev = &e;
       continue;
@@ -140,22 +109,14 @@ void replay(Ledger &l, const BattleState &before, const BattleState &s,
     Mirror &m = l[size_t(e.side)][size_t(e.slot)];
     const BattlePokemon &p = s.teams[size_t(e.side)][size_t(e.slot)];
     const int foeSide = 1 - e.side;
-    const BattlePokemon &foe = s.teams[size_t(foeSide)][size_t(active[size_t(foeSide)])];
-    const int foeHp = l[size_t(foeSide)][size_t(active[size_t(foeSide)])].hp;
-    bool &calledFree = freeMove[size_t(e.side)][size_t(e.slot)];
     switch (e.kind) {
     case 0:
-      if (e.name_id < 0) // Struggle has no slot
-        break;
-      if (calledFree || before.teams[size_t(e.side)][size_t(e.slot)].charging_move_id == e.name_id)
-        calledFree = false;
-      else
-        payPp(m, p, e.name_id, foe, foeHp);
-      if (catalog().moveByIndex(e.name_id).usableWhileAsleep)
-        calledFree = true;
-      break;
-    case 24:
-      payPp(m, p, e.name_id, foe, foeHp);
+    case 24: // MoveUsed / Charging carry the PP actually spent in i0
+      for (size_t k = 0; k < p.move_ids.size(); ++k)
+        if (e.i0 > 0 && p.move_ids[k] == e.name_id) {
+          m.pp[k] -= e.i0;
+          break;
+        }
       break;
     case 1: case 6: case 17: case 19: case 23: case 28: case 35:
       m.hp = std::max(0, m.hp - e.i0);
@@ -233,7 +194,6 @@ struct Fuzzer {
   // Calls fn, checks what it produced; false when the battle cannot go on.
   template <typename F>
   bool step(BattleState &s, uint64_t seed, const char *what, F &&fn) {
-    const BattleState stateBefore = s;
     const Ledger before = ledgerOf(s);
     std::vector<FfiEvent> ev;
     try {
@@ -255,7 +215,7 @@ struct Fuzzer {
         report("event: " + bad, seed, s.turn, describe(ev));
     }
     Ledger l = before;
-    replay(l, stateBefore, s, ev);
+    replay(l, s, ev);
     for (int side = 0; side < kSideCount; ++side)
       for (int i = 0; i < kTeam; ++i) {
         const Mirror real = mirrorOf(s.teams[size_t(side)][size_t(i)]);

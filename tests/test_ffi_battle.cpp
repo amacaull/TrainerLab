@@ -232,3 +232,35 @@ TEST_CASE("every action refusal carries a frozen subcode", "[ffi][battle]") {
   const std::string msg = cases[0].second;
   REQUIRE(msg.find("E_ACTION: ") == std::string::npos);
 }
+
+TEST_CASE("MoveUsed and Charging carry the PP actually spent in i0", "[ffi][battle]") {
+  ensureInit();
+  auto first = [](const std::vector<FfiEvent> &ev, uint8_t kind, int side) {
+    for (const FfiEvent &e : ev)
+      if (e.kind == kind && e.side == side)
+        return e;
+    FAIL("no event of kind " << int(kind) << " for side " << side);
+    return FfiEvent{};
+  };
+
+  SECTION("a move aimed at a Pressure holder costs two") {
+    BattleState s = duel("Dragapult", "Corviknight");
+    start_battle(s, 1);
+    const int before = s.active(0).pp[0];
+    auto ev = resolve_turn(s, FfiAction{0, 0, -1}, FfiAction{0, 2, -1}, 1);
+    const FfiEvent used = first(ev, 0, 0);
+    REQUIRE(used.i0 == 2);
+    REQUIRE(before - s.active(0).pp[0] == used.i0);
+  }
+
+  SECTION("a two-turn move pays on its charge turn, the release is free") {
+    BattleState s = duel("Dragapult", "Snorlax");
+    start_battle(s, 1);
+    const int before = s.active(0).pp[1];
+    auto charge = resolve_turn(s, FfiAction{0, 1, -1}, FfiAction{0, 0, -1}, 1);
+    REQUIRE(first(charge, 24, 0).i0 == 1);
+    auto release = resolve_turn(s, FfiAction{0, 1, -1}, FfiAction{0, 0, -1}, 2);
+    REQUIRE(first(release, 0, 0).i0 == 0);
+    REQUIRE(before - s.active(0).pp[1] == 1);
+  }
+}

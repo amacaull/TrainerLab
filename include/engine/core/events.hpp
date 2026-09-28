@@ -21,6 +21,7 @@ enum class SkipReason : int { Asleep = 0, Frozen, FullyParalyzed, Flinched };
 struct MoveUsedEvent {
   CombatantRef user;
   std::string moveName;
+  int ppSpent = 0; // 2 against Pressure; 0 for a release, Struggle or a called move
 };
 
 struct DamageDealtEvent {
@@ -203,6 +204,7 @@ struct ItemKnockedOffEvent {
 struct ChargingEvent {
   CombatantRef who;
   std::string moveName;
+  int ppSpent = 0; // a two-turn move pays on its charge turn
 };
 
 struct ProtectedEvent {

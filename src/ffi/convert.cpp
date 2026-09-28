@@ -119,6 +119,7 @@ FfiEvent flattenOne(const BattleEvent &ev) {
         if constexpr (std::is_same_v<T, MoveUsedEvent>) {
           FfiEvent f = make(kMoveUsed, e.user);
           f.name_id = requireMoveId(e.moveName);
+          f.i0 = e.ppSpent;
           return f;
 
         } else if constexpr (std::is_same_v<T, DamageDealtEvent>) {
@@ -238,6 +239,7 @@ FfiEvent flattenOne(const BattleEvent &ev) {
         } else if constexpr (std::is_same_v<T, ChargingEvent>) {
           FfiEvent f = make(kCharging, e.who);
           f.name_id = requireMoveId(e.moveName);
+          f.i0 = e.ppSpent;
           return f;
 
         } else if constexpr (std::is_same_v<T, ProtectedEvent>) {

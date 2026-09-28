@@ -265,6 +265,7 @@ void BattleEngine::executeAction(BattleState &state, int side, const Action &act
 
   // PP burns when the move executes (ADR #35): a skipped turn doesn't pay,
   // a miss or failure does; a two-turn move pays on its charge turn only.
+  int ppSpent = 0;
   if (ppSlot >= 0) {
     int bill = 1;
     // Pressure: targeting its holder costs one extra PP.
@@ -275,7 +276,9 @@ void BattleEngine::executeAction(BattleState &state, int side, const Action &act
           bill = 2;
       }
     }
-    user.pp[static_cast<size_t>(ppSlot)] = std::max(0, user.pp[static_cast<size_t>(ppSlot)] - bill);
+    const int ppBefore = user.pp[static_cast<size_t>(ppSlot)];
+    user.pp[static_cast<size_t>(ppSlot)] = std::max(0, ppBefore - bill);
+    ppSpent = ppBefore - user.pp[static_cast<size_t>(ppSlot)];
     // Choice items lock onto the first move actually used, hit or miss.
     if (const Item *item = heldItem(user)) {
       if (item->locksMove() && user.locked_move_id == kNoMove)
@@ -289,7 +292,7 @@ void BattleEngine::executeAction(BattleState &state, int side, const Action &act
   // Charge turn of a two-turn move; SolarBeam skips it under the sun.
   if (!releasing && move.twoTurn != TwoTurn::None &&
       !(move.solarCharge && state.weather == Weather::Sun)) {
-    events.emplace_back(ChargingEvent{userRef, move.name});
+    events.emplace_back(ChargingEvent{userRef, move.name, ppSpent});
     user.charging_move_id = moveId;
     user.invulnerable_state = (move.twoTurn == TwoTurn::Fly)         ? 1
                               : (move.twoTurn == TwoTurn::Dig)       ? 2
@@ -298,7 +301,7 @@ void BattleEngine::executeAction(BattleState &state, int side, const Action &act
     return;
   }
 
-  events.emplace_back(MoveUsedEvent{userRef, move.name});
+  events.emplace_back(MoveUsedEvent{userRef, move.name, ppSpent});
   user.destiny_bond_active = 0; // the bond holds until the next action only
 
   const BattlePokemon &target = state.active(otherSide);
