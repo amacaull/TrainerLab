@@ -17,7 +17,7 @@ TEST_CASE("Flamethrower on Zarude is super-effective", "[damage]") {
 
   BattleState state;
   state.teams[0][0] = buildCombatant(data, "Infernape", {"Flamethrower"});
-  state.teams[1][0] = buildCombatant(data, "Zarude", {"VineWhip"}); // Dark/Grass: x2
+  state.teams[1][0] = buildCombatant(data, "Zarude", {"VineWhip"});
   state.team_size = {1, 1};
 
   BattleEngine engine(data);
@@ -60,8 +60,6 @@ TEST_CASE("Charizard outspeeds Venusaur", "[order]") {
   REQUIRE(firstMove->user.side == 0);
 }
 
-// Gengar holds Levitate, which voids Earthquake; the Ground
-// coverage check moved to Pikachu (Electric, 2x weak).
 TEST_CASE("Earthquake on Pikachu is super-effective (Ground vs Electric)", "[damage][types]") {
   DataLoader data;
   engine::test::loadAll(data);

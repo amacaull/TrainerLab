@@ -3,7 +3,6 @@
 #include "engine/core/battle_state.hpp"
 
 namespace engine {
-
 void FlinchEffect::apply(EffectContext &ctx) const {
   BattlePokemon &target =
       ctx.state
@@ -12,5 +11,4 @@ void FlinchEffect::apply(EffectContext &ctx) const {
     return;
   target.flinched = 1;
 }
-
 } // namespace engine

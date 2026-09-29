@@ -1,9 +1,7 @@
 #include "engine/abilities/registration.hpp"
 
 namespace engine {
-
 namespace {
-
 class HugePower final : public Ability {
 public:
   const char *name() const override { return "HugePower"; }
@@ -61,7 +59,6 @@ public:
   const char *name() const override { return "VesselOfRuin"; }
   float opposingSpAMultiplier() const override { return 0.75f; }
 };
-
 } // namespace
 
 void registerDamageModAbilities(AbilityTable &table) {
@@ -83,5 +80,4 @@ void registerDamageModAbilities(AbilityTable &table) {
   add(unaware);
   add(vesselOfRuin);
 }
-
 } // namespace engine

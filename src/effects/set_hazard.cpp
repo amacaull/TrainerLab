@@ -4,7 +4,6 @@
 #include "engine/model/move.hpp"
 
 namespace engine {
-
 void SetHazardEffect::apply(EffectContext &ctx) const {
   int side = 1 - ctx.user.side;
   SideHazards &hz = ctx.state.hazards[static_cast<size_t>(side)];
@@ -36,5 +35,4 @@ void SetHazardEffect::apply(EffectContext &ctx) const {
   *counter += 1;
   ctx.events.emplace_back(HazardSetEvent{side, hazard_, *counter});
 }
-
 } // namespace engine

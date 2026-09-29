@@ -14,7 +14,6 @@ using namespace engine;
 using engine::test::buildCombatant;
 
 namespace {
-
 BattleState makeValidState(const DataLoader &data) {
   BattleState state;
   state.teams[0][0] = buildCombatant(data, "Infernape", {"Flamethrower"});
@@ -23,7 +22,6 @@ BattleState makeValidState(const DataLoader &data) {
   state.activeIndex = {0, 0};
   return state;
 }
-
 } // namespace
 
 TEST_CASE("validateState accepts a valid state", "[validate]") {

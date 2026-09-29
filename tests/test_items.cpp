@@ -17,7 +17,6 @@ using namespace engine;
 using engine::test::buildCombatant;
 
 namespace {
-
 template <typename E> int countEvents(const EventLog &events) {
   int n = 0;
   for (const auto &ev : events)
@@ -47,14 +46,13 @@ void give(BattlePokemon &p, const DataLoader &data, const char *item) {
   p.item_id = data.findItemId(item);
   REQUIRE(p.item_id >= 0);
 }
-
 } // namespace
 
-TEST_CASE("Item catalog: stable code-side ids, name lookup (ADR #45)", "[phase11][catalog]") {
+TEST_CASE("Item catalog: stable code-side ids, name lookup", "[items][catalog]") {
   REQUIRE(itemCount() == 13);
   REQUIRE(findItemIdByName("LifeOrb") == 0); // frozen order: append-only
   REQUIRE(findItemIdByName("LightClay") == 12);
-  REQUIRE(findItemIdByName("Restes") == -1); // the French era is over (ADR #48)
+  REQUIRE(findItemIdByName("Restes") == -1);
   for (int i = 0; i < itemCount(); ++i) {
     REQUIRE(itemByIndex(i) != nullptr);
     REQUIRE(findItemIdByName(itemByIndex(i)->name()) == i);
@@ -64,7 +62,7 @@ TEST_CASE("Item catalog: stable code-side ids, name lookup (ADR #45)", "[phase11
   REQUIRE(data.findItemId("Leftovers") == 1);
 }
 
-TEST_CASE("LifeOrb: x1.3 on damage, 10% max-HP bill after the hit", "[phase11][orbevie]") {
+TEST_CASE("LifeOrb: x1.3 on damage, 10% max-HP bill after the hit", "[items][lifeorb]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -86,7 +84,7 @@ TEST_CASE("LifeOrb: x1.3 on damage, 10% max-HP bill after the hit", "[phase11][o
   REQUIRE(orbSelf == state.teams[0][0].stats.hp / 10);
 }
 
-TEST_CASE("LifeOrb stays quiet on a status move", "[phase11][orbevie]") {
+TEST_CASE("LifeOrb stays quiet on a status move", "[items][lifeorb]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -99,7 +97,7 @@ TEST_CASE("LifeOrb stays quiet on a status move", "[phase11][orbevie]") {
 }
 
 TEST_CASE("Leftovers heals 1/16 in the residual window, before the poison ticks",
-          "[phase11][restes]") {
+          "[items][leftovers]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -122,16 +120,14 @@ TEST_CASE("Leftovers heals 1/16 in the residual window, before the poison ticks"
   }
   REQUIRE(healIdx >= 0);
   REQUIRE(poisonIdx > healIdx); // canon: Leftovers before the status damage
-  // net: +hp/16 then -hp/8
   REQUIRE(lax.currentHp == lax.stats.hp - 100 + lax.stats.hp / 16 - lax.stats.hp / 8);
 }
 
-TEST_CASE("BlackSludge: heals its Poison-type holder, hurts anyone else", "[phase11][detritus]") {
+TEST_CASE("BlackSludge: heals its Poison-type holder, hurts anyone else", "[items][blacksludge]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
 
-  // Gengar is Ghost/Poison: 1/16 heal.
   auto state = makeDuel(data, "MegaGengar", {"SwordsDance"}, "Conkeldurr", {"Growl"});
   give(state.teams[0][0], data, "BlackSludge");
   state.teams[0][0].currentHp -= 100;
@@ -140,7 +136,6 @@ TEST_CASE("BlackSludge: heals its Poison-type holder, hurts anyone else", "[phas
   REQUIRE(state.teams[0][0].currentHp ==
           state.teams[0][0].stats.hp - 100 + state.teams[0][0].stats.hp / 16);
 
-  // Snorlax is not: 1/8 chip.
   auto state2 = makeDuel(data, "Snorlax", {"Growl"}, "Conkeldurr", {"SwordsDance"});
   give(state2.teams[0][0], data, "BlackSludge");
   auto events = engine.resolveTurn(state2, UseMove{0}, UseMove{0}, rng);
@@ -150,7 +145,7 @@ TEST_CASE("BlackSludge: heals its Poison-type holder, hurts anyone else", "[phas
 }
 
 TEST_CASE("FlameOrb burns its holder after the residuals (no tick that turn)",
-          "[phase11][orbeflamme]") {
+          "[items][flameorb]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -161,26 +156,24 @@ TEST_CASE("FlameOrb burns its holder after the residuals (no tick that turn)",
   FixedRNG rng(0.99f);
   auto t1 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(state.teams[0][0].status == Status::Burn);
-  REQUIRE(countEvents<StatusDamageEvent>(t1) == 0); // activates last: burn ticks next turn
+  REQUIRE(countEvents<StatusDamageEvent>(t1) == 0);
   REQUIRE(state.teams[0][0].currentHp == state.teams[0][0].stats.hp);
 
   auto t2 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(countEvents<StatusDamageEvent>(t2) == 1);
 }
 
-TEST_CASE("FlameOrb respects type immunity and existing statuses", "[phase11][orbeflamme]") {
+TEST_CASE("FlameOrb respects type immunity and existing statuses", "[items][flameorb]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
 
-  // Fire-type: never burned.
   auto state = makeDuel(data, "Infernape", {"SwordsDance"}, "Snorlax", {"Growl"});
   give(state.teams[0][0], data, "FlameOrb");
   FixedRNG rng(0.99f);
   engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(state.teams[0][0].status == Status::None);
 
-  // Already statused: the orb stays quiet.
   auto state2 = makeDuel(data, "Conkeldurr", {"SwordsDance"}, "Snorlax", {"Growl"});
   give(state2.teams[0][0], data, "FlameOrb");
   state2.teams[0][0].status = Status::Paralysis;
@@ -188,7 +181,7 @@ TEST_CASE("FlameOrb respects type immunity and existing statuses", "[phase11][or
   REQUIRE(state2.teams[0][0].status == Status::Paralysis);
 }
 
-TEST_CASE("SitrusBerry pops when crossing 50%, heals 25%, once", "[phase11][sitrus]") {
+TEST_CASE("SitrusBerry pops when crossing 50%, heals 25%, once", "[items][sitrus]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -196,7 +189,7 @@ TEST_CASE("SitrusBerry pops when crossing 50%, heals 25%, once", "[phase11][sitr
   auto state = makeDuel(data, "Snorlax", {"Growl"}, "Conkeldurr", {"Tackle"});
   give(state.teams[0][0], data, "SitrusBerry");
   BattlePokemon &lax = state.teams[0][0];
-  lax.currentHp = lax.stats.hp / 2 + 20; // just above the threshold
+  lax.currentHp = lax.stats.hp / 2 + 20;
 
   FixedRNG rng(0.99f);
   auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
@@ -207,13 +200,12 @@ TEST_CASE("SitrusBerry pops when crossing 50%, heals 25%, once", "[phase11][sitr
   REQUIRE(lax.item_consumed == 1);
   REQUIRE(lax.currentHp == lax.stats.hp / 2 + 20 - dealt + lax.stats.hp / 4);
 
-  // Eaten: a second crossing does nothing.
   lax.currentHp = lax.stats.hp / 2 + 20;
   auto t2 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(countEvents<ItemConsumedEvent>(t2) == 0);
 }
 
-TEST_CASE("FocusSash: survives a lethal hit at 1 HP, from full HP only", "[phase11][ceinture]") {
+TEST_CASE("FocusSash: survives a lethal hit at 1 HP, from full HP only", "[items][sash]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -227,7 +219,6 @@ TEST_CASE("FocusSash: survives a lethal hit at 1 HP, from full HP only", "[phase
   REQUIRE(state.teams[0][0].item_consumed == 1);
   REQUIRE(countEvents<ItemConsumedEvent>(events) == 1);
 
-  // Chipped beforehand: the sash stays quiet and the holder goes down.
   auto state2 = makeDuel(data, "Weavile", {"Growl"}, "Conkeldurr", {"CloseCombat"});
   give(state2.teams[0][0], data, "FocusSash");
   state2.teams[0][0].currentHp -= 1;
@@ -237,7 +228,7 @@ TEST_CASE("FocusSash: survives a lethal hit at 1 HP, from full HP only", "[phase
 }
 
 TEST_CASE("Choice items: x1.5 on their stat and a lock on the first move used",
-          "[phase11][choix]") {
+          "[items][choice]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -263,7 +254,7 @@ TEST_CASE("Choice items: x1.5 on their stat and a lock on the first move used",
   REQUIRE_NOTHROW(engine.resolveTurn(s2, UseMove{0}, UseMove{0}, rng));
 }
 
-TEST_CASE("The Choice lock ends on switch-out", "[phase11][choix]") {
+TEST_CASE("The Choice lock ends on switch-out", "[items][choice]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -282,7 +273,7 @@ TEST_CASE("The Choice lock ends on switch-out", "[phase11][choix]") {
   REQUIRE(state.teams[0][0].locked_move_id == kNoMove);
 }
 
-TEST_CASE("ChoiceScarf flips the turn order", "[phase11][choix]") {
+TEST_CASE("ChoiceScarf flips the turn order", "[items][choice]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -303,7 +294,7 @@ TEST_CASE("ChoiceScarf flips the turn order", "[phase11][choix]") {
   REQUIRE(firstMover(true) == 0);  // ...until the scarf (x1.5 -> 412) flips it
 }
 
-TEST_CASE("Locked into a dry slot: Struggle takes over", "[phase11][choix]") {
+TEST_CASE("Locked into a dry slot: Struggle takes over", "[items][choice]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -311,7 +302,7 @@ TEST_CASE("Locked into a dry slot: Struggle takes over", "[phase11][choix]") {
   auto state = makeDuel(data, "Conkeldurr", {"CloseCombat", "Tackle"}, "Snorlax", {"Growl"});
   give(state.teams[0][0], data, "ChoiceBand");
   state.teams[0][0].locked_move_id = state.teams[0][0].move_ids[0];
-  state.teams[0][0].pp[0] = 0; // dry locked slot; Tackle still has PP
+  state.teams[0][0].pp[0] = 0;
 
   FixedRNG rng(0.99f);
   auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
@@ -324,7 +315,7 @@ TEST_CASE("Locked into a dry slot: Struggle takes over", "[phase11][choix]") {
   REQUIRE(state.teams[0][0].pp[1] == 35);
 }
 
-TEST_CASE("ThickClub doubles the Attack stat", "[phase11][massue]") {
+TEST_CASE("ThickClub doubles the Attack stat", "[items][thickclub]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -343,7 +334,7 @@ TEST_CASE("ThickClub doubles the Attack stat", "[phase11][massue]") {
   REQUIRE(clubbed > static_cast<int>(static_cast<float>(plain) * 1.9f));
 }
 
-TEST_CASE("HeavyDutyBoots: entry hazards don't apply at all", "[phase11][bottes]") {
+TEST_CASE("HeavyDutyBoots: entry hazards don't apply at all", "[items][boots]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -351,7 +342,7 @@ TEST_CASE("HeavyDutyBoots: entry hazards don't apply at all", "[phase11][bottes]
   auto run = [&](bool withBoots) {
     BattleState state;
     state.teams[0][0] = buildCombatant(data, "Gyarados", {"Growl"});
-    state.teams[0][1] = buildCombatant(data, "Excadrill", {"Tackle"}); // grounded
+    state.teams[0][1] = buildCombatant(data, "Excadrill", {"Tackle"});
     state.teams[1][0] = buildCombatant(data, "Aerodactyl", {"StealthRock", "Spikes"});
     state.team_size = {2, 1};
     if (withBoots)
@@ -367,7 +358,7 @@ TEST_CASE("HeavyDutyBoots: entry hazards don't apply at all", "[phase11][bottes]
   REQUIRE(run(true) == 0);
 }
 
-TEST_CASE("validateState checks the item invariants", "[phase11][validate]") {
+TEST_CASE("validateState checks the item invariants", "[items][validate]") {
   DataLoader data;
   engine::test::loadAll(data);
 
@@ -379,15 +370,15 @@ TEST_CASE("validateState checks the item invariants", "[phase11][validate]") {
   REQUIRE_THROWS_AS(validateState(state, data), std::invalid_argument);
   state.teams[0][0].item_id = kNoItem;
 
-  state.teams[0][0].item_consumed = 1; // consumed without an item
+  state.teams[0][0].item_consumed = 1;
   REQUIRE_THROWS_AS(validateState(state, data), std::invalid_argument);
   state.teams[0][0].item_consumed = 0;
 
-  state.teams[0][0].locked_move_id = 9999; // matches none of the moves
+  state.teams[0][0].locked_move_id = 9999;
   REQUIRE_THROWS_AS(validateState(state, data), std::invalid_argument);
 }
 
-TEST_CASE("Integration: Cran + FlameOrb, the Betochef combo on Machamp", "[phase11][integration]") {
+TEST_CASE("Integration: Cran + FlameOrb, the Betochef combo on Machamp", "[items][integration]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -411,5 +402,5 @@ TEST_CASE("Integration: Cran + FlameOrb, the Betochef combo on Machamp", "[phase
 
   int plain = damageOnTurn2(false);
   int gutsy = damageOnTurn2(true);
-  REQUIRE(gutsy > static_cast<int>(static_cast<float>(plain) * 1.4f)); // x1.5, no halving
+  REQUIRE(gutsy > static_cast<int>(static_cast<float>(plain) * 1.4f));
 }

@@ -15,10 +15,7 @@
 #include <vector>
 
 namespace engine {
-
 namespace {
-
-// Blaze / Torrent / Overgrow: x1.5 on same-type moves when HP <= 1/3.
 class PinchAbility : public Ability {
 public:
   PinchAbility(const char *name, Type boosted) : name_(name), boosted_(boosted) {}
@@ -56,8 +53,6 @@ public:
   }
 };
 
-// Sand Stream / Drizzle: set the matching weather on switch-in (5 turns,
-// gen 6+); silent no-op if that weather is already up (canon).
 class WeatherAbility : public Ability {
 public:
   WeatherAbility(const char *name, Weather weather) : name_(name), weather_(weather) {}
@@ -77,7 +72,6 @@ private:
   Weather weather_;
 };
 
-// Guts: Atk x1.5 on physical moves while statused; burn halving ignored.
 class Guts : public Ability {
 public:
   const char *name() const override { return "Guts"; }
@@ -91,7 +85,6 @@ public:
   bool ignoresBurnPenalty() const override { return true; }
 };
 
-// Thick Fat: halves incoming Fire and Ice damage.
 class ThickFat : public Ability {
 public:
   const char *name() const override { return "ThickFat"; }
@@ -103,7 +96,6 @@ public:
 
 constexpr float kStaticChance = 0.30f;
 
-// Static: 30% to paralyze on contact (type immunities respected).
 class Static : public Ability {
 public:
   const char *name() const override { return "Static"; }
@@ -127,7 +119,6 @@ public:
   }
 };
 
-// Rough Skin: attacker loses 1/8 max HP on contact (can KO, canon).
 class RoughSkin : public Ability {
 public:
   const char *name() const override { return "RoughSkin"; }
@@ -149,14 +140,10 @@ public:
       ctx.events.emplace_back(FaintedEvent{attacker});
   }
 };
-
 } // namespace
 
 namespace {
-
-// FROZEN ORDER (ADR #45, extended to abilities). Position == ability id, and
-// that id crosses the FFI in the event stream. Append only, at the end of a
-// family; never reorder.
+// Frozen order: the position is the ability id, which crosses the FFI. Append only.
 const AbilityTable &abilityTable() {
   static const AbilityTable table = [] {
     static const PinchAbility blaze{"Blaze", Type::Fire};
@@ -196,7 +183,6 @@ const AbilityTable &abilityTable() {
   return table;
 }
 
-// Derived from the table, so a name can never drift from its index.
 const std::unordered_map<std::string, int> &abilityIndex() {
   static const std::unordered_map<std::string, int> index = [] {
     std::unordered_map<std::string, int> m;
@@ -209,7 +195,6 @@ const std::unordered_map<std::string, int> &abilityIndex() {
   }();
   return index;
 }
-
 } // namespace
 
 const Ability *abilityByIndex(int id) {
@@ -242,11 +227,10 @@ void abilityHpCheck(BattleState &state, const DataLoader &data, const CombatantR
   BattlePokemon &p = state.teams[static_cast<size_t>(who.side)][static_cast<size_t>(who.teamIndex)];
   int half = p.stats.hp / 2;
   if (p.isFainted() || hpBefore <= half || p.currentHp > half)
-    return; // no crossing this time
+    return;
   if (const Ability *ability = abilityOf(data, p)) {
     AbilityContext ctx{state, data, events, who};
     ability->onHalfHpCrossed(ctx, fromDirectHit);
   }
 }
-
 } // namespace engine

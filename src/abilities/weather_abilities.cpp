@@ -3,12 +3,7 @@
 #include "engine/core/battle_state.hpp"
 
 namespace engine {
-
 namespace {
-
-// Snow setter: the shared WeatherAbility pattern lives in ability.cpp with
-// the legacy setters; this one adds the "fails under Delta Stream" guard
-// that every setter now needs, so all of them route through here eventually.
 class SnowWarning final : public Ability {
 public:
   const char *name() const override { return "SnowWarning"; }
@@ -35,9 +30,6 @@ public:
   }
 };
 
-// Delta Stream (ADR #47): presence-bound weather. No countdown; normal
-// setters fail against it; it clears when the holder leaves the field
-// (handled in performSwitch, faint included).
 class DeltaStream final : public Ability {
 public:
   const char *name() const override { return "DeltaStream"; }
@@ -71,7 +63,6 @@ public:
     return state.weather == Weather::Sun;
   }
 };
-
 } // namespace
 
 void registerWeatherAbilities(AbilityTable &table) {
@@ -91,5 +82,4 @@ void registerWeatherAbilities(AbilityTable &table) {
   add(slushRush);
   add(leafGuard);
 }
-
 } // namespace engine

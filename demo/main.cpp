@@ -15,7 +15,6 @@
 using namespace engine;
 
 namespace {
-
 BattlePokemon buildCombatant(const DataLoader &data, const std::string &speciesName,
                              const std::vector<std::string> &moveNames) {
   BattlePokemon p;
@@ -353,7 +352,6 @@ void runMechanicsShowcase(const DataLoader &data, const BattleEngine &engine) {
     std::cout << "\n";
   }
 }
-
 } // namespace
 
 int main() {

@@ -10,11 +10,8 @@
 #include "engine/model/pokemon.hpp"
 
 namespace engine {
-
 namespace {
-
-// Sleep Clause: at most one sleeping (non-fainted) Pokemon per side.
-// Rest sleep is exempt: only opponent-induced sleep counts (ADR #28).
+// Sleep Clause: one opponent-induced sleeper per side; Rest does not count (canon).
 bool sideHasSleeper(const BattleState &state, int side) {
   int size = state.team_size[static_cast<size_t>(side)];
   const auto &team = state.teams[static_cast<size_t>(side)];
@@ -25,7 +22,6 @@ bool sideHasSleeper(const BattleState &state, int side) {
   }
   return false;
 }
-
 } // namespace
 
 void ApplyStatusEffect::apply(EffectContext &ctx) const {
@@ -37,17 +33,15 @@ void ApplyStatusEffect::apply(EffectContext &ctx) const {
 
   const Species &sp = ctx.data.speciesByIndex(target.species_id);
 
-  // Type-chart immunity also blocks status moves (ThunderWave vs Ground).
   bool chartImmune = ctx.data.typeChart().effectiveness(ctx.move.type, sp.type1, sp.type2) == 0.0f;
 
   // Canon: nothing can be frozen under harsh sunlight.
   bool sunBlocksFreeze = (status_ == Status::Freeze && ctx.state.weather == Weather::Sun);
 
-  // Electric Terrain keeps grounded Pokemon awake (ADR #38).
+  // Electric Terrain keeps grounded Pokemon awake (canon).
   bool terrainBlocksSleep =
       (status_ == Status::Sleep && ctx.state.terrain == Terrain::Electric && isGrounded(sp));
 
-  // LeafGuard: no status at all under the sun.
   const Ability *targetAbility = abilityOf(ctx.data, target);
   bool abilityBlocks = targetAbility && targetAbility->blocksStatus(ctx.state);
 
@@ -64,5 +58,4 @@ void ApplyStatusEffect::apply(EffectContext &ctx) const {
   target.sleep_self_inflicted = 0;
   ctx.events.emplace_back(StatusAppliedEvent{ctx.target, status_});
 }
-
 } // namespace engine

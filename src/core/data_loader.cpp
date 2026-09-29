@@ -33,9 +33,7 @@ namespace fs = std::filesystem;
 using nlohmann::json;
 
 namespace engine {
-
 namespace {
-
 StatIndex statIndexFromString(const std::string &s) {
   if (s == "Atk")
     return StatIndex::Atk;
@@ -56,8 +54,7 @@ StatIndex statIndexFromString(const std::string &s) {
 
 using KeyList = std::vector<std::string_view>;
 
-// A key the loader does not know is a typo, not an option: an ignored
-// "affectsUser" once sent six secondary drops onto the wrong Pokemon.
+// Unknown keys and values are typos, not options: refuse them.
 void requireKnownKeys(const json &j, const KeyList &allowed, const std::string &where) {
   for (const auto &item : j.items()) {
     if (std::find(allowed.begin(), allowed.end(), item.key()) == allowed.end())
@@ -70,7 +67,6 @@ void requireOneOf(const std::string &value, const KeyList &allowed, const std::s
     throw std::invalid_argument(where + ": unexpected value '" + value + "'");
 }
 
-// Keys each effect kind reads, on top of "kind" and "chance".
 KeyList effectKeys(const std::string &kind) {
   if (kind == "StatChange")
     return {"kind", "chance", "stat", "delta", "affectsUser", "target"};
@@ -90,7 +86,6 @@ KeyList effectKeys(const std::string &kind) {
     return {"kind", "chance", "weather"};
   return {"kind", "chance"};
 }
-
 } // namespace
 
 EffectPtr makeEffectFromJson(const json &j) {
@@ -169,7 +164,6 @@ EffectPtr makeEffectFromJson(const json &j) {
 }
 
 namespace {
-
 json readJsonFile(const fs::path &p) {
   std::ifstream f(p);
   if (!f)
@@ -179,8 +173,7 @@ json readJsonFile(const fs::path &p) {
   return j;
 }
 
-// Sort filenames so catalog indices are stable across runs.
-// FFI clients (Rust) cache ids at startup; same data must yield same ids.
+// Sorted: catalog ids must be stable across runs, Rust caches them.
 std::vector<fs::path> sortedJsonFiles(const fs::path &dir) {
   std::vector<fs::path> files;
   for (auto &entry : fs::directory_iterator(dir)) {
@@ -190,7 +183,6 @@ std::vector<fs::path> sortedJsonFiles(const fs::path &dir) {
   std::sort(files.begin(), files.end());
   return files;
 }
-
 } // namespace
 
 void DataLoader::loadAll(const std::string &dataDir) {
@@ -292,7 +284,7 @@ void DataLoader::loadMoves(const std::string &dir) {
     m.slicing = j.value("slicing", false);
     m.bulletproof = j.value("bulletproof", false);
     m.reflectable = j.value("reflectable", false);
-    m.pp = j.at("pp").get<int>(); // mandatory: every move burns PP (ADR #35)
+    m.pp = j.at("pp").get<int>();
     if (j.contains("accuracyInWeather")) {
       for (const auto &[w, acc] : j.at("accuracyInWeather").items()) {
         m.accuracyInWeather.emplace_back(weatherFromString(w), acc.get<int>());
@@ -306,9 +298,7 @@ void DataLoader::loadMoves(const std::string &dir) {
     m.bypassesProtect = j.value("bypassesProtect", false);
     m.hitsDig = j.value("hitsDig", false);
     m.solarCharge = j.value("solarCharge", false);
-    // Protect blocks moves aimed at the protected Pokemon (all damaging moves
-    // and foe-targeting status moves). Self/field moves (hazards, weather,
-    // recovery, self-boosts) pass through: flag them with "selfOrField": true.
+    // Protect blocks every move except those flagged selfOrField.
     bool selfOrField = j.value("selfOrField", false);
     m.blockedByProtect = !selfOrField;
     const std::string twoTurn = j.value("twoTurn", std::string(""));
@@ -323,7 +313,6 @@ void DataLoader::loadMoves(const std::string &dir) {
     if (j.contains("effects")) {
       for (const auto &e : j.at("effects")) {
         EffectPtr effect = makeEffectFromJson(e);
-        // "chance": 30 wraps the effect as a 30% secondary (ADR #26).
         if (e.contains("chance")) {
           float p = e.at("chance").get<float>() / 100.0f;
           effect = std::make_unique<SecondaryEffect>(p, std::move(effect));
@@ -459,5 +448,4 @@ int DataLoader::findAbilityId(const std::string &name) const { return findAbilit
 bool DataLoader::isValidItemId(int id) const { return id >= 0 && id < itemCount(); }
 
 bool DataLoader::isValidAbilityId(int id) const { return id >= 0 && id < abilityCount(); }
-
 } // namespace engine

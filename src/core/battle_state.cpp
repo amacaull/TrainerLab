@@ -1,7 +1,6 @@
 #include "engine/core/battle_state.hpp"
 
 namespace engine {
-
 bool BattleState::sideHasLost(int side) const {
   int size = team_size[static_cast<size_t>(side)];
   if (size <= 0)
@@ -13,5 +12,4 @@ bool BattleState::sideHasLost(int side) const {
   }
   return true;
 }
-
 } // namespace engine

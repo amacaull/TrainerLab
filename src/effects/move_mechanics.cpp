@@ -12,9 +12,7 @@
 #include <algorithm>
 
 namespace engine {
-
 namespace {
-
 BattlePokemon &monAt(EffectContext &ctx, const CombatantRef &ref) {
   return ctx.state.teams[static_cast<size_t>(ref.side)][static_cast<size_t>(ref.teamIndex)];
 }
@@ -30,7 +28,6 @@ void failMove(EffectContext &ctx) {
   ctx.events.emplace_back(MoveFailedEvent{ctx.user, ctx.move.name});
   ctx.moveFailed = true;
 }
-
 } // namespace
 
 void MultiHitEffect::apply(EffectContext &ctx) const {
@@ -41,9 +38,9 @@ void MultiHitEffect::apply(EffectContext &ctx) const {
   if (!move.hitPowers.empty()) {
     hits = static_cast<int>(move.hitPowers.size());
   } else if (move.minHits == move.maxHits) {
-    hits = move.minHits; // fixed count (DragonDarts 2, PopulationBomb 10)
+    hits = move.minHits;
   } else {
-    // Canon 2-5 distribution: 35/35/15/15. LoadedDice: floor raised to 4.
+    // Canon 2-5 distribution: 35/35/15/15. LoadedDice raises the floor to 4.
     if (dice) {
       hits = 4 + (ctx.rng.chance(0.5f) ? 1 : 0);
     } else {
@@ -56,12 +53,11 @@ void MultiHitEffect::apply(EffectContext &ctx) const {
   int landed = 0;
   for (int i = 0; i < hits; ++i) {
     if (!stillOnField(ctx.state, ctx.target.side, ctx.target.teamIndex))
-      break; // EmergencyExit fled mid-volley: the rest does not chase it
+      break; // EmergencyExit fled mid-volley
     BattlePokemon &defender = monAt(ctx, ctx.target);
     if (defender.isFainted())
       break;
-    // Per-hit accuracy retest (PopulationBomb, TripleAxel). LoadedDice
-    // guarantees every hit (team rule). The engine already rolled hit 1.
+    // Hit 1 was already rolled by the engine. LoadedDice guarantees every hit.
     if (move.perHitAccuracy && i > 0 && !dice) {
       if (!ctx.rng.chancePct(move.accuracy)) {
         ctx.events.emplace_back(MissedEvent{ctx.user, ctx.move.name});
@@ -73,13 +69,13 @@ void MultiHitEffect::apply(EffectContext &ctx) const {
     damage.apply(ctx);
     ctx.powerOverride = 0;
     if (ctx.moveFailed)
-      break; // immunity: no further hits
+      break;
     if (ctx.lastDamageDealt > 0)
       ++landed;
   }
   ctx.multiHitIndex = -1;
   if (landed == 0 && !ctx.moveFailed)
-    ctx.moveFailed = true; // every hit blocked (Disguise alone): chain stops
+    ctx.moveFailed = true;
 }
 
 void DrainEffect::apply(EffectContext &ctx) const {
@@ -166,7 +162,7 @@ void KnockOffEffect::apply(EffectContext &ctx) const {
   if (item == nullptr)
     return;
   ctx.events.emplace_back(ItemKnockedOffEvent{ctx.target, item->name()});
-  target.item_id = kNoItem; // gone for the whole battle; the Choice lock dies with it
+  target.item_id = kNoItem;
 }
 
 void HazardOnHitEffect::apply(EffectContext &ctx) const {
@@ -211,7 +207,7 @@ void SleepTalkEffect::apply(EffectContext &ctx) const {
       continue;
     const Move &m = ctx.data.moveByIndex(mid);
     if (m.usableWhileAsleep || m.twoTurn != TwoTurn::None)
-      continue; // no SleepTalk-ception, no charge moves (canon-lite)
+      continue;
     candidates[n++] = mid;
   }
   if (n == 0) {
@@ -220,15 +216,13 @@ void SleepTalkEffect::apply(EffectContext &ctx) const {
   }
   const int calledId = candidates[ctx.rng.rangeInt(0, n - 1)];
   ctx.events.emplace_back(MoveUsedEvent{ctx.user, ctx.data.moveByIndex(calledId).name});
-  // The engine runs the called move through its full hit pipeline (Protect,
-  // immunities, invulnerability, accuracy) once this chain returns.
+  // The engine runs the called move through its full hit pipeline.
   ctx.calledMoveId = calledId;
 }
 
 void DestinyBondEffect::apply(EffectContext &ctx) const {
   BattlePokemon &user = monAt(ctx, ctx.user);
-  // Chained casts fail (canon gen 7+): last_move_id is set by the engine
-  // after each executed move, so it already names this move on a repeat.
+  // last_move_id already names this move on a repeat.
   if (user.last_move_id != kNoMove && &ctx.data.moveByIndex(user.last_move_id) == &ctx.move) {
     failMove(ctx);
     return;
@@ -243,8 +237,7 @@ void WishEffect::apply(EffectContext &ctx) const {
     return;
   }
   const BattlePokemon &user = monAt(ctx, ctx.user);
-  ctx.state.wish_turns[static_cast<size_t>(side)] = 2; // heals at the end of next turn
+  ctx.state.wish_turns[static_cast<size_t>(side)] = 2;
   ctx.state.wish_heal[static_cast<size_t>(side)] = std::max(1, user.stats.hp / 2);
 }
-
 } // namespace engine

@@ -12,10 +12,8 @@
 using namespace engine::ffi;
 
 namespace {
-
-// engine_init installs a process-wide singleton (D7) and Catch2 randomises
-// test order, so every case warms it up itself. That is exactly what the
-// idempotence contract is for.
+// engine_init installs a process-wide singleton and Catch2 randomises the order, so every case
+// warms it up itself.
 void ensureInit() { engine_init(BATTLE_ENGINE_DATA_DIR); }
 
 // Returns what() instead of the exception so the prefix can be asserted
@@ -32,7 +30,6 @@ template <typename F> std::string messageOf(F &&f) {
 bool startsWith(const std::string &s, const char *prefix) {
   return s.rfind(prefix, 0) == 0;
 }
-
 } // namespace
 
 TEST_CASE("engine_init is idempotent and rejects a second data dir", "[ffi][init]") {
@@ -65,12 +62,12 @@ TEST_CASE("a missing data dir is reported, not crashed on", "[ffi][init]") {
 
 TEST_CASE("catalog sizes match the shipped content", "[ffi][catalog]") {
   ensureInit();
-  // Fixture moves live outside data/ (ADR #49): engine_init never loads them,
-  // so these are the numbers Rust will cache.
+  // Fixture moves live outside data/: engine_init never loads them, so these are the numbers Rust
+  // will cache.
   REQUIRE(species_count() == 49);
   REQUIRE(move_count() == 95);
-  REQUIRE(item_count() == 13);   // ADR #45
-  REQUIRE(ability_count() == 45); // ADR #51
+  REQUIRE(item_count() == 13);
+  REQUIRE(ability_count() == 45);
 }
 
 TEST_CASE("every id round-trips through its name", "[ffi][catalog]") {
@@ -141,9 +138,8 @@ TEST_CASE("an out-of-range id is a caller bug and throws E_ARG", "[ffi][catalog]
 
 TEST_CASE("ids stay dense and stable across the boundary", "[ffi][catalog]") {
   ensureInit();
-  // Sanity anchors: if data/ gains or loses a file, these move. That is the
-  // whole point of ADR #58 (catalog fingerprint) - the ids are only valid for
-  // one shape of data/.
+  // Sanity anchors: if data/ gains or loses a file these move, and the catalog fingerprint must
+  // change with them.
   REQUIRE(find_species_id(species_id_string(0)) == 0);
   REQUIRE(find_species_id(species_id_string(species_count() - 1)) == species_count() - 1);
   REQUIRE(find_ability_id("Blaze") == 0);
@@ -152,8 +148,8 @@ TEST_CASE("ids stay dense and stable across the boundary", "[ffi][catalog]") {
 
 TEST_CASE("the Struggle sentinels are distinct from 'no name'", "[ffi][catalog]") {
   ensureInit();
-  // Struggle is hardcoded (ADR #35): it has no catalog entry, so a lookup
-  // legitimately misses and the flattener must not treat that as an error.
+  // Struggle has no catalog entry: a lookup legitimately misses and the flattener must not treat
+  // that as an error.
   REQUIRE(find_move_id("Struggle") == -1);
   REQUIRE(find_ability_id("StruggleRecoil") == -1);
 
@@ -175,12 +171,8 @@ TEST_CASE("the catalog fingerprint is stable and content-sensitive", "[ffi][cata
   }
 
   SECTION("it locks the shipped catalog") {
-    // 49 species / 95 moves / 13 items / 45 abilities.
-    //
-    // Updating this constant must be a deliberate act: when it moves, every
-    // BattleState already in the database is reinterpreted (ADR #58, ADR #12).
-    // If this fails after adding content, that is the question to answer
-    // before touching the number - not a value to refresh on reflex.
+    // Updating this constant must be a deliberate act: every BattleState already in the database
+    // becomes unreadable.
     constexpr uint64_t kShippedCatalog = 0x9848D2D3F76497E5ULL;
     INFO("actual fingerprint: 0x" << std::hex << catalog_fingerprint());
     REQUIRE(catalog_fingerprint() == kShippedCatalog);

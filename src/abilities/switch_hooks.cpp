@@ -6,9 +6,7 @@
 #include <algorithm>
 
 namespace engine {
-
 namespace {
-
 BattlePokemon &selfOf(AbilityContext &ctx) {
   return ctx.state
       .teams[static_cast<size_t>(ctx.self.side)][static_cast<size_t>(ctx.self.teamIndex)];
@@ -44,16 +42,15 @@ public:
   }
 };
 
-// EmergencyExit auto-switches to the first healthy benched teammate when
-// crossing below half HP. Canon lets the player pick; a stateless
-// resolveTurn cannot ask mid-turn, so the divergence is assumed (ADR #47).
+// Auto-switches to the first healthy teammate: canon lets the player pick, but a single resolveTurn
+// call cannot ask mid-turn.
 class EmergencyExit final : public Ability {
 public:
   const char *name() const override { return "EmergencyExit"; }
   void onHalfHpCrossed(AbilityContext &ctx, bool /*fromDirectHit*/) const override {
     int side = ctx.self.side;
     if (ctx.state.activeIndex[static_cast<size_t>(side)] != ctx.self.teamIndex)
-      return; // already benched (pivoted out mid-chain)
+      return;
     int target = firstHealthyBenched(ctx.state, side);
     if (target < 0)
       return;
@@ -61,7 +58,6 @@ public:
     performSwitch(ctx.state, ctx.data, side, target, ctx.events);
   }
 };
-
 } // namespace
 
 void registerSwitchHookAbilities(AbilityTable &table) {
@@ -73,5 +69,4 @@ void registerSwitchHookAbilities(AbilityTable &table) {
   add(naturalCure);
   add(emergencyExit);
 }
-
 } // namespace engine

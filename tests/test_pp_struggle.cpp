@@ -16,7 +16,6 @@ using namespace engine;
 using engine::test::buildCombatant;
 
 namespace {
-
 template <typename E> int countEvents(const EventLog &events) {
   int n = 0;
   for (const auto &ev : events)
@@ -48,10 +47,9 @@ BattleState makeDuel(const DataLoader &data, const char *s0, std::vector<std::st
   state.team_size = {1, 1};
   return state;
 }
-
 } // namespace
 
-TEST_CASE("PP is loaded from the move catalog and billed on execution", "[phase10][pp]") {
+TEST_CASE("PP is loaded from the move catalog and billed on execution", "[pp]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -66,7 +64,7 @@ TEST_CASE("PP is loaded from the move catalog and billed on execution", "[phase1
   REQUIRE(state.teams[1][0].pp[0] == 39);
 }
 
-TEST_CASE("A skipped turn doesn't pay PP", "[phase10][pp]") {
+TEST_CASE("A skipped turn doesn't pay PP", "[pp]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -82,7 +80,7 @@ TEST_CASE("A skipped turn doesn't pay PP", "[phase10][pp]") {
   REQUIRE(state.teams[1][0].pp[0] == 39);
 }
 
-TEST_CASE("A failed move still pays its PP", "[phase10][pp]") {
+TEST_CASE("A failed move still pays its PP", "[pp]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -95,7 +93,7 @@ TEST_CASE("A failed move still pays its PP", "[phase10][pp]") {
   REQUIRE(state.teams[0][0].pp[0] == 4);
 }
 
-TEST_CASE("A missed move still pays its PP", "[phase10][pp]") {
+TEST_CASE("A missed move still pays its PP", "[pp]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -109,7 +107,7 @@ TEST_CASE("A missed move still pays its PP", "[phase10][pp]") {
   REQUIRE(state.teams[0][0].pp[0] == 39);
 }
 
-TEST_CASE("Two-turn moves pay on the charge turn only", "[phase10][pp]") {
+TEST_CASE("Two-turn moves pay on the charge turn only", "[pp]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -125,7 +123,7 @@ TEST_CASE("Two-turn moves pay on the charge turn only", "[phase10][pp]") {
   REQUIRE(state.teams[0][0].pp[0] == 14);
 }
 
-TEST_CASE("Out of PP everywhere: the engine substitutes Struggle", "[phase10][struggle]") {
+TEST_CASE("Out of PP everywhere: the engine substitutes Struggle", "[pp][struggle]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -152,7 +150,7 @@ TEST_CASE("Out of PP everywhere: the engine substitutes Struggle", "[phase10][st
   REQUIRE(state.teams[0][0].pp[0] == 0);
 }
 
-TEST_CASE("checkAction rejects an empty-PP slot while another slot has PP", "[phase10][struggle]") {
+TEST_CASE("checkAction rejects an empty-PP slot while another slot has PP", "[pp][struggle]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -165,24 +163,24 @@ TEST_CASE("checkAction rejects an empty-PP slot while another slot has PP", "[ph
   REQUIRE_NOTHROW(engine.resolveTurn(state, UseMove{1}, UseMove{0}, rng));
 }
 
-TEST_CASE("validateState checks the PP invariants", "[phase10][validate]") {
+TEST_CASE("validateState checks the PP invariants", "[pp][validate]") {
   DataLoader data;
   engine::test::loadAll(data);
 
   auto state = makeDuel(data, "Snorlax", {"Tackle"}, "Conkeldurr", {"Growl"});
   REQUIRE_NOTHROW(validateState(state, data));
 
-  state.teams[0][0].pp[0] = 99; // above Tackle's max (35)
+  state.teams[0][0].pp[0] = 99;
   REQUIRE_THROWS_AS(validateState(state, data), std::invalid_argument);
   state.teams[0][0].pp[0] = -1;
   REQUIRE_THROWS_AS(validateState(state, data), std::invalid_argument);
   state.teams[0][0].pp[0] = 35;
 
-  state.teams[0][0].pp[3] = 5; // PP on an empty slot
+  state.teams[0][0].pp[3] = 5;
   REQUIRE_THROWS_AS(validateState(state, data), std::invalid_argument);
 }
 
-TEST_CASE("6v6: full teams are valid and slot 5 is reachable", "[phase10][6v6]") {
+TEST_CASE("6v6: full teams are valid and slot 5 is reachable", "[pp][6v6]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -203,15 +201,15 @@ TEST_CASE("6v6: full teams are valid and slot 5 is reachable", "[phase10][6v6]")
   REQUIRE(state.activeIndex[0] == 5);
 }
 
-TEST_CASE("Species stats come from the locked nature and EVs", "[phase10][stats]") {
+TEST_CASE("Species stats come from the locked nature and EVs", "[pp][stats]") {
   DataLoader data;
   engine::test::loadAll(data);
 
   const Species &sp = data.speciesByIndex(data.findSpeciesId("Infernape"));
-  REQUIRE(sp.nature == "Jolly"); // roster sheet: +Spe / -SpA
+  REQUIRE(sp.nature == "Jolly");
   Stats s = computeSpeciesStats(sp, 100);
   REQUIRE(s.hp == 293);
-  REQUIRE(s.specAtk == 219); // 244 lowered by the nature
-  REQUIRE(s.speed == 346);   // 315 raised by the nature
+  REQUIRE(s.specAtk == 219);
+  REQUIRE(s.speed == 346);
   REQUIRE(sp.weightKg == 55.0);
 }

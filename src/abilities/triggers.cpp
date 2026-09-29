@@ -5,9 +5,7 @@
 #include "engine/items/item.hpp"
 
 namespace engine {
-
 namespace {
-
 BattlePokemon &selfOf(AbilityContext &ctx) {
   return ctx.state
       .teams[static_cast<size_t>(ctx.self.side)][static_cast<size_t>(ctx.self.teamIndex)];
@@ -97,7 +95,6 @@ public:
   const char *name() const override { return "RockHead"; }
   bool blocksRecoil() const override { return true; }
 };
-
 } // namespace
 
 void registerTriggerAbilities(AbilityTable &table) {
@@ -123,5 +120,4 @@ void registerTriggerAbilities(AbilityTable &table) {
   add(magicBounce);
   add(rockHead);
 }
-
 } // namespace engine

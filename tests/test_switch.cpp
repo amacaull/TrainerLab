@@ -16,7 +16,6 @@ using namespace engine;
 using engine::test::buildCombatant;
 
 namespace {
-
 template <typename E> bool hasEvent(const EventLog &events) {
   for (const auto &ev : events)
     if (std::holds_alternative<E>(ev))
@@ -32,7 +31,6 @@ bool switchedInTo(const EventLog &events, int side, int teamIndex) {
   return false;
 }
 
-// Snorlax + Machamp vs Blastoise; slow, statusless matchup for switch tests.
 BattleState makeTwoVsOne(const DataLoader &data) {
   BattleState state;
   state.teams[0][0] = buildCombatant(data, "Snorlax", {"BodySlam"});
@@ -41,7 +39,6 @@ BattleState makeTwoVsOne(const DataLoader &data) {
   state.team_size = {2, 1};
   return state;
 }
-
 } // namespace
 
 TEST_CASE("Switch resolves before any move", "[switch][order]") {
@@ -206,7 +203,7 @@ TEST_CASE("UTurn deals damage then switches the user out", "[switch][pivot]") {
   FixedRNG rng(0.5f);
   auto events = engine.resolveTurn(state, UseMove{0, 1}, UseMove{0}, rng);
 
-  REQUIRE(state.teams[1][0].currentHp < blastoiseHp); // damage landed first
+  REQUIRE(state.teams[1][0].currentHp < blastoiseHp);
   REQUIRE(switchedInTo(events, 0, 1));
   REQUIRE(state.activeIndex[0] == 1);
 }
@@ -217,7 +214,6 @@ TEST_CASE("Opponent's slower move hits the Pokemon brought in by the pivot", "[s
   BattleEngine engine(data);
 
   BattleState state;
-  // Gyarados (81) outspeeds Snorlax's side? Opponent: Snorlax (30), slower.
   state.teams[0][0] = buildCombatant(data, "Gyarados", {"UTurn"});
   state.teams[0][1] = buildCombatant(data, "Conkeldurr", {"CloseCombat"});
   state.teams[1][0] = buildCombatant(data, "Snorlax", {"BodySlam"});
@@ -228,8 +224,8 @@ TEST_CASE("Opponent's slower move hits the Pokemon brought in by the pivot", "[s
   FixedRNG rng(0.5f);
   engine.resolveTurn(state, UseMove{0, 1}, UseMove{0}, rng);
 
-  REQUIRE(state.teams[0][0].currentHp == gyaradosHp); // pivoted out untouched
-  REQUIRE(state.teams[0][1].currentHp < machampHp);   // incoming took BodySlam
+  REQUIRE(state.teams[0][0].currentHp == gyaradosHp);
+  REQUIRE(state.teams[0][1].currentHp < machampHp);
 }
 
 TEST_CASE("Pivot with an empty bench is damage-only", "[switch][pivot]") {

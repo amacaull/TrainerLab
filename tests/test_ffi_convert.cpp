@@ -10,7 +10,6 @@ using namespace engine;
 using namespace engine::ffi;
 
 namespace {
-
 void ensureInit() { engine_init(BATTLE_ENGINE_DATA_DIR); }
 
 FfiEvent one(const BattleEvent &ev) {
@@ -33,7 +32,6 @@ template <typename F> std::string messageOf(F &&f) {
 }
 
 bool startsWith(const std::string &s, const char *prefix) { return s.rfind(prefix, 0) == 0; }
-
 } // namespace
 
 TEST_CASE("toAction rebuilds the variant from the tag", "[ffi][convert]") {

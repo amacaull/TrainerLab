@@ -15,11 +15,8 @@
 #include <string>
 
 namespace engine::ffi {
-
 namespace {
-
-// D7: the DataLoader outlives the calls, is read-only once loaded, and the
-// engine is stateless - so N battles can run concurrently on distinct
+// Read-only once loaded, and the engine is stateless: N battles can run concurrently on distinct
 // BattleStates without a lock.
 DataLoader &loaderStorage() {
   static DataLoader loader;
@@ -37,19 +34,14 @@ const DataLoader &loader() {
   return loaderStorage();
 }
 
-// Stateless and holding a const reference to the read-only loader, so N
-// battles can run concurrently on distinct BattleStates without a lock (D7).
 const BattleEngine &engine() {
   static const BattleEngine instance{loaderStorage()};
-  loader(); // refuse to hand out an engine over an unloaded catalog
+  loader();
   return instance;
 }
 
-// Prefix rewriting is the only channel Rust has: cxx transports what() and
-// loses the exception type (README.md section 6, errors).
-// E_ACTION refusals already start with their subcode, so the prefix is joined
-// without a space: Rust splits on the first two ':' and never reads the
-// sentence behind them (README.md section 6, errors).
+// The prefix is the only channel Rust has: cxx transports what() and loses the exception type.
+// E_ACTION refusals already start with their subcode, hence no space.
 template <typename F> void rethrowAction(F &&f) {
   try {
     f();
@@ -86,14 +78,13 @@ void fnvFeed(uint64_t &h, const std::string &s) {
   // NUL separator: without it "AB" + "C" and "A" + "BC" would collide.
   h *= kFnvPrime;
 }
-
 } // namespace
 
 void engine_init(const std::string &dataDir) {
   std::string &current = dataDirStorage();
   if (!current.empty()) {
     if (current == dataDir)
-      return; // idempotent
+      return;
     throw std::runtime_error("E_INIT: engine already initialised with '" + current +
                              "', refusing to re-initialise with '" + dataDir +
                              "' (two catalogs would mean two id spaces)");
@@ -223,7 +214,7 @@ std::vector<FfiEvent> start_battle(BattleState &state, uint64_t seed) {
   MersenneRNG rng(seed);
   EventLog events = engine().startBattle(scratch, rng);
   std::vector<FfiEvent> flat = flatten(events);
-  state = scratch; // commit only once nothing has thrown (D8)
+  state = scratch; // commit only once nothing has thrown
   return flat;
 }
 
@@ -289,5 +280,4 @@ uint64_t catalog_fingerprint() {
 
   return h;
 }
-
 } // namespace engine::ffi

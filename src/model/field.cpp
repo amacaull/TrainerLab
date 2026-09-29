@@ -3,7 +3,6 @@
 #include <stdexcept>
 
 namespace engine {
-
 const char *weatherToString(Weather w) {
   switch (w) {
   case Weather::None:
@@ -74,5 +73,4 @@ Terrain terrainFromString(const std::string &s) {
     return Terrain::None;
   throw std::invalid_argument("Unknown terrain: " + s);
 }
-
 } // namespace engine

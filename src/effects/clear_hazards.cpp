@@ -3,7 +3,6 @@
 #include "engine/core/battle_state.hpp"
 
 namespace engine {
-
 void ClearHazardsEffect::apply(EffectContext &ctx) const {
   auto clearSide = [&ctx](int side) {
     SideHazards &hz = ctx.state.hazards[static_cast<size_t>(side)];
@@ -27,5 +26,4 @@ void ClearHazardsEffect::apply(EffectContext &ctx) const {
     }
   }
 }
-
 } // namespace engine

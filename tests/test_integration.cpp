@@ -17,9 +17,6 @@ using engine::test::overrideLegendary;
 using engine::test::overrideWeight;
 
 namespace {
-
-// The real thing: species carry the held item from their sheet, so these
-// cases exercise ability + item + move together, the way a match does.
 BattleState loadoutDuel(const DataLoader &data, const char *s0, std::vector<std::string> m0,
                         const char *s1, std::vector<std::string> m1) {
   BattleState state;
@@ -53,12 +50,7 @@ int firstDamageOn(const EventLog &events, int side) {
         return e->damage;
   return -1;
 }
-
 } // namespace
-
-// ---------------------------------------------------------------------------
-// Team legality (ADR #50)
-// ---------------------------------------------------------------------------
 
 TEST_CASE("validateTeam accepts a legal team", "[integration][team]") {
   DataLoader data;
@@ -96,8 +88,6 @@ TEST_CASE("validateTeam allows one Mega and one legendary, never two", "[integra
   team[1] = buildLoadout(data, "MegaMawile", {"PlayRough"});
   REQUIRE_THROWS_AS(validateTeam(team, 2, data), std::invalid_argument);
 
-  // The official legendary list is still pending, so the rule is proven on
-  // flipped flags: the day the sheet lands, only the JSON changes.
   overrideLegendary(data, "Snorlax", true);
   overrideLegendary(data, "Conkeldurr", true);
   team[0] = buildLoadout(data, "Snorlax", {"BodySlam"});
@@ -116,13 +106,9 @@ TEST_CASE("validateTeam refuses a move outside the species' movepool", "[integra
   team[0] = buildLoadout(data, "Snorlax", {"BodySlam"});
   REQUIRE_NOTHROW(validateTeam(team, 1, data));
 
-  team[0] = buildLoadout(data, "Snorlax", {"CloseCombat"}); // not on its sheet
+  team[0] = buildLoadout(data, "Snorlax", {"CloseCombat"});
   REQUIRE_THROWS_AS(validateTeam(team, 1, data), std::invalid_argument);
 }
-
-// ---------------------------------------------------------------------------
-// Weight-based power (Low Kick / Grass Knot)
-// ---------------------------------------------------------------------------
 
 TEST_CASE("LowKick climbs the canon weight tiers", "[integration][weight]") {
   DataLoader data;
@@ -144,19 +130,18 @@ TEST_CASE("LowKick climbs the canon weight tiers", "[integration][weight]") {
     return firstDamageOn(e.resolveTurn(state, UseMove{0}, UseMove{0}, rng), 1);
   };
 
-  int t20 = damageAt(5.0);    // < 10 kg  -> 20
-  int t40 = damageAt(20.0);   // < 25     -> 40
-  int t60 = damageAt(40.0);   // < 50     -> 60
-  int t80 = damageAt(80.0);   // < 100    -> 80
-  int t100 = damageAt(150.0); // < 200    -> 100
-  int t120 = damageAt(400.0); // >= 200   -> 120
+  int t20 = damageAt(5.0);
+  int t40 = damageAt(20.0);
+  int t60 = damageAt(40.0);
+  int t80 = damageAt(80.0);
+  int t100 = damageAt(150.0);
+  int t120 = damageAt(400.0);
 
   REQUIRE(t20 < t40);
   REQUIRE(t40 < t60);
   REQUIRE(t60 < t80);
   REQUIRE(t80 < t100);
   REQUIRE(t100 < t120);
-  // The ladder is proportional: the top tier is about six times the bottom.
   REQUIRE(t120 > t20 * 5);
 
   // Boundaries land on the lower tier (canon: strictly below the cut).
@@ -165,10 +150,6 @@ TEST_CASE("LowKick climbs the canon weight tiers", "[integration][weight]") {
   REQUIRE(damageAt(199.9) == t100);
   REQUIRE(damageAt(200.0) == t120);
 }
-
-// ---------------------------------------------------------------------------
-// The team sheet's own combos, played with the real held items
-// ---------------------------------------------------------------------------
 
 TEST_CASE("Guts + FlameOrb: Conkeldurr burns itself into a bigger hit", "[integration][combo]") {
   DataLoader data;
@@ -180,7 +161,6 @@ TEST_CASE("Guts + FlameOrb: Conkeldurr burns itself into a bigger hit", "[integr
   auto state = loadoutDuel(data, "Conkeldurr", {"DrainPunch"}, "Toxapex", {"Recover"});
   FixedRNG rng(0.99f);
 
-  // Turn 1: the orb goes off at the end of the turn.
   auto t1 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(state.teams[0][0].status == Status::Burn);
   int plain = firstDamageOn(t1, 1);
@@ -190,7 +170,7 @@ TEST_CASE("Guts + FlameOrb: Conkeldurr burns itself into a bigger hit", "[integr
   auto t2 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   int burnt = firstDamageOn(t2, 1);
   REQUIRE(burnt > plain);
-  REQUIRE(countEv<StatusDamageEvent>(t2) >= 1); // the burn keeps chipping
+  REQUIRE(countEv<StatusDamageEvent>(t2) >= 1);
 }
 
 TEST_CASE("BellyDrum + SitrusBerry: Azumarill maxes Attack and eats the berry back",
@@ -206,11 +186,9 @@ TEST_CASE("BellyDrum + SitrusBerry: Azumarill maxes Attack and eats the berry ba
   auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(state.teams[0][0].stat_stages[static_cast<size_t>(StatIndex::Atk)] == 6);
   REQUIRE(countEv<ItemConsumedEvent>(events) == 1);
-  // Paid half, got a quarter back: comfortably above the half mark it drops to.
   REQUIRE(state.teams[0][0].currentHp > maxHp / 2);
   REQUIRE(state.teams[0][0].currentHp < maxHp);
 
-  // HugePower on top of +6 makes AquaJet hit like a truck.
   auto t2 = engine.resolveTurn(state, UseMove{1}, UseMove{0}, rng);
   REQUIRE(firstDamageOn(t2, 1) > 200);
 }
@@ -235,11 +213,11 @@ TEST_CASE("Disguise vs a volley: Mimikyu eats one hit, takes the other nine",
   // Not PopulationBomb: Mimikyu is a Ghost, so a Normal volley never even
   // reaches the costume. Bullet Seed is the Grass one on the same sheet.
   auto state = loadoutDuel(data, "Maushold", {"BulletSeed"}, "Mimikyu", {"SwordsDance"});
-  FixedRNG rng(0.99f); // LoadedDice floor: 4 hits
+  FixedRNG rng(0.99f);
   auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
 
   REQUIRE(state.teams[1][0].disguise_broken == 1);
-  REQUIRE(hitsOn(events, 1) == 3); // the costume swallowed exactly one of the four
+  REQUIRE(hitsOn(events, 1) == 3);
 }
 
 TEST_CASE("RockHead + HeadSmash: Arcanine-Hisui pays nothing", "[integration][combo]") {
@@ -254,7 +232,7 @@ TEST_CASE("RockHead + HeadSmash: Arcanine-Hisui pays nothing", "[integration][co
 
   REQUIRE(firstDamageOn(events, 1) > 0);
   REQUIRE(countEv<RecoilDamageEvent>(events) == 0);
-  REQUIRE(state.teams[0][0].currentHp == before); // ChoiceBand, no LifeOrb: untouched
+  REQUIRE(state.teams[0][0].currentHp == before);
 }
 
 TEST_CASE("SnowWarning + AuroraVeil + SlushRush all pull on the same weather",
@@ -271,11 +249,10 @@ TEST_CASE("SnowWarning + AuroraVeil + SlushRush all pull on the same weather",
 
   FixedRNG srng(0.5f);
   auto start = engine.startBattle(state, srng);
-  REQUIRE(state.weather == Weather::Snow); // set by the ability, no move needed
+  REQUIRE(state.weather == Weather::Snow);
   REQUIRE(countEv<WeatherStartedEvent>(start) == 1);
 
   FixedRNG rng(0.99f);
-  // Screen up, then compare the same Stone Edge with and without it.
   auto veiled = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(state.aurora_veil_turns[0] > 0);
   int halved = firstDamageOn(veiled, 0);
@@ -288,13 +265,12 @@ TEST_CASE("SnowWarning + AuroraVeil + SlushRush all pull on the same weather",
   int full = firstDamageOn(engine.resolveTurn(bare, UseMove{1}, UseMove{0}, rng2), 0);
   REQUIRE(halved < full);
 
-  // Mamoswine comes in under the snow: SlushRush doubles 259 past Aerodactyl's 394.
   auto t2 = engine.resolveTurn(state, SwitchAction{1}, UseMove{0}, rng);
   (void)t2;
   auto t3 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   for (const auto &ev : t3)
     if (auto *e = std::get_if<MoveUsedEvent>(&ev)) {
-      REQUIRE(e->user.side == 0); // the mammoth moves first
+      REQUIRE(e->user.side == 0);
       break;
     }
 }

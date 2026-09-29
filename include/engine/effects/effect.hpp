@@ -5,7 +5,6 @@
 #include <memory>
 
 namespace engine {
-
 struct BattleState;
 struct Move;
 class RNG;
@@ -19,25 +18,16 @@ struct EffectContext {
   CombatantRef user;
   CombatantRef target;
   const Move &move;
-  int pivotTarget; // from UseMove; only read by PivotEffect
-  // Set by an effect (immunity, failed set...) to stop the remaining chain:
-  // Volt Switch vs a Ground type must not pivot, Rapid Spin blocked by a
-  // Ghost must not clear hazards (canon).
+  int pivotTarget;
+  // Stops the rest of the chain: Volt Switch into a Ground-type must not pivot (canon).
   bool moveFailed = false;
-  // Actual HP removed by the last DamageEffect (recoil basis, Dragon Tail).
   int lastDamageDealt = 0;
-  int powerOverride = 0;  // MultiHit escalating powers (TripleAxel); 0 = move.power
-  int multiHitIndex = -1; // >= 0 while inside a MultiHit loop (Disguise pops one hit)
-  // True when the opponent has already acted this turn: Protect fails if
-  // nothing is left to protect against (canon).
+  int powerOverride = 0;
+  int multiHitIndex = -1;
   bool targetAlreadyActed = false;
-  // Set by SleepTalk: the engine runs this move through the full hit
-  // pipeline (Protect, immunities, accuracy) once the current chain ends.
   int calledMoveId = -1;
 };
 
-// To add a new effect: subclass Effect, register it in makeEffectFromJson
-// (in data_loader.cpp).
 class Effect {
 public:
   virtual ~Effect() = default;
@@ -46,5 +36,4 @@ public:
 };
 
 using EffectPtr = std::unique_ptr<Effect>;
-
 } // namespace engine

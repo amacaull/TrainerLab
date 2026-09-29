@@ -4,9 +4,7 @@
 #include <random>
 
 namespace engine {
-
-// Abstract RNG. Always injected; never use rand() in the engine.
-// Tests inject FixedRNG for deterministic results.
+// Always injected, never rand(): the tests replay exact outcomes with FixedRNG.
 class RNG {
 public:
   virtual ~RNG() = default;
@@ -27,7 +25,6 @@ private:
   std::mt19937_64 gen_;
 };
 
-// rangeInt always returns min, unit always returns the configured value.
 class FixedRNG : public RNG {
 public:
   explicit FixedRNG(float unit_value = 0.0f) : unit_(unit_value) {}
@@ -37,5 +34,4 @@ public:
 private:
   float unit_;
 };
-
 } // namespace engine

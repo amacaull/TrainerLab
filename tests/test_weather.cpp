@@ -16,7 +16,6 @@ using engine::test::buildCombatant;
 using engine::test::overrideAbility;
 
 namespace {
-
 template <typename E> int countEvents(const EventLog &events) {
   int n = 0;
   for (const auto &ev : events)
@@ -41,7 +40,6 @@ BattleState makeDuel(const DataLoader &data, const char *s0, const char *m0, con
   state.team_size = {1, 1};
   return state;
 }
-
 } // namespace
 
 TEST_CASE("SetWeather starts the weather for 5 turns; same weather fails", "[weather]") {
@@ -50,16 +48,16 @@ TEST_CASE("SetWeather starts the weather for 5 turns; same weather fails", "[wea
   BattleEngine engine(data);
 
   auto state = makeDuel(data, "Quagsire", "RainDance", "Snorlax", "Tackle");
-  state.teams[0][0] = buildCombatant(data, "Snorlax", {"RainDance"}); // no Drizzle side effect
+  state.teams[0][0] = buildCombatant(data, "Snorlax", {"RainDance"});
   FixedRNG rng(0.5f);
 
   auto t1 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(countEvents<WeatherStartedEvent>(t1) == 1);
   REQUIRE(state.weather == Weather::Rain);
-  REQUIRE(state.weather_turns_left == 4); // 5 set, minus the end of this turn
+  REQUIRE(state.weather_turns_left == 4);
 
   auto t2 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
-  REQUIRE(countEvents<MoveFailedEvent>(t2) == 1); // rain already up
+  REQUIRE(countEvents<MoveFailedEvent>(t2) == 1);
 }
 
 TEST_CASE("Weather subsides at the end of its fifth turn", "[weather]") {
@@ -72,7 +70,7 @@ TEST_CASE("Weather subsides at the end of its fifth turn", "[weather]") {
 
   engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   for (int i = 0; i < 3; ++i)
-    engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng); // re-sets fail, rain ticks
+    engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(state.weather == Weather::Rain);
   REQUIRE(state.weather_turns_left == 1);
 
@@ -116,7 +114,6 @@ TEST_CASE("Sand chips 1/16 on non Rock/Ground/Steel only", "[weather][residual]"
   engine::test::loadAll(data);
   BattleEngine engine(data);
 
-  // Pikachu (Electric) chips; Tyranitar (Rock/Dark) is immune.
   auto state = makeDuel(data, "Luxray", "Growl", "Aerodactyl", "Sandstorm");
   state.weather = Weather::Sand;
   state.weather_turns_left = 5;
@@ -127,7 +124,6 @@ TEST_CASE("Sand chips 1/16 on non Rock/Ground/Steel only", "[weather][residual]"
   auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   (void)events;
 
-  // Sandstorm move fails (already up) but the chip applies at end of turn.
   REQUIRE(state.teams[0][0].currentHp == pikaHp - std::max(1, state.teams[0][0].stats.hp / 16));
   REQUIRE(state.teams[1][0].currentHp == ttarHp);
 }
@@ -150,7 +146,7 @@ TEST_CASE("Garchomp (Ground) and Scizor (Steel) shrug off sand; snow never chips
 
   REQUIRE(chip("Excadrill", Weather::Sand) == 0);
   REQUIRE(chip("Corviknight", Weather::Sand) == 0);
-  REQUIRE(chip("MegaGengar", Weather::Sand) > 0); // Levitate does NOT protect
+  REQUIRE(chip("MegaGengar", Weather::Sand) > 0);
   REQUIRE(chip("Excadrill", Weather::Snow) == 0);
   REQUIRE(chip("Luxray", Weather::Snow) == 0);
 }
@@ -189,7 +185,6 @@ TEST_CASE("Sandstorm gives Rock types SpD x1.5 against special moves", "[weather
     auto state = makeDuel(data, "Inteleon", move, "Aerodactyl", "Growl");
     state.weather = w;
     state.weather_turns_left = (w == Weather::None) ? 0 : 5;
-    // neutralize Drizzle/SandStream interference: weather forced by hand
     FixedRNG rng(0.5f);
     auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
     return damageOn(events, 1);
@@ -197,17 +192,17 @@ TEST_CASE("Sandstorm gives Rock types SpD x1.5 against special moves", "[weather
 
   int surfDry = hit(Weather::None, "Surf");
   int surfSand = hit(Weather::Sand, "Surf");
-  REQUIRE(surfSand < surfDry); // special: boosted SpD
+  REQUIRE(surfSand < surfDry);
 
   int slamDry = hit(Weather::None, "BodySlam");
   int slamSand = hit(Weather::Sand, "BodySlam");
-  REQUIRE(slamSand == slamDry); // physical: untouched
+  REQUIRE(slamSand == slamDry);
 }
 
-TEST_CASE("SandStream and Drizzle set their weather on switch-in", "[weather][ability]") {
+TEST_CASE("SandStream and Drizzle set their weather on switch-in", "[weather][abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
-  overrideAbility(data, "Aerodactyl", "SandStream"); // roster orphan: no setter left
+  overrideAbility(data, "Aerodactyl", "SandStream");
   overrideAbility(data, "Quagsire", "Drizzle");
   BattleEngine engine(data);
 
@@ -224,16 +219,16 @@ TEST_CASE("SandStream and Drizzle set their weather on switch-in", "[weather][ab
   REQUIRE(state.weather == Weather::Sand);
 }
 
-TEST_CASE("startBattle: the slower weather ability wins the war", "[weather][ability]") {
+TEST_CASE("startBattle: the slower weather ability wins the war", "[weather][abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
-  overrideAbility(data, "Aerodactyl", "SandStream"); // roster orphans: no setter left
+  overrideAbility(data, "Aerodactyl", "SandStream");
   overrideAbility(data, "Quagsire", "Drizzle");
   BattleEngine engine(data);
 
   BattleState state;
-  state.teams[0][0] = buildCombatant(data, "Aerodactyl", {"StoneEdge"}); // 394 speed
-  state.teams[1][0] = buildCombatant(data, "Quagsire", {"Surf"});        // 106 speed
+  state.teams[0][0] = buildCombatant(data, "Aerodactyl", {"StoneEdge"});
+  state.teams[1][0] = buildCombatant(data, "Quagsire", {"Surf"});
   state.team_size = {1, 1};
 
   FixedRNG srng(0.5f);
@@ -244,7 +239,7 @@ TEST_CASE("startBattle: the slower weather ability wins the war", "[weather][abi
   REQUIRE(state.weather == Weather::Rain);
 }
 
-TEST_CASE("Weather ability is silent if its weather is already up", "[weather][ability]") {
+TEST_CASE("Weather ability is silent if its weather is already up", "[weather][abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -261,7 +256,7 @@ TEST_CASE("Weather ability is silent if its weather is already up", "[weather][a
   auto events = engine.resolveTurn(state, SwitchAction{1}, UseMove{0}, rng);
 
   REQUIRE(countEvents<WeatherStartedEvent>(events) == 0);
-  REQUIRE(state.weather_turns_left == 4); // untouched by the ability, ticked by end of turn
+  REQUIRE(state.weather_turns_left == 4);
 }
 
 TEST_CASE("validateState checks weather fields", "[weather][validate]") {

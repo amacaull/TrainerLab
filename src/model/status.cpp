@@ -8,7 +8,6 @@
 #include <string>
 
 namespace engine {
-
 namespace {
 constexpr std::array<std::string_view, StatusCount> kStatusNames = {
     "None", "Burn", "Poison", "Toxic", "Paralysis", "Sleep", "Freeze"};
@@ -47,5 +46,4 @@ bool typeImmuneToStatus(Status s, const Species &sp) {
     return false;
   }
 }
-
 } // namespace engine

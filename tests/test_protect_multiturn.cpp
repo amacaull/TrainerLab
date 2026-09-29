@@ -14,7 +14,6 @@ using namespace engine;
 using engine::test::buildCombatant;
 
 namespace {
-
 template <typename E> int countEvents(const EventLog &events) {
   int n = 0;
   for (const auto &ev : events)
@@ -30,10 +29,9 @@ int damageOn(const EventLog &events, int side) {
         return e->damage;
   return -1;
 }
-
 } // namespace
 
-TEST_CASE("Whirlwind drags a benched opponent in, at -6 priority", "[phase9][forceswitch]") {
+TEST_CASE("Whirlwind drags a benched opponent in, at -6 priority", "[protect][forceswitch]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -50,12 +48,11 @@ TEST_CASE("Whirlwind drags a benched opponent in, at -6 priority", "[phase9][for
   // -6 priority: the much slower Snorlax still moves first.
   REQUIRE(std::holds_alternative<MoveUsedEvent>(events.front()));
   REQUIRE(std::get<MoveUsedEvent>(events.front()).user.side == 1);
-  // Then the drag happens.
   REQUIRE(countEvents<SwitchedInEvent>(events) == 1);
   REQUIRE(state.activeIndex[1] == 1);
 }
 
-TEST_CASE("Whirlwind fails on an empty bench", "[phase9][forceswitch]") {
+TEST_CASE("Whirlwind fails on an empty bench", "[protect][forceswitch]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -71,7 +68,7 @@ TEST_CASE("Whirlwind fails on an empty bench", "[phase9][forceswitch]") {
 }
 
 TEST_CASE("Dragon Tail damages, then drags; damage-only on an empty bench",
-          "[phase9][forceswitch]") {
+          "[protect][forceswitch]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -87,7 +84,6 @@ TEST_CASE("Dragon Tail damages, then drags; damage-only on an empty bench",
   REQUIRE(damageOn(events, 1) > 0);
   REQUIRE(state.activeIndex[1] == 1);
 
-  // Empty bench: the damage stands, no failure, no switch.
   BattleState solo;
   solo.teams[0][0] = buildCombatant(data, "Gyarados", {"DragonTail"});
   solo.teams[1][0] = buildCombatant(data, "Snorlax", {"Growl"});
@@ -98,10 +94,10 @@ TEST_CASE("Dragon Tail damages, then drags; damage-only on an empty bench",
   REQUIRE(countEvents<SwitchedInEvent>(e2) == 0);
 }
 
-TEST_CASE("A dragged-in Pokemon takes hazards and fires its ability", "[phase9][forceswitch]") {
+TEST_CASE("A dragged-in Pokemon takes hazards and fires its ability", "[protect][forceswitch]") {
   DataLoader data;
   engine::test::loadAll(data);
-  engine::test::overrideAbility(data, "Gyarados", "Intimidate"); // roster: Moxie
+  engine::test::overrideAbility(data, "Gyarados", "Intimidate");
   BattleEngine engine(data);
 
   BattleState state;
@@ -114,7 +110,7 @@ TEST_CASE("A dragged-in Pokemon takes hazards and fires its ability", "[phase9][
   FixedRNG rng(0.5f);
   auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
 
-  REQUIRE(countEvents<HazardDamageEvent>(events) == 1); // Gyarados eats the rocks (2x)
+  REQUIRE(countEvents<HazardDamageEvent>(events) == 1);
   bool intimidate = false;
   for (const auto &ev : events)
     if (auto *e = std::get_if<AbilityTriggeredEvent>(&ev))
@@ -123,7 +119,7 @@ TEST_CASE("A dragged-in Pokemon takes hazards and fires its ability", "[phase9][
   REQUIRE(intimidate);
 }
 
-TEST_CASE("Protect blocks a damaging move", "[phase9][protect]") {
+TEST_CASE("Protect blocks a damaging move", "[protect]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -136,12 +132,12 @@ TEST_CASE("Protect blocks a damaging move", "[phase9][protect]") {
   FixedRNG rng(0.5f);
   auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
 
-  REQUIRE(countEvents<ProtectedEvent>(events) == 2); // success + block
+  REQUIRE(countEvents<ProtectedEvent>(events) == 2);
   REQUIRE(state.teams[0][0].currentHp == state.teams[0][0].stats.hp);
 }
 
 TEST_CASE("Chained Protects succeed at 1/3^n and the chain resets after a pause",
-          "[phase9][protect]") {
+          "[protect]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -156,7 +152,7 @@ TEST_CASE("Chained Protects succeed at 1/3^n and the chain resets after a pause"
     engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
     auto t2 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
     REQUIRE(countEvents<MoveFailedEvent>(t2) == 1);
-    REQUIRE(state.teams[0][0].currentHp < state.teams[0][0].stats.hp); // StoneEdge landed
+    REQUIRE(state.teams[0][0].currentHp < state.teams[0][0].stats.hp);
   }
 
   SECTION("second Protect succeeds when the roll hits") {
@@ -169,14 +165,14 @@ TEST_CASE("Chained Protects succeed at 1/3^n and the chain resets after a pause"
 
   SECTION("a turn without Protect resets the chain") {
     FixedRNG rng(0.99f);                                              // any chained roll would fail
-    engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);           // Protect (chain 1)
-    engine.resolveTurn(state, UseMove{1}, UseMove{0}, rng);           // ShadowBall (chain resets)
-    auto t3 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng); // fresh Protect
+    engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
+    engine.resolveTurn(state, UseMove{1}, UseMove{0}, rng);
+    auto t3 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
     REQUIRE(countEvents<ProtectedEvent>(t3) == 2);
   }
 }
 
-TEST_CASE("Protect lets field moves through and Whirlwind bypasses it", "[phase9][protect]") {
+TEST_CASE("Protect lets field moves through and Whirlwind bypasses it", "[protect]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -188,7 +184,7 @@ TEST_CASE("Protect lets field moves through and Whirlwind bypasses it", "[phase9
 
   FixedRNG rng(0.5f);
   auto t1 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
-  REQUIRE(countEvents<HazardSetEvent>(t1) == 1); // Stealth Rock ignores Protect
+  REQUIRE(countEvents<HazardSetEvent>(t1) == 1);
 
   BattleState state2;
   state2.teams[0][0] = buildCombatant(data, "MegaGengar", {"Protect"});
@@ -197,10 +193,10 @@ TEST_CASE("Protect lets field moves through and Whirlwind bypasses it", "[phase9
   state2.team_size = {2, 1};
   auto t2 = engine.resolveTurn(state2, UseMove{0}, UseMove{0}, rng);
   (void)t2;
-  REQUIRE(state2.activeIndex[0] == 1); // dragged out despite Protect
+  REQUIRE(state2.activeIndex[0] == 1);
 }
 
-TEST_CASE("Two-turn Fly: charge, semi-invulnerability, forced release", "[phase9][twoturn]") {
+TEST_CASE("Two-turn Fly: charge, semi-invulnerability, forced release", "[protect][twoturn]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -215,19 +211,18 @@ TEST_CASE("Two-turn Fly: charge, semi-invulnerability, forced release", "[phase9
   auto t1 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
 
   REQUIRE(countEvents<ChargingEvent>(t1) == 1);
-  REQUIRE(countEvents<MissedEvent>(t1) == 1); // Tackle whiffs on the airborne target
+  REQUIRE(countEvents<MissedEvent>(t1) == 1);
   REQUIRE(state.teams[0][0].charging_move_id != kNoMove);
   REQUIRE(state.teams[0][0].invulnerable_state == 1);
 
-  // Turn 2: the provided action (even a switch) is ignored, Fly releases.
   auto t2 = engine.resolveTurn(state, SwitchAction{1}, UseMove{0}, rng);
-  REQUIRE(state.activeIndex[0] == 0); // no switch happened
-  REQUIRE(damageOn(t2, 1) > 0);       // Fly connected
+  REQUIRE(state.activeIndex[0] == 0);
+  REQUIRE(damageOn(t2, 1) > 0);
   REQUIRE(state.teams[0][0].charging_move_id == kNoMove);
   REQUIRE(state.teams[0][0].invulnerable_state == 0);
 }
 
-TEST_CASE("Earthquake reaches a digging target and hits twice as hard", "[phase9][twoturn]") {
+TEST_CASE("Earthquake reaches a digging target and hits twice as hard", "[protect][twoturn]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -251,7 +246,7 @@ TEST_CASE("Earthquake reaches a digging target and hits twice as hard", "[phase9
   REQUIRE(dug <= normal * 2 + 2);
 }
 
-TEST_CASE("SolarBeam skips the charge in the sun and is halved in the rain", "[phase9][twoturn]") {
+TEST_CASE("SolarBeam skips the charge in the sun and is halved in the rain", "[protect][twoturn]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -267,7 +262,7 @@ TEST_CASE("SolarBeam skips the charge in the sun and is halved in the rain", "[p
     auto t1 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
     int d1 = damageOn(t1, 1);
     if (d1 >= 0)
-      return std::make_pair(1, d1); // fired on turn 1
+      return std::make_pair(1, d1);
     auto t2 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
     return std::make_pair(2, damageOn(t2, 1));
   };
@@ -276,16 +271,16 @@ TEST_CASE("SolarBeam skips the charge in the sun and is halved in the rain", "[p
   auto [dryTurns, dryDmg] = fire(Weather::None);
   auto [rainTurns, rainDmg] = fire(Weather::Rain);
 
-  REQUIRE(sunTurns == 1); // no charge under the sun
-  REQUIRE(dryTurns == 2); // normal two-turn behavior
+  REQUIRE(sunTurns == 1);
+  REQUIRE(dryTurns == 2);
   REQUIRE(rainTurns == 2);
-  REQUIRE(sunDmg == dryDmg); // sun only skips the charge; it doesn't boost Grass
+  REQUIRE(sunDmg == dryDmg);
   REQUIRE(rainDmg < dryDmg);
   REQUIRE(rainDmg >= dryDmg / 2 - 2);
   REQUIRE(rainDmg <= dryDmg / 2 + 2);
 }
 
-TEST_CASE("An interrupted charge is lost", "[phase9][twoturn]") {
+TEST_CASE("An interrupted charge is lost", "[protect][twoturn]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -299,7 +294,6 @@ TEST_CASE("An interrupted charge is lost", "[phase9][twoturn]") {
   engine.resolveTurn(state, UseMove{0}, UseMove{0}, charge);
   REQUIRE(state.teams[0][0].charging_move_id != kNoMove);
 
-  // Fully paralyzed on the release turn: the charge is wasted.
   state.teams[0][0].status = Status::Paralysis;
   FixedRNG para(0.1f); // 0.1 < 0.25: full paralysis
   auto t2 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, para);

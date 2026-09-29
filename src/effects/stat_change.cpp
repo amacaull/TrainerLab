@@ -7,7 +7,6 @@
 #include <algorithm>
 
 namespace engine {
-
 void applyStatStageDelta(BattlePokemon &mon, CombatantRef ref, StatIndex stat, int delta,
                          EventLog &events) {
   int &stage = mon.stat_stages[static_cast<size_t>(stat)];
@@ -48,7 +47,6 @@ void StatChangeEffect::apply(EffectContext &ctx) const {
   if (mon.isFainted())
     return;
 
-  // Drops inflicted across the field go through the guarded path.
   if (!affectsUser_ && delta_ < 0 && ref.side != ctx.user.side) {
     applyOpposingStatDrop(ctx.state, ctx.data, ref, stat_, delta_, ctx.events);
     return;
@@ -56,5 +54,4 @@ void StatChangeEffect::apply(EffectContext &ctx) const {
 
   applyStatStageDelta(mon, ref, stat_, delta_, ctx.events);
 }
-
 } // namespace engine

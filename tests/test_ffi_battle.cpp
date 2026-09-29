@@ -10,7 +10,6 @@ using namespace engine;
 using namespace engine::ffi;
 
 namespace {
-
 void ensureInit() { engine_init(BATTLE_ENGINE_DATA_DIR); }
 
 template <typename F> std::string messageOf(F &&f) {
@@ -32,7 +31,6 @@ BattleState duel(const char *left, const char *right) {
   s.team_size = {1, 1};
   return s;
 }
-
 } // namespace
 
 TEST_CASE("make_combatant produces a complete, valid combatant", "[ffi][battle]") {
@@ -94,7 +92,6 @@ TEST_CASE("a battle runs end to end across the boundary", "[ffi][battle]") {
     std::vector<FfiEvent> ev = start_battle(s, 42);
     REQUIRE_FALSE(is_over(s));
     REQUIRE_FALSE(side_has_lost(s, 0));
-    // Every flattened event must carry a kind the contract table defines.
     for (const FfiEvent &e : ev)
       REQUIRE(e.kind <= 35);
   }
@@ -143,8 +140,8 @@ TEST_CASE("a rejected turn leaves the caller's state untouched", "[ffi][battle]"
     REQUIRE(startsWith(msg, "E_ACTION:"));
   }
 
-  // D8: the boundary works on a copy and commits only on success, so a throw
-  // must not leave a half-written turn behind.
+  // The boundary works on a copy and commits only on success: a throw must not leave a half-written
+  // turn behind.
   REQUIRE(s.turn == turn);
   REQUIRE(s.active(0).currentHp == hp0);
   REQUIRE(s.active(1).currentHp == hp1);

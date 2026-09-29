@@ -1,5 +1,4 @@
-// Canon edge cases found by the pre-submission audit. Each case failed
-// before its fix.
+// Canon rules that look like bugs.
 #include "helpers.hpp"
 #include "engine/core/battle_state.hpp"
 #include "engine/core/data_loader.hpp"
@@ -13,7 +12,6 @@ using namespace engine;
 using engine::test::buildCombatant;
 
 namespace {
-
 struct Duel {
   DataLoader data;
   Duel() { engine::test::loadAll(data); }
@@ -34,7 +32,6 @@ template <typename E> bool hasEventFor(const EventLog &events, int side) {
         return true;
   return false;
 }
-
 } // namespace
 
 TEST_CASE("An immune hit does not bust Disguise", "[canon][abilities]") {
@@ -55,7 +52,7 @@ TEST_CASE("Fixed damage busts Disguise instead of landing", "[canon][abilities]"
   e.resolveTurn(s, UseMove{0}, UseMove{0}, rng);
   const BattlePokemon &mimikyu = s.teams[1][0];
   REQUIRE(mimikyu.disguise_broken == 1);
-  REQUIRE(mimikyu.currentHp == mimikyu.stats.hp - mimikyu.stats.hp / 8); // the chip only
+  REQUIRE(mimikyu.currentHp == mimikyu.stats.hp - mimikyu.stats.hp / 8);
 }
 
 TEST_CASE("Prankster status moves fail against Dark-types", "[canon][abilities]") {
@@ -106,7 +103,7 @@ TEST_CASE("Defog leaves the user's own Aurora Veil up", "[canon][field]") {
   FixedRNG rng(0.5f);
   e.resolveTurn(s, UseMove{0}, UseMove{0}, rng);
   REQUIRE(s.aurora_veil_turns[0] == 4); // ticked once, still up
-  REQUIRE(s.aurora_veil_turns[1] == 0); // the target's side is cleared
+  REQUIRE(s.aurora_veil_turns[1] == 0);
 }
 
 TEST_CASE("A flinched sleeper still ticks its sleep counter", "[canon][status]") {

@@ -15,7 +15,6 @@ using engine::test::buildCombatant;
 using engine::test::overrideAbility;
 
 namespace {
-
 BattleState duel(const DataLoader &data, const char *s0, std::vector<std::string> m0,
                  const char *s1, std::vector<std::string> m1) {
   BattleState state;
@@ -55,7 +54,6 @@ public:
   int rangeInt(int /*min*/, int max) override { return max; }
   float unit() override { return 0.99f; }
 };
-
 } // namespace
 
 TEST_CASE("MultiHit: 2-5 rolls low without dice, LoadedDice raises the floor", "[mech]") {
@@ -103,10 +101,10 @@ TEST_CASE("Disguise eats one hit of a volley, the rest lands (canon gen 8)", "[m
   BattleEngine engine(data);
 
   auto state = duel(data, "Toxapex", {"BulletSeed"}, "Luxray", {"Growl"});
-  FixedRNG rng(0.99f); // 2 hits
+  FixedRNG rng(0.99f);
   auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(state.teams[1][0].disguise_broken == 1);
-  REQUIRE(hitsOn(events, 1) == 1); // hit 1 popped the costume, hit 2 landed
+  REQUIRE(hitsOn(events, 1) == 1);
 }
 
 TEST_CASE("KnockOff: x1.5 with something to steal, then the item is gone", "[mech]") {
@@ -170,7 +168,7 @@ TEST_CASE("FixedDamage: SeismicToss deals exactly the level, Ghosts shrug it off
   auto s2 = duel(data, "Conkeldurr", {"SeismicToss"}, "MegaGengar", {"Growl"});
   auto e2 = engine.resolveTurn(s2, UseMove{0}, UseMove{0}, rng);
   REQUIRE(s2.teams[1][0].currentHp == s2.teams[1][0].stats.hp);
-  REQUIRE(countEv<MoveFailedEvent>(e2) == 0); // immune, pas "echoue" : event de degats a 0
+  REQUIRE(countEv<MoveFailedEvent>(e2) == 0);
 }
 
 TEST_CASE("Ruination removes half the CURRENT HP", "[mech]") {
@@ -208,7 +206,7 @@ TEST_CASE("Stat plumbing: BodyPress swings with Def, Psyshock lands on Def, Foul
     FixedRNG r(0.99f);
     return dmgOn(engine.resolveTurn(s, UseMove{0}, UseMove{0}, r), 1);
   };
-  REQUIRE(psyshock(StatIndex::Def) < psyshock(StatIndex::SpD)); // only Def matters
+  REQUIRE(psyshock(StatIndex::Def) < psyshock(StatIndex::SpD));
 
   auto foulPlay = [&](int targetAtkStage) {
     auto s = duel(data, "MegaGengar", {"FoulPlay"}, "Conkeldurr", {"Growl"});
@@ -237,9 +235,9 @@ TEST_CASE("SuckerPunch connects on attackers and whiffs on everything else", "[m
     return dmgOn(events, 1) > 0;
   };
 
-  REQUIRE(sucker({"Tackle"}, 0));        // damaging move: hits
-  REQUIRE_FALSE(sucker({"Growl"}, 0));   // status move: fails
-  REQUIRE_FALSE(sucker({"Tackle"}, -1)); // switch: fails
+  REQUIRE(sucker({"Tackle"}, 0));
+  REQUIRE_FALSE(sucker({"Growl"}, 0));
+  REQUIRE_FALSE(sucker({"Tackle"}, -1));
 }
 
 TEST_CASE("FakeOut: turn one only, flinch included", "[mech]") {
@@ -251,9 +249,9 @@ TEST_CASE("FakeOut: turn one only, flinch included", "[mech]") {
   FixedRNG rng(0.99f);
   auto t1 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(dmgOn(t1, 1) > 0);
-  REQUIRE(countEv<MoveSkippedEvent>(t1) == 1); // Machamp flinched through its turn
+  REQUIRE(countEv<MoveSkippedEvent>(t1) == 1);
   auto t2 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
-  REQUIRE(countEv<MoveFailedEvent>(t2) == 1); // the window closed
+  REQUIRE(countEv<MoveFailedEvent>(t2) == 1);
 }
 
 TEST_CASE("Wish heals at the end of the NEXT turn, half the caster's max HP", "[mech]") {
@@ -267,10 +265,9 @@ TEST_CASE("Wish heals at the end of the NEXT turn, half the caster's max HP", "[
   FixedRNG rng(0.99f);
 
   auto t1 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
-  REQUIRE(state.teams[0][0].currentHp == 50); // nothing yet
+  REQUIRE(state.teams[0][0].currentHp == 50);
   auto t2 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(state.teams[0][0].currentHp == 50 + max / 2);
-  // The second cast on t2 failed (a wish was pending): no new wish is up.
   REQUIRE(countEv<MoveFailedEvent>(t2) == 1);
 }
 
@@ -285,13 +282,13 @@ TEST_CASE("DestinyBond drags the killer and refuses to chain", "[mech]") {
   auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(state.teams[0][0].isFainted());
   REQUIRE(countEv<DestinyBondTriggeredEvent>(events) == 1);
-  REQUIRE(state.teams[1][0].isFainted()); // dragged along
+  REQUIRE(state.teams[1][0].isFainted());
 
   auto s2 = duel(data, "MegaGengar", {"DestinyBond"}, "Conkeldurr", {"SwordsDance"});
   FixedRNG r2(0.99f);
   engine.resolveTurn(s2, UseMove{0}, UseMove{0}, r2);
   auto e2 = engine.resolveTurn(s2, UseMove{0}, UseMove{0}, r2);
-  REQUIRE(countEv<MoveFailedEvent>(e2) == 1); // chained cast fails
+  REQUIRE(countEv<MoveFailedEvent>(e2) == 1);
 }
 
 TEST_CASE("BellyDrum: half the tank for +6, and the Sitrus combo", "[mech]") {
@@ -300,16 +297,15 @@ TEST_CASE("BellyDrum: half the tank for +6, and the Sitrus combo", "[mech]") {
   BattleEngine engine(data);
 
   auto state = duel(data, "Snorlax", {"BellyDrum"}, "Conkeldurr", {"SwordsDance"});
-  state.teams[0][0].stats.hp = 460; // even max HP: the drum leaves exactly half
+  state.teams[0][0].stats.hp = 460;
   state.teams[0][0].currentHp = 460;
   state.teams[0][0].item_id = data.findItemId("SitrusBerry");
   FixedRNG rng(0.99f);
   auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(state.teams[0][0].stat_stages[static_cast<size_t>(StatIndex::Atk)] == 6);
-  REQUIRE(countEv<ItemConsumedEvent>(events) == 1); // the berry pops at half
+  REQUIRE(countEv<ItemConsumedEvent>(events) == 1);
   REQUIRE(state.teams[0][0].currentHp == 230 + 460 / 4);
 
-  // Below half: the drum refuses to play.
   auto s2 = duel(data, "Snorlax", {"BellyDrum"}, "Conkeldurr", {"SwordsDance"});
   s2.teams[0][0].currentHp = s2.teams[0][0].stats.hp / 3;
   FixedRNG r2(0.99f);
@@ -328,13 +324,13 @@ TEST_CASE("SleepTalk swings while asleep and fails awake", "[mech]") {
   state.teams[0][0].status_turns = 2;
   FixedRNG rng(0.99f); // rangeInt -> min: picks the first candidate (Tackle)
   auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
-  REQUIRE(dmgOn(events, 1) > 0); // Tackle came out of the dream
+  REQUIRE(dmgOn(events, 1) > 0);
   REQUIRE(state.teams[0][0].status == Status::Sleep);
 
   auto s2 = duel(data, "Snorlax", {"SleepTalk", "Tackle"}, "Conkeldurr", {"SwordsDance"});
   FixedRNG r2(0.99f);
   auto e2 = engine.resolveTurn(s2, UseMove{0}, UseMove{0}, r2);
-  REQUIRE(countEv<MoveFailedEvent>(e2) == 1); // wide awake: nothing to babble
+  REQUIRE(countEv<MoveFailedEvent>(e2) == 1);
 }
 
 TEST_CASE("SpectralThief pockets the boosts before hitting", "[mech]") {
@@ -373,8 +369,8 @@ TEST_CASE("BanefulBunker poisons contact attackers only", "[mech]") {
     engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
     return state.teams[1][0].status;
   };
-  REQUIRE(poke("Tackle") == Status::Poison);  // contact: pricked
-  REQUIRE(poke("StoneEdge") == Status::None); // no contact: safe
+  REQUIRE(poke("Tackle") == Status::Poison);
+  REQUIRE(poke("StoneEdge") == Status::None);
 }
 
 TEST_CASE("PhantomForce vanishes, then strikes through Protect", "[mech]") {
@@ -386,10 +382,10 @@ TEST_CASE("PhantomForce vanishes, then strikes through Protect", "[mech]") {
   FixedRNG rng(0.99f);
   auto t1 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(state.teams[0][0].invulnerable_state == 3);
-  REQUIRE(dmgOn(t1, 0) == -1); // the Tackle found nobody home
+  REQUIRE(dmgOn(t1, 0) == -1);
 
   auto t2 = engine.resolveTurn(state, UseMove{0}, UseMove{1}, rng);
-  REQUIRE(dmgOn(t2, 1) > 0); // released through the Protect
+  REQUIRE(dmgOn(t2, 1) > 0);
   REQUIRE(state.teams[0][0].invulnerable_state == 0);
 }
 
@@ -408,17 +404,17 @@ TEST_CASE("Teleport pivots out at -6 priority", "[mech]") {
 
   for (const auto &ev : events)
     if (auto *e = std::get_if<MoveUsedEvent>(&ev)) {
-      REQUIRE(e->user.side == 1); // -6: the fast mouse waits its turn
+      REQUIRE(e->user.side == 1);
       break;
     }
-  REQUIRE(state.activeIndex[0] == 1); // and then slips away
+  REQUIRE(state.activeIndex[0] == 1);
 }
 
 TEST_CASE("Toxic from a Poison-type never misses (and misses otherwise)", "[mech]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
-  MissRNG rng; // every accuracy roll fails
+  MissRNG rng;
 
   auto s1 = duel(data, "MegaGengar", {"Toxic"}, "Snorlax", {"Growl"});
   engine.resolveTurn(s1, UseMove{0}, UseMove{0}, rng);
@@ -426,7 +422,7 @@ TEST_CASE("Toxic from a Poison-type never misses (and misses otherwise)", "[mech
 
   auto s2 = duel(data, "Snorlax", {"Toxic"}, "Conkeldurr", {"Growl"});
   engine.resolveTurn(s2, UseMove{0}, UseMove{0}, rng);
-  REQUIRE(s2.teams[1][0].status == Status::None); // 90%: the roll happened and failed
+  REQUIRE(s2.teams[1][0].status == Status::None);
 }
 
 TEST_CASE("Thunder ignores accuracy under the rain; Scald thaws its own user", "[mech]") {
@@ -452,7 +448,7 @@ TEST_CASE("Thunder ignores accuracy under the rain; Scald thaws its own user", "
   FixedRNG rng(0.99f);
   auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(state.teams[0][0].status == Status::None);
-  REQUIRE(dmgOn(events, 1) > 0); // thawed and fired in the same breath
+  REQUIRE(dmgOn(events, 1) > 0);
 }
 
 TEST_CASE("TidyUp sweeps both fields and pumps the cleaner", "[mech]") {

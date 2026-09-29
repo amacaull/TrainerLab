@@ -11,9 +11,7 @@
 #include <stdexcept>
 
 namespace engine {
-
 namespace {
-
 [[noreturn]] void fail(const std::string &msg) {
   throw std::invalid_argument("validateState: " + msg);
 }
@@ -136,7 +134,6 @@ void validatePokemon(const BattlePokemon &p, const DataLoader &data, int side, i
     }
   }
 }
-
 } // namespace
 
 void validateTeam(const std::array<BattlePokemon, kTeamSize> &team, int teamSize,
@@ -170,7 +167,6 @@ void validateTeam(const std::array<BattlePokemon, kTeamSize> &team, int teamSize
     if (sp.legendary)
       ++legendaries;
 
-    // A submitted set may only draw from the species' own movepool.
     for (int m = 0; m < kMaxMovesPerPokemon; ++m) {
       int mid = p.move_ids[static_cast<size_t>(m)];
       if (mid == kNoMove)
@@ -201,7 +197,7 @@ void validateState(const BattleState &state, const DataLoader &data) {
   if (state.weather == Weather::None && state.weather_turns_left != 0)
     fail("weather_turns_left must be 0 when weather is None");
   if (state.weather == Weather::StrongWinds && state.weather_turns_left != 0)
-    fail("StrongWinds is presence-bound: weather_turns_left must be 0 (ADR #47)");
+    fail("StrongWinds is presence-bound: weather_turns_left must be 0");
   if (state.weather != Weather::None && state.weather != Weather::StrongWinds &&
       state.weather_turns_left > kWeatherDuration)
     fail("weather_turns_left exceeds the maximum duration");
@@ -222,7 +218,7 @@ void validateState(const BattleState &state, const DataLoader &data) {
     if (state.wish_heal[static_cast<size_t>(side)] < 0)
       fail("wish_heal is negative");
     int veil = state.aurora_veil_turns[static_cast<size_t>(side)];
-    if (veil < 0 || veil > 8) // 5 turns, 8 with LightClay (ADR #39)
+    if (veil < 0 || veil > 8)
       fail("aurora_veil_turns out of range [0, 8] on side " + std::to_string(side));
   }
 
@@ -259,5 +255,4 @@ void validateState(const BattleState &state, const DataLoader &data) {
     fail("turn negative (" + std::to_string(state.turn) + ")");
   }
 }
-
 } // namespace engine

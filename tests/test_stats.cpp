@@ -31,24 +31,23 @@ TEST_CASE("EVs feed the formula (floor(ev/4))", "[stats]") {
   evs.specAtk = 252;
   evs.hp = 4;
   Stats s = computeStats(kBase, 100, *natureByName("Serious"), evs);
-  REQUIRE(s.hp == 298);      // +floor(4/4)
-  REQUIRE(s.specAtk == 317); // +63
-  REQUIRE(s.speed == 299);   // +63
+  REQUIRE(s.hp == 298);
+  REQUIRE(s.specAtk == 317);
+  REQUIRE(s.speed == 299);
 }
 
 TEST_CASE("Nature applies +10%/-10% after the flat formula", "[stats]") {
   Stats evs{};
   evs.speed = 252;
-  // Timid : +Vit / -Atk
+  // Timid: +Spe / -Atk
   Stats s = computeStats(kBase, 100, *natureByName("Timid"), evs);
-  REQUIRE(s.speed == 328); // floor(299 * 1.1)
-  REQUIRE(s.atk == 183);   // floor(204 * 0.9)
+  REQUIRE(s.speed == 328);
+  REQUIRE(s.atk == 183);
   REQUIRE(s.specAtk == 254);
-  REQUIRE(s.hp == 297); // HP never takes a nature
+  REQUIRE(s.hp == 297);
 }
 
 TEST_CASE("The nature table knows all 25 canon French names", "[stats]") {
-  // One per family + the five neutrals.
   for (const char *n : {"Hardy",  "Docile", "Serious", "Bashful", "Quirky",  "Adamant", "Bold",
                         "Modest", "Calm",   "Jolly",   "Timid",   "Careful", "Brave",   "Relaxed",
                         "Quiet",  "Sassy",  "Naive",   "Lonely",  "Naughty", "Mild",    "Rash",

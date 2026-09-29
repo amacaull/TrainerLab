@@ -3,7 +3,6 @@
 #include <cstdint>
 
 namespace engine {
-
 MersenneRNG::MersenneRNG(uint64_t seed) : gen_(seed) {}
 
 // Hand-written on top of mt19937_64, whose output the standard fixes
@@ -27,5 +26,4 @@ float MersenneRNG::unit() {
   // Top 24 bits -> [0, 1) on the float grid, never 1.0.
   return static_cast<float>(gen_() >> 40) * (1.0f / 16777216.0f);
 }
-
 } // namespace engine

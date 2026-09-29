@@ -12,11 +12,8 @@
 #include <memory>
 
 namespace engine {
-
 namespace {
-
-// Unlike RecoilEffect (fraction of damage dealt), Struggle's recoil is a
-// flat quarter of the user's max HP, only if the hit connected.
+// Unlike RecoilEffect, Struggle's recoil is a flat quarter of the user's max HP (canon).
 class StruggleRecoilEffect : public Effect {
 public:
   void apply(EffectContext &ctx) const override {
@@ -44,19 +41,17 @@ Move buildStruggle() {
   m.name = "Struggle";
   m.category = MoveCategory::Physical;
   m.power = 50;
-  m.accuracy = 0; // never-miss sentinel
+  m.accuracy = 0;
   m.typeless = true;
   m.makesContact = true;
   m.effects.push_back(std::make_unique<DamageEffect>());
   m.effects.push_back(std::make_unique<StruggleRecoilEffect>());
   return m;
 }
-
 } // namespace
 
 const Move &struggleMove() {
   static const Move kStruggle = buildStruggle();
   return kStruggle;
 }
-
 } // namespace engine

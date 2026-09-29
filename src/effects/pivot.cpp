@@ -4,7 +4,6 @@
 #include "engine/core/switching.hpp"
 
 namespace engine {
-
 void PivotEffect::apply(EffectContext &ctx) const {
   int side = ctx.user.side;
   const BattlePokemon &user =
@@ -20,5 +19,4 @@ void PivotEffect::apply(EffectContext &ctx) const {
 
   performSwitch(ctx.state, ctx.data, side, target, ctx.events);
 }
-
 } // namespace engine

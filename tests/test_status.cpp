@@ -15,7 +15,6 @@ using namespace engine;
 using engine::test::buildCombatant;
 
 namespace {
-
 // FixedRNG(0.5f): never procs full para (0.25) nor thaw (0.20), always passes
 // accuracy (chancePct), min damage roll, Sleep lasts exactly 1 turn.
 // FixedRNG(0.1f): forces full para and thaw.
@@ -74,7 +73,6 @@ int moveDamageOn(const EventLog &events, int side) {
         return e->damage;
   return -1;
 }
-
 } // namespace
 
 TEST_CASE("WillOWisp applies Burn", "[status]") {
@@ -179,7 +177,6 @@ TEST_CASE("Toxic damage ramps n/16 per turn", "[status][residual]") {
 
   auto t2 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(statusDamageOn(t2, 1) == maxHp * 2 / 16);
-  // Re-applying Toxic on an already-statused target fails.
   REQUIRE(hasStatusFailed(t2, 1, Status::Toxic));
 
   auto t3 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
@@ -191,7 +188,6 @@ TEST_CASE("Paralysis halves effective speed in turn order", "[status][order]") {
   engine::test::loadAll(data);
   BattleEngine engine(data);
 
-  // Gengar (Spd 115) normally outspeeds Charizard (Spd 105).
   auto firstMover = [&](Status gengarStatus) {
     BattleState state;
     state.teams[0][0] = buildCombatant(data, "Infernape", {"DragonClaw"});
@@ -240,13 +236,11 @@ TEST_CASE("Sleep: target skips its turns then wakes up", "[status][before_move]"
   BattleEngine engine(data);
   FixedRNG rng(0.5f); // rangeInt -> min: sleep lasts exactly 1 turn
 
-  // Turn 1: Venusaur (faster) sleeps Snorlax, which then skips its move.
   auto t1 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(hasStatusApplied(t1, 1, Status::Sleep));
   REQUIRE(hasSkip(t1, 1, SkipReason::Asleep));
   REQUIRE(state.teams[1][0].status == Status::Sleep);
 
-  // Turn 2: re-Spore fails (already statused), Snorlax wakes up and moves.
   int venusaurHp = state.teams[0][0].currentHp;
   auto t2 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(hasStatusFailed(t2, 1, Status::Sleep));
@@ -391,7 +385,7 @@ TEST_CASE("A damaging Fire move thaws a frozen target", "[status][damage]") {
   state.teams[1][0].status = Status::Freeze;
 
   BattleEngine engine(data);
-  FixedRNG rng(0.5f); // no RNG thaw: only the Fire hit can cure
+  FixedRNG rng(0.5f);
   auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
 
   REQUIRE(hasCured(events, 1, Status::Freeze));
@@ -407,7 +401,7 @@ TEST_CASE("Residual damage can faint and end the battle", "[status][residual]") 
   state.teams[1][0] = buildCombatant(data, "Snorlax", {"Tackle"});
   state.team_size = {1, 1};
   state.teams[1][0].status = Status::Burn;
-  state.teams[1][0].currentHp = 3; // below the 1/16 burn chip
+  state.teams[1][0].currentHp = 3;
 
   BattleEngine engine(data);
   FixedRNG rng(0.5f);

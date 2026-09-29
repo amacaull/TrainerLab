@@ -15,7 +15,6 @@ using namespace engine;
 using engine::test::buildCombatant;
 
 namespace {
-
 bool abilityTriggered(const EventLog &events, int side, const std::string &name) {
   for (const auto &ev : events)
     if (auto *e = std::get_if<AbilityTriggeredEvent>(&ev))
@@ -31,10 +30,9 @@ int moveDamageOn(const EventLog &events, int side) {
         return e->damage;
   return -1;
 }
-
 } // namespace
 
-TEST_CASE("Ability registry: known names resolve, unknown returns nullptr", "[ability]") {
+TEST_CASE("Ability registry: known names resolve, unknown returns nullptr", "[abilities]") {
   REQUIRE(abilityByName("Blaze") != nullptr);
   REQUIRE(abilityByName("Torrent") != nullptr);
   REQUIRE(abilityByName("Overgrow") != nullptr);
@@ -44,7 +42,7 @@ TEST_CASE("Ability registry: known names resolve, unknown returns nullptr", "[ab
   REQUIRE(abilityByName("") == nullptr);
 }
 
-TEST_CASE("Every loaded species references a registered ability", "[ability][catalog]") {
+TEST_CASE("Every loaded species references a registered ability", "[abilities][catalog]") {
   DataLoader data;
   engine::test::loadAll(data);
 
@@ -52,16 +50,16 @@ TEST_CASE("Every loaded species references a registered ability", "[ability][cat
     const Species &sp = data.speciesByIndex(sid);
     INFO("species " << sp.id << " ability '" << sp.ability << "'");
     if (sp.id == "ZoroarkHisui")
-      continue; // ADR #43: Illusion reportee, talent vide legal
+      continue;
     REQUIRE_FALSE(sp.ability.empty());
     REQUIRE(abilityByName(sp.ability) != nullptr);
   }
 }
 
-TEST_CASE("Intimidate lowers the opposing Attack on switch-in", "[ability][switch]") {
+TEST_CASE("Intimidate lowers the opposing Attack on switch-in", "[abilities][switch]") {
   DataLoader data;
   engine::test::loadAll(data);
-  engine::test::overrideAbility(data, "Gyarados", "Intimidate"); // roster: Moxie
+  engine::test::overrideAbility(data, "Gyarados", "Intimidate");
   BattleEngine engine(data);
 
   BattleState state;
@@ -77,10 +75,10 @@ TEST_CASE("Intimidate lowers the opposing Attack on switch-in", "[ability][switc
   REQUIRE(state.teams[1][0].stat_stages[static_cast<size_t>(StatIndex::Atk)] == -1);
 }
 
-TEST_CASE("Intimidate fires on a KO replacement", "[ability][replacement]") {
+TEST_CASE("Intimidate fires on a KO replacement", "[abilities][replacement]") {
   DataLoader data;
   engine::test::loadAll(data);
-  engine::test::overrideAbility(data, "Gyarados", "Intimidate"); // roster: Moxie
+  engine::test::overrideAbility(data, "Gyarados", "Intimidate");
   BattleEngine engine(data);
 
   BattleState state;
@@ -96,10 +94,10 @@ TEST_CASE("Intimidate fires on a KO replacement", "[ability][replacement]") {
   REQUIRE(state.teams[1][0].stat_stages[static_cast<size_t>(StatIndex::Atk)] == -1);
 }
 
-TEST_CASE("startBattle fires the leads' switch-in abilities", "[ability]") {
+TEST_CASE("startBattle fires the leads' switch-in abilities", "[abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
-  engine::test::overrideAbility(data, "Gyarados", "Intimidate"); // roster: Moxie
+  engine::test::overrideAbility(data, "Gyarados", "Intimidate");
   BattleEngine engine(data);
 
   BattleState state;
@@ -114,10 +112,10 @@ TEST_CASE("startBattle fires the leads' switch-in abilities", "[ability]") {
   REQUIRE(state.teams[1][0].stat_stages[static_cast<size_t>(StatIndex::Atk)] == -1);
 }
 
-TEST_CASE("Intimidate at the -6 cap emits StatChangeFailed", "[ability][stage]") {
+TEST_CASE("Intimidate at the -6 cap emits StatChangeFailed", "[abilities][stage]") {
   DataLoader data;
   engine::test::loadAll(data);
-  engine::test::overrideAbility(data, "Gyarados", "Intimidate"); // roster: Moxie
+  engine::test::overrideAbility(data, "Gyarados", "Intimidate");
   BattleEngine engine(data);
 
   BattleState state;
@@ -137,7 +135,7 @@ TEST_CASE("Intimidate at the -6 cap emits StatChangeFailed", "[ability][stage]")
   REQUIRE(state.teams[1][0].stat_stages[static_cast<size_t>(StatIndex::Atk)] == -6);
 }
 
-TEST_CASE("Levitate voids Ground moves entirely", "[ability][immunity]") {
+TEST_CASE("Levitate voids Ground moves entirely", "[abilities][immunity]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -153,20 +151,17 @@ TEST_CASE("Levitate voids Ground moves entirely", "[ability][immunity]") {
 
   REQUIRE(abilityTriggered(events, 1, "Levitate"));
   REQUIRE(state.teams[1][0].currentHp == gengarHp);
-  REQUIRE(moveDamageOn(events, 1) == -1); // no damage event at all
+  REQUIRE(moveDamageOn(events, 1) == -1);
 
-  // Non-Ground moves are unaffected.
   auto t2 = engine.resolveTurn(state, UseMove{1}, UseMove{0}, rng);
   REQUIRE(moveDamageOn(t2, 1) > 0);
 }
 
-TEST_CASE("Pinch abilities boost same-type damage at 1/3 HP", "[ability][damage]") {
+TEST_CASE("Pinch abilities boost same-type damage at 1/3 HP", "[abilities][damage]") {
   DataLoader data;
   engine::test::loadAll(data);
-  // The roster carries these three species with other abilities; the pinch
-  // family itself is what this case guards.
   engine::test::overrideAbility(data, "Infernape", "Blaze");
-  engine::test::overrideAbility(data, "Zarude", "Overgrow"); // Inteleon has Torrent natively
+  engine::test::overrideAbility(data, "Zarude", "Overgrow");
   BattleEngine engine(data);
 
   struct Case {
@@ -174,9 +169,9 @@ TEST_CASE("Pinch abilities boost same-type damage at 1/3 HP", "[ability][damage]
     const char *move;
   };
   const Case cases[] = {
-      {"Infernape", "Flamethrower"}, // Blaze
-      {"Inteleon", "Surf"},          // Torrent
-      {"Zarude", "VineWhip"},        // Overgrow
+      {"Infernape", "Flamethrower"},
+      {"Inteleon", "Surf"},
+      {"Zarude", "VineWhip"},
   };
 
   auto hitDamage = [&](const Case &c, bool pinched) {
@@ -197,14 +192,13 @@ TEST_CASE("Pinch abilities boost same-type damage at 1/3 HP", "[ability][damage]
     INFO(c.species << " / " << c.move);
     int normal = hitDamage(c, false);
     int pinched = hitDamage(c, true);
-    // x1.5 within floor tolerance.
     REQUIRE(pinched > normal);
     REQUIRE(pinched >= normal * 3 / 2 - 2);
     REQUIRE(pinched <= normal * 3 / 2 + 2);
   }
 }
 
-TEST_CASE("Pinch abilities are inert above 1/3 HP and on off-type moves", "[ability][damage]") {
+TEST_CASE("Pinch abilities are inert above 1/3 HP and on off-type moves", "[abilities][damage]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -221,16 +215,10 @@ TEST_CASE("Pinch abilities are inert above 1/3 HP and on off-type moves", "[abil
     return moveDamageOn(events, 1);
   };
 
-  // Above the pinch threshold: no boost.
   REQUIRE(hitDamage("Flamethrower", 2) == hitDamage("Flamethrower", 0));
   // At 1/3 HP but wrong type (AirSlash is Flying): no boost either.
   REQUIRE(hitDamage("AirSlash", 3) == hitDamage("AirSlash", 0));
 }
-
-// ---------------------------------------------------------------------------
-// The roster abilities. Holders are simulated with overrideAbility
-// (test-only) so each ability is tested on a controlled Pokemon.
-// ---------------------------------------------------------------------------
 
 #include "engine/core/validate.hpp"
 #include "engine/items/item.hpp"
@@ -238,7 +226,6 @@ TEST_CASE("Pinch abilities are inert above 1/3 HP and on off-type moves", "[abil
 using engine::test::overrideAbility;
 
 namespace {
-
 BattleState duel(const DataLoader &data, const char *s0, std::vector<std::string> m0,
                  const char *s1, std::vector<std::string> m1) {
   BattleState state;
@@ -263,10 +250,9 @@ template <typename E> int countEv(const EventLog &events) {
       ++n;
   return n;
 }
-
 } // namespace
 
-TEST_CASE("HugePower doubles Attack; Technician boosts weak moves only", "[abilities13]") {
+TEST_CASE("HugePower doubles Attack; Technician boosts weak moves only", "[abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -287,7 +273,6 @@ TEST_CASE("HugePower doubles Attack; Technician boosts weak moves only", "[abili
   REQUIRE(tackle("HugePower") > static_cast<int>(static_cast<float>(plain) * 1.9f));
   REQUIRE(tackle("Technician") > static_cast<int>(static_cast<float>(plain) * 1.4f));
 
-  // Body Slam (85 BP) is above the Technician cutoff.
   auto bodySlam = [&](const char *ability) {
     DataLoader d;
     engine::test::loadAll(d);
@@ -302,7 +287,7 @@ TEST_CASE("HugePower doubles Attack; Technician boosts weak moves only", "[abili
   REQUIRE(bodySlam("Technician") == bodySlam(nullptr));
 }
 
-TEST_CASE("Adaptability turns STAB into x2; Sharpness rewards slicing moves", "[abilities13]") {
+TEST_CASE("Adaptability turns STAB into x2; Sharpness rewards slicing moves", "[abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
 
@@ -323,13 +308,12 @@ TEST_CASE("Adaptability turns STAB into x2; Sharpness rewards slicing moves", "[
   int stabAdapt = hit("Snorlax", "Tackle", "Adaptability");
   REQUIRE(stabAdapt > static_cast<int>(static_cast<float>(stabPlain) * 1.25f));
 
-  // Charizard AirSlash carries the slicing flag.
   int slashPlain = hit("Infernape", "AirSlash", nullptr);
   int slashSharp = hit("Infernape", "AirSlash", "Sharpness");
   REQUIRE(slashSharp > static_cast<int>(static_cast<float>(slashPlain) * 1.4f));
 }
 
-TEST_CASE("Unaware ignores the other side's stages, both ways", "[abilities13]") {
+TEST_CASE("Unaware ignores the other side's stages, both ways", "[abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
 
@@ -346,12 +330,12 @@ TEST_CASE("Unaware ignores the other side's stages, both ways", "[abilities13]")
     return dmgOn(events, 1);
   };
 
-  REQUIRE(boostedTackle("Unaware") < boostedTackle(nullptr) / 3); // +6 wiped
+  REQUIRE(boostedTackle("Unaware") < boostedTackle(nullptr) / 3);
 }
 
-TEST_CASE("VesselOfRuin drains the opponent's Special Attack", "[abilities13]") {
-  // Baseline "Pressure" (inerte en dégâts): Snorlax's natural ThickFat
-  // would halve Fire and poison the comparison.
+TEST_CASE("VesselOfRuin drains the opponent's Special Attack", "[abilities]") {
+  // Baseline Pressure (no damage effect): Snorlax's natural ThickFat would halve Fire and poison
+  // the comparison.
   auto flame = [&](const char *defenderAbility) {
     DataLoader d;
     engine::test::loadAll(d);
@@ -369,7 +353,7 @@ TEST_CASE("VesselOfRuin drains the opponent's Special Attack", "[abilities13]") 
   REQUIRE(drained > static_cast<int>(static_cast<float>(plain) * 0.65f));
 }
 
-TEST_CASE("VoltAbsorb and LightningRod void Electric moves with their perks", "[abilities13]") {
+TEST_CASE("VoltAbsorb and LightningRod void Electric moves with their perks", "[abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
   overrideAbility(data, "Snorlax", "VoltAbsorb");
@@ -379,7 +363,7 @@ TEST_CASE("VoltAbsorb and LightningRod void Electric moves with their perks", "[
   state.teams[1][0].currentHp = state.teams[1][0].stats.hp / 2;
   FixedRNG rng(0.99f);
   auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
-  REQUIRE(dmgOn(events, 1) == -1); // absorbed
+  REQUIRE(dmgOn(events, 1) == -1);
   REQUIRE(state.teams[1][0].currentHp ==
           state.teams[1][0].stats.hp / 2 + state.teams[1][0].stats.hp / 4);
 
@@ -392,7 +376,7 @@ TEST_CASE("VoltAbsorb and LightningRod void Electric moves with their perks", "[
   REQUIRE(s2.teams[1][0].stat_stages[static_cast<size_t>(StatIndex::SpA)] == 1);
 }
 
-TEST_CASE("FlashFire: Fire immunity, then a x1.5 boost that dies on switch-out", "[abilities13]") {
+TEST_CASE("FlashFire: Fire immunity, then a x1.5 boost that dies on switch-out", "[abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
   overrideAbility(data, "Infernape", "FlashFire");
@@ -408,19 +392,19 @@ TEST_CASE("FlashFire: Fire immunity, then a x1.5 boost that dies on switch-out",
   // Venusaur is slower: Charizard hits unlit first, absorbs afterwards.
   auto t1 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   int unlit = dmgOn(t1, 1);
-  REQUIRE(state.teams[0][0].currentHp == state.teams[0][0].stats.hp); // absorbed
+  REQUIRE(state.teams[0][0].currentHp == state.teams[0][0].stats.hp);
   REQUIRE(state.teams[0][0].flash_fire_active == 1);
 
   state.teams[1][0].currentHp = state.teams[1][0].stats.hp;
   auto t2 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(dmgOn(t2, 1) > static_cast<int>(static_cast<float>(unlit) * 1.4f));
 
-  state.teams[1][0].currentHp = state.teams[1][0].stats.hp; // survived the boosted hit
+  state.teams[1][0].currentHp = state.teams[1][0].stats.hp;
   engine.resolveTurn(state, SwitchAction{1}, UseMove{0}, rng);
-  REQUIRE(state.teams[0][0].flash_fire_active == 0); // the flame goes out
+  REQUIRE(state.teams[0][0].flash_fire_active == 0);
 }
 
-TEST_CASE("Bulletproof voids ballistic moves only", "[abilities13]") {
+TEST_CASE("Bulletproof voids ballistic moves only", "[abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
   overrideAbility(data, "Conkeldurr", "Bulletproof");
@@ -429,12 +413,12 @@ TEST_CASE("Bulletproof voids ballistic moves only", "[abilities13]") {
   auto state = duel(data, "MegaGengar", {"ShadowBall", "Tackle"}, "Conkeldurr", {"Growl"});
   FixedRNG rng(0.99f);
   auto e1 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
-  REQUIRE(dmgOn(e1, 1) == -1); // Ball'Ombre bounces off
+  REQUIRE(dmgOn(e1, 1) == -1);
   auto e2 = engine.resolveTurn(state, UseMove{1}, UseMove{0}, rng);
   REQUIRE(dmgOn(e2, 1) > 0);
 }
 
-TEST_CASE("ClearBody blocks opposing drops; Defiant answers them with +2 Atk", "[abilities13]") {
+TEST_CASE("ClearBody blocks opposing drops; Defiant answers them with +2 Atk", "[abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
   overrideAbility(data, "Snorlax", "ClearBody");
@@ -451,7 +435,6 @@ TEST_CASE("ClearBody blocks opposing drops; Defiant answers them with +2 Atk", "
   BattleEngine e2(d2);
   auto s2 = duel(d2, "Conkeldurr", {"Growl"}, "Snorlax", {"Tackle"});
   e2.resolveTurn(s2, UseMove{0}, UseMove{0}, rng);
-  // -1 from Growl, +2 from Defiant: net +1.
   REQUIRE(s2.teams[1][0].stat_stages[static_cast<size_t>(StatIndex::Atk)] == 1);
 
   // Own drops (Close Combat's) never trigger it.
@@ -464,7 +447,7 @@ TEST_CASE("ClearBody blocks opposing drops; Defiant answers them with +2 Atk", "
   REQUIRE(s3.teams[0][0].stat_stages[static_cast<size_t>(StatIndex::Atk)] < 1);
 }
 
-TEST_CASE("Moxie: +1 Atk on the KO", "[abilities13]") {
+TEST_CASE("Moxie: +1 Atk on the KO", "[abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
   overrideAbility(data, "Conkeldurr", "Moxie");
@@ -481,7 +464,7 @@ TEST_CASE("Moxie: +1 Atk on the KO", "[abilities13]") {
 }
 
 TEST_CASE("Berserk: +1 SpA when a hit drops it below half — residuals don't count",
-          "[abilities13]") {
+          "[abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
   overrideAbility(data, "Snorlax", "Berserk");
@@ -507,7 +490,7 @@ TEST_CASE("Berserk: +1 SpA when a hit drops it below half — residuals don't co
   REQUIRE(s2.teams[0][0].stat_stages[static_cast<size_t>(StatIndex::SpA)] == 0);
 }
 
-TEST_CASE("EmergencyExit auto-switches below half (ADR #47 divergence)", "[abilities13]") {
+TEST_CASE("EmergencyExit auto-switches below half (divergence from canon)", "[abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
   overrideAbility(data, "Snorlax", "EmergencyExit");
@@ -522,11 +505,11 @@ TEST_CASE("EmergencyExit auto-switches below half (ADR #47 divergence)", "[abili
 
   FixedRNG rng(0.99f);
   engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
-  REQUIRE(state.activeIndex[0] == 1); // fled to Gyarados
+  REQUIRE(state.activeIndex[0] == 1);
 }
 
 TEST_CASE("Regenerator heals a third on the way out; NaturalCure purges the status",
-          "[abilities13]") {
+          "[abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
   overrideAbility(data, "Snorlax", "Regenerator");
@@ -558,7 +541,7 @@ TEST_CASE("Regenerator heals a third on the way out; NaturalCure purges the stat
   REQUIRE(s2.teams[0][0].status == Status::None);
 }
 
-TEST_CASE("Prankster bumps Status moves a bracket up", "[abilities13]") {
+TEST_CASE("Prankster bumps Status moves a bracket up", "[abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
   overrideAbility(data, "Toxapex", "Prankster"); // 80 base speed vs Charizard's 100
@@ -574,7 +557,7 @@ TEST_CASE("Prankster bumps Status moves a bracket up", "[abilities13]") {
     }
 }
 
-TEST_CASE("MagicBounce bounces status and hazards back at the sender", "[abilities13]") {
+TEST_CASE("MagicBounce bounces status and hazards back at the sender", "[abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
   overrideAbility(data, "Snorlax", "MagicBounce");
@@ -587,17 +570,17 @@ TEST_CASE("MagicBounce bounces status and hazards back at the sender", "[abiliti
 
   engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(state.teams[1][0].status == Status::None);
-  REQUIRE(state.teams[0][0].status == Status::Toxic); // came right back
+  REQUIRE(state.teams[0][0].status == Status::Toxic);
 
   engine.resolveTurn(state, UseMove{1}, UseMove{0}, rng);
-  REQUIRE(state.hazards[0].stealth_rock == 1); // landed on the setter's side
+  REQUIRE(state.hazards[0].stealth_rock == 1);
   REQUIRE(state.hazards[1].stealth_rock == 0);
 
   auto e3 = engine.resolveTurn(state, UseMove{2}, UseMove{0}, rng);
-  REQUIRE(dmgOn(e3, 1) > 0); // damaging moves never bounce
+  REQUIRE(dmgOn(e3, 1) > 0);
 }
 
-TEST_CASE("Pressure doubles the PP bill of moves aimed at it", "[abilities13]") {
+TEST_CASE("Pressure doubles the PP bill of moves aimed at it", "[abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
   overrideAbility(data, "Snorlax", "Pressure");
@@ -606,13 +589,13 @@ TEST_CASE("Pressure doubles the PP bill of moves aimed at it", "[abilities13]") 
   auto state = duel(data, "Conkeldurr", {"Tackle", "SwordsDance"}, "Snorlax", {"Growl"});
   FixedRNG rng(0.99f);
   engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
-  REQUIRE(state.teams[0][0].pp[0] == 33); // 35 - 2
+  REQUIRE(state.teams[0][0].pp[0] == 33);
 
   engine.resolveTurn(state, UseMove{1}, UseMove{0}, rng);
   REQUIRE(state.teams[0][0].pp[1] == 19); // self-targeted: normal bill
 }
 
-TEST_CASE("Unnerve keeps the opposing Sitrus in its wrapper", "[abilities13]") {
+TEST_CASE("Unnerve keeps the opposing Sitrus in its wrapper", "[abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
   overrideAbility(data, "Conkeldurr", "Unnerve");
@@ -627,7 +610,7 @@ TEST_CASE("Unnerve keeps the opposing Sitrus in its wrapper", "[abilities13]") {
   REQUIRE(state.teams[1][0].item_consumed == 0);
 }
 
-TEST_CASE("RockHead cancels recoil; Struggle's stays canon", "[abilities13]") {
+TEST_CASE("RockHead cancels recoil; Struggle's stays canon", "[abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
   overrideAbility(data, "Infernape", "RockHead");
@@ -645,7 +628,7 @@ TEST_CASE("RockHead cancels recoil; Struggle's stays canon", "[abilities13]") {
   REQUIRE(countEv<RecoilDamageEvent>(e2) == 1);
 }
 
-TEST_CASE("LeafGuard blocks status under the sun only", "[abilities13]") {
+TEST_CASE("LeafGuard blocks status under the sun only", "[abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
   overrideAbility(data, "Toxapex", "LeafGuard");
@@ -664,7 +647,7 @@ TEST_CASE("LeafGuard blocks status under the sun only", "[abilities13]") {
   REQUIRE(state.teams[1][0].status == Status::Burn);
 }
 
-TEST_CASE("Disguise eats the first hit for 1/8 and stays popped", "[abilities13]") {
+TEST_CASE("Disguise eats the first hit for 1/8 and stays popped", "[abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
   overrideAbility(data, "Luxray", "Disguise");
@@ -676,14 +659,14 @@ TEST_CASE("Disguise eats the first hit for 1/8 and stays popped", "[abilities13]
 
   auto e1 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(state.teams[1][0].disguise_broken == 1);
-  REQUIRE(state.teams[1][0].currentHp == max - max / 8); // chip only
+  REQUIRE(state.teams[1][0].currentHp == max - max / 8);
   REQUIRE(dmgOn(e1, 1) == -1);
 
   auto e2 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
-  REQUIRE(dmgOn(e2, 1) > 0); // the costume is gone
+  REQUIRE(dmgOn(e2, 1) > 0);
 }
 
-TEST_CASE("Magician pockets the target's item on a hit", "[abilities13]") {
+TEST_CASE("Magician pockets the target's item on a hit", "[abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
   overrideAbility(data, "MegaGengar", "Magician");
@@ -699,7 +682,7 @@ TEST_CASE("Magician pockets the target's item on a hit", "[abilities13]") {
   REQUIRE(state.teams[1][0].item_id == kNoItem);
 }
 
-TEST_CASE("SnowWarning and ElectricSurge set their field on switch-in", "[abilities13]") {
+TEST_CASE("SnowWarning and ElectricSurge set their field on switch-in", "[abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
   overrideAbility(data, "Snorlax", "SnowWarning");
@@ -715,7 +698,7 @@ TEST_CASE("SnowWarning and ElectricSurge set their field on switch-in", "[abilit
 }
 
 TEST_CASE("DeltaStream: presence-bound, unremplacable, shields the Flying component",
-          "[abilities13]") {
+          "[abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
   overrideAbility(data, "Gyarados", "DeltaStream");
@@ -737,23 +720,23 @@ TEST_CASE("DeltaStream: presence-bound, unremplacable, shields the Flying compon
   // Electric vs Water/Flying is x4; the winds drop the Flying part to x1.
   auto e1 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   int shielded = dmgOn(e1, 0);
-  REQUIRE(state.weather == Weather::StrongWinds); // Rain Dance would have to wait
+  REQUIRE(state.weather == Weather::StrongWinds);
 
   auto e2 = engine.resolveTurn(state, UseMove{0}, UseMove{1}, rng);
-  REQUIRE(countEv<MoveFailedEvent>(e2) == 1); // Danse Pluie fails under the winds
+  REQUIRE(countEv<MoveFailedEvent>(e2) == 1);
 
   engine.resolveTurn(state, SwitchAction{1}, UseMove{0}, rng);
-  REQUIRE(state.weather == Weather::None); // the setter left: the winds die
+  REQUIRE(state.weather == Weather::None);
 
   state.teams[1][0].currentHp = state.teams[1][0].stats.hp;
-  engine.resolveTurn(state, SwitchAction{0}, UseMove{0}, rng); // Gyarados returns...
-  REQUIRE(state.weather == Weather::StrongWinds);              // ...and so do the winds
+  engine.resolveTurn(state, SwitchAction{0}, UseMove{0}, rng);
+  REQUIRE(state.weather == Weather::StrongWinds);
   state.teams[0][0].currentHp = state.teams[0][0].stats.hp;
   auto e3 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
-  REQUIRE(dmgOn(e3, 0) == shielded); // shielded again: x4 collapsed to x2 both times
+  REQUIRE(dmgOn(e3, 0) == shielded);
 }
 
-TEST_CASE("SlushRush doubles Speed under snow and flips the order", "[abilities13]") {
+TEST_CASE("SlushRush doubles Speed under snow and flips the order", "[abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
   overrideAbility(data, "Mamoswine", "SlushRush"); // 259 vs Infernape 346: x2 flips it
@@ -777,7 +760,7 @@ TEST_CASE("SlushRush doubles Speed under snow and flips the order", "[abilities1
   REQUIRE(first(true) == 0);
 }
 
-TEST_CASE("ToughClaws boosts contact moves only", "[abilities13]") {
+TEST_CASE("ToughClaws boosts contact moves only", "[abilities]") {
   auto hit = [&](const char *attacker, const char *move, bool clawed) {
     DataLoader d;
     engine::test::loadAll(d);
@@ -792,17 +775,16 @@ TEST_CASE("ToughClaws boosts contact moves only", "[abilities13]") {
 
   int plain = hit("Snorlax", "Tackle", false);
   REQUIRE(hit("Snorlax", "Tackle", true) > static_cast<int>(static_cast<float>(plain) * 1.2f));
-  // Flamethrower makes no contact: the claws stay in the pocket.
   REQUIRE(hit("Infernape", "Flamethrower", true) == hit("Infernape", "Flamethrower", false));
 }
 
-TEST_CASE("SwiftSwim and SandRush are wired to their own weather", "[abilities13]") {
+TEST_CASE("SwiftSwim and SandRush are wired to their own weather", "[abilities]") {
   // Same WeatherSpeed class as SlushRush: this guards the per-instance
   // wiring (ability name -> weather), not the shared mechanism.
   auto firstMover = [&](const char *ability, Weather weather) {
     DataLoader d;
     engine::test::loadAll(d);
-    overrideAbility(d, "Mamoswine", ability); // same speed window as SlushRush
+    overrideAbility(d, "Mamoswine", ability);
     BattleEngine e(d);
     auto state = duel(d, "Mamoswine", {"Growl"}, "Infernape", {"Growl"});
     state.weather = weather;
@@ -816,15 +798,14 @@ TEST_CASE("SwiftSwim and SandRush are wired to their own weather", "[abilities13
   };
 
   REQUIRE(firstMover("SwiftSwim", Weather::Rain) == 0);
-  REQUIRE(firstMover("SwiftSwim", Weather::Sand) == 1); // wrong weather: no boost
+  REQUIRE(firstMover("SwiftSwim", Weather::Sand) == 1);
   REQUIRE(firstMover("SandRush", Weather::Sand) == 0);
   REQUIRE(firstMover("SandRush", Weather::Rain) == 1);
 }
 
-TEST_CASE("the ability table is indexed and its order is frozen", "[ability][ffi]") {
-  // Ability ids cross the FFI inside the event stream (ADR #12): this test is
-  // the lock. A failure here means someone reordered a registration, which
-  // silently repoints every id in flight - not a test to "just update".
+TEST_CASE("the ability table is indexed and its order is frozen", "[abilities][ffi]") {
+  // Ability ids cross the FFI inside the event stream: this test is the lock. A failure here means
+  // someone reordered a registration.
   REQUIRE(abilityCount() == 45);
 
   SECTION("the legacy block holds slots 0-11") {
@@ -856,17 +837,16 @@ TEST_CASE("the ability table is indexed and its order is frozen", "[ability][ffi
 
   SECTION("misses and out-of-range are quiet") {
     REQUIRE(findAbilityIdByName("NoSuchAbility") == -1);
-    REQUIRE(findAbilityIdByName("") == -1); // Zoroark (ADR #43)
+    REQUIRE(findAbilityIdByName("") == -1);
     REQUIRE(abilityByName("") == nullptr);
     REQUIRE(abilityByIndex(-1) == nullptr);
     REQUIRE(abilityByIndex(abilityCount()) == nullptr);
   }
 }
 
-// A move keeps a CombatantRef from before the damage landed. EmergencyExit is
-// the only thing in the roster that can move a Pokemon off the field in the
-// middle of one (ADR #47), so every case below runs through it.
-TEST_CASE("a move stops chasing a target that EmergencyExit pulled out", "[abilities13][midchain]") {
+// A move keeps a CombatantRef from before the damage landed; EmergencyExit is the only thing that
+// can move a Pokemon off the field mid-move.
+TEST_CASE("a move stops chasing a target that EmergencyExit pulled out", "[abilities][midchain]") {
   DataLoader data;
   engine::test::loadAll(data);
   overrideAbility(data, "Snorlax", "EmergencyExit");
@@ -890,10 +870,9 @@ TEST_CASE("a move stops chasing a target that EmergencyExit pulled out", "[abili
     FixedRNG rng(0.99f); // no crits; chancePct still hits (rangeInt returns min)
     EventLog events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
 
-    REQUIRE(state.activeIndex[1] == 1); // fled to Gyarados
+    REQUIRE(state.activeIndex[1] == 1);
     REQUIRE_FALSE(state.teams[1][0].isFainted());
 
-    // Nothing may hit slot {1,0} once it has left.
     bool left = false;
     for (const auto &ev : events) {
       if (std::get_if<SwitchedOutEvent>(&ev))
@@ -912,8 +891,8 @@ TEST_CASE("a move stops chasing a target that EmergencyExit pulled out", "[abili
     engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
 
     REQUIRE(state.activeIndex[1] == 1);
-    REQUIRE(state.teams[1][0].status == Status::None); // Snorlax left before the burn
-    REQUIRE(state.teams[1][1].status == Status::None); // and Gyarados never took the hit
+    REQUIRE(state.teams[1][0].status == Status::None);
+    REQUIRE(state.teams[1][1].status == Status::None);
   }
 
   SECTION("DragonTail phazes once, not twice") {
@@ -938,8 +917,8 @@ TEST_CASE("a move stops chasing a target that EmergencyExit pulled out", "[abili
     FixedRNG rng(0.0f);
     engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
 
-    REQUIRE(state.activeIndex[1] == 0);            // nobody fled
-    REQUIRE(state.teams[1][0].status == Status::Burn); // the secondary landed
+    REQUIRE(state.activeIndex[1] == 0);
+    REQUIRE(state.teams[1][0].status == Status::Burn);
   }
 
   SECTION("above half the whole volley lands") {
@@ -956,6 +935,6 @@ TEST_CASE("a move stops chasing a target that EmergencyExit pulled out", "[abili
       if (const auto *d = std::get_if<DamageDealtEvent>(&ev))
         if (d->target.side == 1)
           ++hits;
-    REQUIRE(hits == 10); // PopulationBomb is a fixed ten
+    REQUIRE(hits == 10);
   }
 }

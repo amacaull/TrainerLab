@@ -17,7 +17,6 @@ using namespace engine;
 using namespace engine::ffi;
 
 namespace {
-
 constexpr int kTeam = 3;
 constexpr int kMaxTurns = 1000;
 constexpr int kMaxKind = 35;
@@ -37,7 +36,6 @@ std::string moveLabel(int id) {
   return id >= 0 && id < move_count() ? move_name(id) : std::to_string(id);
 }
 
-// What the turn looked like, for a finding to be readable without a debugger.
 std::string describe(const std::vector<FfiEvent> &ev) {
   std::ostringstream o;
   for (const FfiEvent &e : ev) {
@@ -152,7 +150,7 @@ void replay(Ledger &l, const BattleState &s, const std::vector<FfiEvent> &ev) {
 
 struct Fuzzer {
   std::mt19937_64 rng;
-  std::map<std::string, std::string> findings; // signature -> first reproduction
+  std::map<std::string, std::string> findings;
 
   explicit Fuzzer(uint64_t seed) : rng(seed) {}
 
@@ -180,7 +178,7 @@ struct Fuzzer {
       validate_team(s.teams[0], kTeam);
       validate_team(s.teams[1], kTeam);
     } catch (const std::exception &) {
-      return false; // team rules (legendary, mega): draw again
+      return false;
     }
     return true;
   }
@@ -191,7 +189,6 @@ struct Fuzzer {
     return FfiAction{0, int32_t(pick(kMaxMovesPerPokemon)), int32_t(pick(kTeam + 1) - 1)};
   }
 
-  // Calls fn, checks what it produced; false when the battle cannot go on.
   template <typename F>
   bool step(BattleState &s, uint64_t seed, const char *what, F &&fn) {
     const Ledger before = ledgerOf(s);
@@ -255,7 +252,7 @@ struct Fuzzer {
     return true;
   }
 
-  // A rejected pair must leave the state as it was (D8).
+  // A rejected pair must leave the state as it was.
   bool rejectedCleanly(const BattleState &before, const BattleState &after) {
     for (int side = 0; side < kSideCount; ++side)
       for (int i = 0; i < kTeam; ++i) {
@@ -339,7 +336,6 @@ struct Fuzzer {
     }
   }
 };
-
 } // namespace
 
 TEST_CASE("random battles keep every invariant", "[fuzz]") {

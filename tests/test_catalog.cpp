@@ -8,9 +8,8 @@
 
 using namespace engine;
 
-// The shipped catalog is exactly the team sheet: nothing more ships to the
-// frontend, and nothing extra takes an index in the table frozen for the
-// FFI (ADR #49). The test instruments live in tests/fixtures.
+// The shipped catalog is exactly the team sheet: nothing extra takes an index in the table frozen
+// for the FFI.
 TEST_CASE("The shipped catalog is exactly the roster", "[catalog][data]") {
   DataLoader data;
   data.loadAll(BATTLE_ENGINE_DATA_DIR);
@@ -18,7 +17,6 @@ TEST_CASE("The shipped catalog is exactly the roster", "[catalog][data]") {
   REQUIRE(data.speciesCount() == 49);
   REQUIRE(data.moveCount() == 95);
 
-  // Every shipped move is reachable: it belongs to at least one movepool.
   std::vector<bool> reachable(static_cast<size_t>(data.moveCount()), false);
   for (int sid = 0; sid < data.speciesCount(); ++sid)
     for (const auto &moveName : data.speciesByIndex(sid).movepool)
@@ -33,8 +31,8 @@ TEST_CASE("Test fixtures add instruments on top of the shipped catalog", "[catal
   DataLoader data;
   engine::test::loadAll(data);
 
-  REQUIRE(data.speciesCount() == 49);   // the roster species ARE the fixtures
-  REQUIRE(data.moveCount() == 95 + 18); // plus the neutral test instruments
+  REQUIRE(data.speciesCount() == 49);
+  REQUIRE(data.moveCount() == 95 + 18);
   REQUIRE(data.findMoveId("Tackle") >= 0);
 }
 
@@ -101,7 +99,6 @@ TEST_CASE("DataLoader: every species has a valid movepool", "[catalog][data]") {
 TEST_CASE("DataLoader refuses unknown keys and values instead of ignoring them",
           "[catalog][data]") {
   using nlohmann::json;
-  // The typo that once sent secondary drops onto the attacker.
   REQUIRE_THROWS(makeEffectFromJson(
       json{{"kind", "StatChange"}, {"stat", "Atk"}, {"delta", -1}, {"affectUser", true}}));
   REQUIRE_THROWS(makeEffectFromJson(

@@ -6,9 +6,7 @@
 #include <algorithm>
 
 namespace engine {
-
 namespace {
-
 BattlePokemon &selfOf(AbilityContext &ctx) {
   return ctx.state
       .teams[static_cast<size_t>(ctx.self.side)][static_cast<size_t>(ctx.self.teamIndex)];
@@ -38,8 +36,6 @@ public:
   }
 };
 
-// FlashFire: immune to Fire; the first absorbed Fire move lights the boost,
-// which lives in the POD (flash_fire_active) and dies on switch-out.
 class FlashFire final : public Ability {
 public:
   const char *name() const override { return "FlashFire"; }
@@ -61,7 +57,6 @@ public:
   const char *name() const override { return "ClearBody"; }
   bool blocksStatDrop() const override { return true; }
 };
-
 } // namespace
 
 void registerImmunityAbilities(AbilityTable &table) {
@@ -77,5 +72,4 @@ void registerImmunityAbilities(AbilityTable &table) {
   add(bulletproof);
   add(clearBody);
 }
-
 } // namespace engine

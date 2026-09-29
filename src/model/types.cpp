@@ -5,7 +5,6 @@
 #include <string>
 
 namespace engine {
-
 namespace {
 constexpr std::array<std::string_view, TypeCount> kTypeNames = {
     "Normal", "Fire",    "Water", "Electric", "Grass", "Ice",    "Fighting", "Poison", "Ground",
@@ -44,5 +43,4 @@ float TypeChart::effectiveness(Type atk, Type def1, Type def2) const {
   }
   return m;
 }
-
 } // namespace engine

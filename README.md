@@ -56,8 +56,8 @@ bibliothèque statique par le `build.rs` du backend Rust et appelé via `cxx`
 ### Le format
 
 - **Équipes de 1 à 6 Pokémon par camp.** Les deux camps n'ont pas besoin
-  d'avoir la même taille : c'est le matchmaking du serveur qui n'apparie que
-  des équipes de même taille.
+  d'avoir la même taille : les gains/pertes de LP sont calculés en fonction de
+  la différence du nombre de Pokemon
 - **Niveau 100 pour tous**, IV à 31, EV et natures fixés par espèce.
 - **Sets fixes** : chaque espèce a exactement quatre attaques, un talent et un
   objet. Le joueur choisit ses Pokémon, pas leur configuration.
@@ -117,15 +117,15 @@ tools/          showdown-diff (§5)
 Les dépendances vont dans un seul sens :
 
 ```
-          ffi  ──►  BattleEngine (core)
-                         │ orchestre
-                         ▼
+                     ffi  ──►  BattleEngine (core)
+                                   │ orchestre
+                                   ▼
    Effects ──transforment──►  BattleState (POD, zéro logique)
        ▲                           ▲
        │ listes d'effets           │ état par combat
    Moves (JSON)          Abilities / Items : listeners sur des hooks
                          (singletons sans état)
-                         ▲
+                            ▲
                      DataLoader : lit data/ au démarrage, valide
 ```
 
@@ -614,8 +614,6 @@ de liste pour les talents et les objets).
 - **Escampette** change de Pokémon automatiquement (vers le premier
   remplaçant valide) au lieu de laisser choisir le joueur en plein tour, ce
   qui serait incompatible avec un tour résolu en un seul appel.
-- **Baigne Sable et Glissade** sont inertes : aucun Pokémon du roster ne pose
-  le sable ou la pluie.
 
 **Non exposé par la frontière** :
 

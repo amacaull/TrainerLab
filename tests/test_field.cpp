@@ -16,7 +16,6 @@ using namespace engine;
 using engine::test::buildCombatant;
 
 namespace {
-
 template <typename E> int countEvents(const EventLog &events) {
   int n = 0;
   for (const auto &ev : events)
@@ -58,10 +57,9 @@ void setElectricTerrain(BattleState &state) {
   state.terrain = Terrain::Electric;
   state.terrain_turns_left = 5;
 }
-
 } // namespace
 
-TEST_CASE("Snow: Ice types get Def x1.5, special side untouched (ADR #37)", "[field][snow]") {
+TEST_CASE("Snow: Ice types get Def x1.5, special side untouched", "[field][snow]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -80,7 +78,6 @@ TEST_CASE("Snow: Ice types get Def x1.5, special side untouched (ADR #37)", "[fi
   REQUIRE(physSnow < physClear);
   REQUIRE(physSnow >= static_cast<int>(static_cast<float>(physClear) / 1.6f));
 
-  // Flamethrower is special: snow leaves it alone.
   REQUIRE(hit("Flamethrower", true) == hit("Flamethrower", false));
 }
 
@@ -115,7 +112,7 @@ TEST_CASE("Blizzard never misses under snow (accuracyInWeather)", "[field][snow]
   REQUIRE(run(true) == 0);  // snow: the roll is skipped entirely
 }
 
-TEST_CASE("Electric Terrain: x1.3 for grounded attackers only (ADR #38)", "[field][terrain]") {
+TEST_CASE("Electric Terrain: x1.3 for grounded attackers only", "[field][terrain]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -133,7 +130,6 @@ TEST_CASE("Electric Terrain: x1.3 for grounded attackers only (ADR #38)", "[fiel
   int boosted = bolt("Luxray", true);
   REQUIRE(boosted > static_cast<int>(static_cast<float>(plain) * 1.2f));
 
-  // Gengar levitates: the terrain never reaches it.
   REQUIRE(bolt("MegaGengar", true) == bolt("MegaGengar", false));
 }
 
@@ -150,8 +146,8 @@ TEST_CASE("Electric Terrain keeps grounded Pokemon awake, Levitate exempt", "[fi
     return state.teams[1][0].status;
   };
 
-  REQUIRE(sporeOn("Snorlax") == Status::None);     // grounded: protected
-  REQUIRE(sporeOn("MegaGengar") == Status::Sleep); // Levitate: fair game
+  REQUIRE(sporeOn("Snorlax") == Status::None);
+  REQUIRE(sporeOn("MegaGengar") == Status::Sleep);
 }
 
 TEST_CASE("Rest fails for a grounded user under Electric Terrain (canon)", "[field][terrain]") {
@@ -170,7 +166,7 @@ TEST_CASE("Rest fails for a grounded user under Electric Terrain (canon)", "[fie
 
   auto [laxStatus, laxFails] = rest("Snorlax");
   REQUIRE(laxStatus == Status::None);
-  REQUIRE(laxFails == 1); // no sleep, no heal: the whole move fails
+  REQUIRE(laxFails == 1);
 
   auto [gengarStatus, gengarFails] = rest("MegaGengar");
   REQUIRE(gengarStatus == Status::Sleep);
@@ -197,7 +193,7 @@ TEST_CASE("The terrain ticks like the weather and ends after 5 turns", "[field][
   REQUIRE(state.terrain_turns_left == 0);
 }
 
-TEST_CASE("Aurora Veil needs snow and refuses to stack (ADR #39)", "[field][screen]") {
+TEST_CASE("Aurora Veil needs snow and refuses to stack", "[field][screen]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -205,7 +201,6 @@ TEST_CASE("Aurora Veil needs snow and refuses to stack (ADR #39)", "[field][scre
   auto state = makeDuel(data, "Mamoswine", {"AuroraVeil"}, "Conkeldurr", {"SwordsDance"});
   FixedRNG rng(0.99f);
 
-  // No snow: the screen refuses to go up.
   auto e1 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(countEvents<MoveFailedEvent>(e1) == 1);
   REQUIRE(state.aurora_veil_turns[0] == 0);
@@ -215,7 +210,6 @@ TEST_CASE("Aurora Veil needs snow and refuses to stack (ADR #39)", "[field][scre
   REQUIRE(countEvents<ScreenStartedEvent>(e2) == 1);
   REQUIRE(state.aurora_veil_turns[0] == 4); // 5 turns, set turn included
 
-  // Already up: a second cast fails.
   auto e3 = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
   REQUIRE(countEvents<MoveFailedEvent>(e3) == 1);
 }
@@ -296,7 +290,7 @@ TEST_CASE("validateState checks the terrain and screen invariants", "[field][val
   state.terrain_turns_left = 9;
   REQUIRE_THROWS_AS(validateState(state, data), std::invalid_argument);
   state.terrain = Terrain::None;
-  state.terrain_turns_left = 3; // turns without a terrain
+  state.terrain_turns_left = 3;
   REQUIRE_THROWS_AS(validateState(state, data), std::invalid_argument);
   state.terrain_turns_left = 0;
 

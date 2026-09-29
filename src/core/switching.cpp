@@ -11,7 +11,6 @@
 #include <string_view>
 
 namespace engine {
-
 bool isValidSwitchTarget(const BattleState &state, int side, int teamIndex) {
   if (teamIndex < 0 || teamIndex >= state.team_size[static_cast<size_t>(side)])
     return false;
@@ -30,7 +29,6 @@ int firstHealthyBenched(const BattleState &state, int side) {
 }
 
 namespace {
-
 bool hasType(const Species &sp, Type t) { return sp.type1 == t || sp.type2 == t; }
 
 void dealHazardDamage(BattlePokemon &in, CombatantRef ref, HazardKind kind, int damage,
@@ -81,7 +79,6 @@ void applyEntryHazards(BattleState &state, const DataLoader &data, int side, Eve
 
   if (hz.toxic_spikes > 0) {
     if (hasType(sp, Type::Poison)) {
-      // A grounded Poison-type soaks up the Toxic Spikes (canon).
       hz.toxic_spikes = 0;
       events.emplace_back(ToxicSpikesAbsorbedEvent{ref});
     } else if (in.status == Status::None && !hasType(sp, Type::Steel)) {
@@ -91,7 +88,6 @@ void applyEntryHazards(BattleState &state, const DataLoader &data, int side, Eve
     }
   }
 }
-
 } // namespace
 
 void performSwitch(BattleState &state, const DataLoader &data, int side, int newIndex,
@@ -105,8 +101,6 @@ void performSwitch(BattleState &state, const DataLoader &data, int side, int new
       AbilityContext actx{state, data, events, exitingRef};
       outAbility->onSwitchOut(actx);
     }
-    // Delta Stream is presence-bound: it clears when its holder leaves,
-    // faint included (ADR #47).
     if (std::string_view(outAbility->name()) == "DeltaStream" &&
         state.weather == Weather::StrongWinds) {
       events.emplace_back(WeatherEndedEvent{state.weather});
@@ -128,8 +122,8 @@ void performSwitch(BattleState &state, const DataLoader &data, int side, int new
   out.protect_chain = 0;
   out.charging_move_id = kNoMove;
   out.invulnerable_state = 0;
-  out.locked_move_id = kNoMove; // the Choice lock ends when the holder leaves
-  out.flash_fire_active = 0;    // FlashFire's boost dies with the exit
+  out.locked_move_id = kNoMove;
+  out.flash_fire_active = 0;
 
   CombatantRef outRef{side, state.activeIndex[static_cast<size_t>(side)]};
   events.emplace_back(SwitchedOutEvent{outRef});
@@ -139,7 +133,7 @@ void performSwitch(BattleState &state, const DataLoader &data, int side, int new
   events.emplace_back(SwitchedInEvent{inRef});
 
   int hpBeforeHazards = state.active(side).currentHp;
-  state.active(side).turns_on_field = 0; // opens the FakeOut window
+  state.active(side).turns_on_field = 0;
   applyEntryHazards(state, data, side, events);
 
   // A Pokemon that faints to hazards never gets its ability off (canon).
@@ -167,5 +161,4 @@ bool isGrounded(const Species &sp) {
   const Ability *ab = abilityByName(sp.ability);
   return !(ab && std::string_view(ab->name()) == "Levitate");
 }
-
 } // namespace engine

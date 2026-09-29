@@ -8,7 +8,6 @@
 #include <algorithm>
 
 namespace engine {
-
 void RecoilEffect::apply(EffectContext &ctx) const {
   if (ctx.lastDamageDealt <= 0)
     return;
@@ -34,5 +33,4 @@ void RecoilEffect::apply(EffectContext &ctx) const {
     abilityHpCheck(ctx.state, ctx.data, ctx.user, hpBefore, false, ctx.events);
   }
 }
-
 } // namespace engine

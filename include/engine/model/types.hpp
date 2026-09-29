@@ -4,8 +4,7 @@
 #include <string_view>
 
 namespace engine {
-
-// Stable ordering. Do not reorder without regenerating data files.
+// Stable ordering: the data files and the FFI depend on it. Do not reorder.
 enum class Type : int {
   Normal = 0,
   Fire,
@@ -38,11 +37,9 @@ public:
   void set(Type attacker, Type defender, float multiplier);
   float multiplier(Type attacker, Type defender) const;
 
-  // Combined multiplier against a dual-type defender (mul1 * mul2).
   float effectiveness(Type attackerType, Type defenderType1, Type defenderType2) const;
 
 private:
   std::array<std::array<float, TypeCount>, TypeCount> chart_{};
 };
-
 } // namespace engine

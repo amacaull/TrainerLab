@@ -10,7 +10,6 @@
 #include <algorithm>
 
 namespace engine {
-
 void RecoveryEffect::apply(EffectContext &ctx) const {
   BattlePokemon &user =
       ctx.state.teams[static_cast<size_t>(ctx.user.side)][static_cast<size_t>(ctx.user.teamIndex)];
@@ -55,5 +54,4 @@ void RestEffect::apply(EffectContext &ctx) const {
   ctx.events.emplace_back(HealedEvent{ctx.user, amount});
   ctx.events.emplace_back(StatusAppliedEvent{ctx.user, Status::Sleep});
 }
-
 } // namespace engine

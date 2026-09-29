@@ -4,10 +4,8 @@
 #include "engine/model/status.hpp"
 
 namespace engine {
-
-// Protect: blocks foe-targeting moves this turn. Consecutive uses succeed
-// with probability 1/3^n (Showdown). The chain resets at end of any turn
-// where Protect did not connect (ADR #30).
+// Consecutive uses succeed with probability 1/3^n; the chain resets after any turn without a
+// successful Protect.
 class ProtectEffect : public Effect {
 public:
   explicit ProtectEffect(Status contactStatus = Status::None) : contactStatus_(contactStatus) {}
@@ -15,7 +13,6 @@ public:
   const char *name() const override { return "Protect"; }
 
 private:
-  Status contactStatus_; // BanefulBunker: applied to contact attackers
+  Status contactStatus_;
 };
-
 } // namespace engine

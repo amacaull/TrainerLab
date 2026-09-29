@@ -10,9 +10,7 @@
 #include <string>
 
 namespace engine {
-
 namespace {
-
 BattlePokemon &holderOf(ItemContext &ctx) {
   return ctx.state
       .teams[static_cast<size_t>(ctx.holder.side)][static_cast<size_t>(ctx.holder.teamIndex)];
@@ -92,7 +90,7 @@ public:
     BattlePokemon &p = holderOf(ctx);
     if (p.isFainted() || p.currentHp > p.stats.hp / 2)
       return;
-    p.item_consumed = 1; // eaten: heldItem() now returns nullptr
+    p.item_consumed = 1;
     ctx.events.emplace_back(ItemConsumedEvent{ctx.holder, name()});
     int healed = std::min(std::max(1, p.stats.hp / 4), p.stats.hp - p.currentHp);
     p.currentHp += healed;
@@ -142,7 +140,7 @@ public:
 class LightClay final : public Item {
 public:
   const char *name() const override { return "LightClay"; }
-  int screenDuration(int base) const override { return base + 3; } // 5 -> 8
+  int screenDuration(int base) const override { return base + 3; }
 };
 
 // No hook of its own: MultiHitEffect reads it by name (LoadedDice).
@@ -155,8 +153,7 @@ private:
   const char *name_;
 };
 
-// FROZEN ORDER (ADR #45): item_id crosses the FFI. Append only.
-// Static instances, like the abilities: stateless, never destroyed early.
+// Frozen order: item_id crosses the FFI. Append only.
 const LifeOrb kLifeOrb;
 const Leftovers kLeftovers;
 const BlackSludge kBlackSludge;
@@ -186,7 +183,6 @@ const std::array<const Item *, 13> kItems = {
     &kThickClub,      // 11
     &kLightClay,      // 12
 };
-
 } // namespace
 
 const Item *itemByIndex(int id) {
@@ -214,7 +210,6 @@ void itemHpCheck(BattleState &state, const DataLoader &data, const CombatantRef 
                  EventLog &events) {
   const BattlePokemon &p =
       state.teams[static_cast<size_t>(holder.side)][static_cast<size_t>(holder.teamIndex)];
-  // Unnerve: berries never trigger while it stares from across the field.
   const BattlePokemon &foe = state.active(1 - holder.side);
   if (!foe.isFainted()) {
     if (const Ability *foeAbility = abilityOf(data, foe)) {
@@ -227,5 +222,4 @@ void itemHpCheck(BattleState &state, const DataLoader &data, const CombatantRef 
     item->onHpChanged(ctx);
   }
 }
-
 } // namespace engine

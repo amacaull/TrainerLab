@@ -5,9 +5,7 @@
 #include <unordered_map>
 
 namespace engine {
-
 namespace {
-
 // 0=atk 1=def 2=specAtk 3=specDef 4=speed
 const std::unordered_map<std::string, Nature> kNatures = {
     {"Hardy", {}},      {"Docile", {}},      {"Serious", {}},     {"Bashful", {}},
@@ -23,7 +21,6 @@ const std::unordered_map<std::string, Nature> kNatures = {
 
     {"Timid", {4, 0}},  {"Hasty", {4, 1}},   {"Jolly", {4, 2}},   {"Naive", {4, 3}},
 };
-
 } // namespace
 
 const Nature *natureByName(std::string_view name) {
@@ -65,5 +62,4 @@ float stageMultiplier(int stage) {
     return static_cast<float>(2 + stage) / 2.0f;
   return 2.0f / static_cast<float>(2 - stage);
 }
-
 } // namespace engine

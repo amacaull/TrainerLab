@@ -15,7 +15,6 @@ using namespace engine;
 using engine::test::buildCombatant;
 
 namespace {
-
 template <typename E> int countEvents(const EventLog &events) {
   int n = 0;
   for (const auto &ev : events)
@@ -40,10 +39,9 @@ BattleState makeDuel(const DataLoader &data, const char *s0, std::vector<std::st
   state.team_size = {1, 1};
   return state;
 }
-
 } // namespace
 
-TEST_CASE("Secondary effects proc or not through RNG::chance (ADR #26)", "[mechanics][secondary]") {
+TEST_CASE("Secondary effects proc or not through RNG::chance", "[mechanics][secondary]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -75,8 +73,8 @@ TEST_CASE("Flinch skips the slower target's move and clears at end of turn", "[m
       if (e->user.side == 1 && e->reason == SkipReason::Flinched)
         snorlaxFlinched = true;
   REQUIRE(snorlaxFlinched);
-  REQUIRE(state.teams[0][0].currentHp == state.teams[0][0].stats.hp); // Tackle never came
-  REQUIRE(state.teams[1][0].flinched == 0); // volatile cleared at end of turn
+  REQUIRE(state.teams[0][0].currentHp == state.teams[0][0].stats.hp);
+  REQUIRE(state.teams[1][0].flinched == 0);
 }
 
 TEST_CASE("Crits multiply by 1.5 and flag the event", "[mechanics][crit]") {
@@ -123,7 +121,7 @@ TEST_CASE("A crit ignores the defender's defensive boosts", "[mechanics][crit]")
     return damageOn(events, 1);
   };
 
-  REQUIRE(critHit(6) == critHit(0)); // +6 Def ignored on a crit
+  REQUIRE(critHit(6) == critHit(0));
 }
 
 TEST_CASE("Recoil hits the user for a third of the damage dealt and can KO", "[mechanics][recoil]") {
@@ -143,7 +141,6 @@ TEST_CASE("Recoil hits the user for a third of the damage dealt and can KO", "[m
       recoil = e->damage;
   REQUIRE(recoil == std::max(1, dealt / 3));
 
-  // Recoil can faint the user.
   auto state2 = makeDuel(data, "Luxray", {"BraveBird"}, "Snorlax", {"Growl"});
   state2.teams[0][0].currentHp = 1;
   FixedRNG rng2(0.5f);
@@ -191,7 +188,7 @@ TEST_CASE("Roost heals and suppresses the Flying type until end of turn", "[mech
   };
 
   auto [dmgRoost, effRoost] = thunderboltOn("Roost");
-  auto [dmgPlain, effPlain] = thunderboltOn("WillOWisp"); // filler action
+  auto [dmgPlain, effPlain] = thunderboltOn("WillOWisp");
   REQUIRE(effPlain == 2.0f);
   REQUIRE(effRoost == 1.0f);
   REQUIRE(dmgRoost < dmgPlain);
@@ -229,13 +226,12 @@ TEST_CASE("Rest fully heals, cures the old status and sleeps 2 turns outside the
   REQUIRE(state.teams[0][1].status == Status::Sleep);
   REQUIRE(state.teams[0][1].sleep_self_inflicted == 0);
 
-  // Rest fails at full HP.
   auto state2 = makeDuel(data, "Snorlax", {"Rest"}, "Toxapex", {"Growl"});
   auto t3 = engine.resolveTurn(state2, UseMove{0}, UseMove{0}, rng);
   REQUIRE(countEvents<MoveFailedEvent>(t3) == 1);
 }
 
-TEST_CASE("Evasion stages make 100-accuracy moves missable (ADR #18 resolved)",
+TEST_CASE("Evasion stages make 100-accuracy moves missable",
           "[mechanics][accuracy]") {
   DataLoader data;
   engine::test::loadAll(data);
@@ -250,7 +246,7 @@ TEST_CASE("Evasion stages make 100-accuracy moves missable (ADR #18 resolved)",
       state.teams[1][0].stat_stages[static_cast<size_t>(StatIndex::Evasion)] = evaStage;
       auto events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
       misses += countEvents<MissedEvent>(events);
-      state.teams[0][0].currentHp = state.teams[0][0].stats.hp; // keep it going
+      state.teams[0][0].currentHp = state.teams[0][0].stats.hp;
       state.teams[1][0].currentHp = state.teams[1][0].stats.hp;
       state.teams[0][0].pp[0] = data.moveByIndex(state.teams[0][0].move_ids[0]).pp;
       state.teams[1][0].pp[0] = data.moveByIndex(state.teams[1][0].move_ids[0]).pp;
@@ -271,7 +267,7 @@ TEST_CASE("Evasion stages make 100-accuracy moves missable (ADR #18 resolved)",
 }
 
 TEST_CASE("Guts boosts physical damage x1.5 while statused and ignores the burn halving",
-          "[mechanics][ability]") {
+          "[mechanics][abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -285,13 +281,13 @@ TEST_CASE("Guts boosts physical damage x1.5 while statused and ignores the burn 
   };
 
   int healthy = hit(Status::None);
-  int burned = hit(Status::Burn); // Guts: x1.5, no x0.5 halving
+  int burned = hit(Status::Burn);
   REQUIRE(burned > healthy);
   REQUIRE(burned >= healthy * 3 / 2 - 2);
   REQUIRE(burned <= healthy * 3 / 2 + 2);
 }
 
-TEST_CASE("Thick Fat halves incoming Fire damage", "[mechanics][ability]") {
+TEST_CASE("Thick Fat halves incoming Fire damage", "[mechanics][abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -311,10 +307,10 @@ TEST_CASE("Thick Fat halves incoming Fire damage", "[mechanics][ability]") {
   REQUIRE(fire <= water / 2 + 2);
 }
 
-TEST_CASE("Static paralyzes on contact only", "[mechanics][ability]") {
+TEST_CASE("Static paralyzes on contact only", "[mechanics][abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
-  engine::test::overrideAbility(data, "Luxray", "Static"); // roster: Intimidate
+  engine::test::overrideAbility(data, "Luxray", "Static");
   BattleEngine engine(data);
 
   auto attackerStatus = [&](const char *move, float unit) {
@@ -326,13 +322,13 @@ TEST_CASE("Static paralyzes on contact only", "[mechanics][ability]") {
 
   REQUIRE(attackerStatus("Tackle", 0.1f) == Status::Paralysis); // contact, 0.1 < 0.3
   REQUIRE(attackerStatus("Tackle", 0.99f) == Status::None);     // proc denied
-  REQUIRE(attackerStatus("Earthquake", 0.1f) == Status::None);  // no contact
+  REQUIRE(attackerStatus("Earthquake", 0.1f) == Status::None);
 }
 
-TEST_CASE("Rough Skin chips a contact attacker for 1/8 max HP", "[mechanics][ability]") {
+TEST_CASE("Rough Skin chips a contact attacker for 1/8 max HP", "[mechanics][abilities]") {
   DataLoader data;
   engine::test::loadAll(data);
-  engine::test::overrideAbility(data, "Excadrill", "RoughSkin"); // roster: SandRush
+  engine::test::overrideAbility(data, "Excadrill", "RoughSkin");
   BattleEngine engine(data);
 
   auto chip = [&](const char *move) {
@@ -345,8 +341,8 @@ TEST_CASE("Rough Skin chips a contact attacker for 1/8 max HP", "[mechanics][abi
 
   auto state = makeDuel(data, "Conkeldurr", {"CloseCombat"}, "Excadrill", {"Growl"});
   int maxHp = state.teams[0][0].stats.hp;
-  REQUIRE(chip("CloseCombat") == maxHp / 8); // contact
-  REQUIRE(chip("StoneEdge") == 0);           // no contact
+  REQUIRE(chip("CloseCombat") == maxHp / 8);
+  REQUIRE(chip("StoneEdge") == 0);
 }
 
 TEST_CASE("Speed ties are broken by the RNG", "[mechanics][order]") {

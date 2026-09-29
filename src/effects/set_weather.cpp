@@ -4,7 +4,6 @@
 #include "engine/model/move.hpp"
 
 namespace engine {
-
 void SetWeatherEffect::apply(EffectContext &ctx) const {
   if (ctx.state.weather == weather_ || ctx.state.weather == Weather::StrongWinds) {
     ctx.events.emplace_back(MoveFailedEvent{ctx.user, ctx.move.name});
@@ -15,5 +14,4 @@ void SetWeatherEffect::apply(EffectContext &ctx) const {
   ctx.state.weather_turns_left = kWeatherDuration;
   ctx.events.emplace_back(WeatherStartedEvent{weather_});
 }
-
 } // namespace engine

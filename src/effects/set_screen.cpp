@@ -6,7 +6,6 @@
 #include "engine/model/move.hpp"
 
 namespace engine {
-
 void SetScreenEffect::apply(EffectContext &ctx) const {
   int side = ctx.user.side;
   if (ctx.state.weather != Weather::Snow ||
@@ -25,5 +24,4 @@ void SetScreenEffect::apply(EffectContext &ctx) const {
   ctx.state.aurora_veil_turns[static_cast<size_t>(side)] = turns;
   ctx.events.emplace_back(ScreenStartedEvent{side, turns});
 }
-
 } // namespace engine

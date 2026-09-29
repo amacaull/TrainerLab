@@ -15,7 +15,6 @@ using namespace engine;
 using engine::test::buildCombatant;
 
 namespace {
-
 int moveDamageOn(const EventLog &events, int side) {
   for (const auto &ev : events)
     if (auto *e = std::get_if<DamageDealtEvent>(&ev))
@@ -30,7 +29,6 @@ template <typename E> bool hasEvent(const EventLog &events) {
       return true;
   return false;
 }
-
 } // namespace
 
 TEST_CASE("stageMultiplier matches canon values", "[stats][stage]") {
@@ -131,7 +129,6 @@ TEST_CASE("Speed stage flips turn order", "[stage][order]") {
   engine::test::loadAll(data);
   BattleEngine engine(data);
 
-  // Snorlax (Spd 30 base) is far slower than Gengar (Spd 110 base).
   auto firstMover = [&](int snorlaxSpeStage) {
     BattleState state;
     state.teams[0][0] = buildCombatant(data, "Snorlax", {"BodySlam"});
@@ -145,7 +142,7 @@ TEST_CASE("Speed stage flips turn order", "[stage][order]") {
     return first->user.side;
   };
 
-  REQUIRE(firstMover(0) == 1); // Conkeldurr (126) first normally
+  REQUIRE(firstMover(0) == 1);
   // +6 Spe = x4 on Snorlax's 96: 384 clears Conkeldurr.
   REQUIRE(firstMover(6) == 0);
 }

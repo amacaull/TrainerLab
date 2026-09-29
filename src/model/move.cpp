@@ -4,7 +4,6 @@
 #include <string>
 
 namespace engine {
-
 MoveCategory categoryFromString(std::string_view s) {
   if (s == "Physical")
     return MoveCategory::Physical;
@@ -26,5 +25,4 @@ std::string_view categoryName(MoveCategory c) {
   }
   return "?";
 }
-
 } // namespace engine
