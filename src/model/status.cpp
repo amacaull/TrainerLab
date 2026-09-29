@@ -41,6 +41,8 @@ bool typeImmuneToStatus(Status s, const Species &sp) {
   case Status::Poison:
   case Status::Toxic:
     return hasType(Type::Poison) || hasType(Type::Steel);
+  case Status::Freeze:
+    return hasType(Type::Ice);
   default:
     return false;
   }

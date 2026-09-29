@@ -340,6 +340,21 @@ TEST_CASE("Type immunities to statuses", "[status][types]") {
   SECTION("Type-chart immunity blocks status moves (ThunderWave vs Ground)") {
     REQUIRE(tryStatus("MegaGengar", "ThunderWave", "Excadrill") == Status::None);
   }
+  SECTION("Ice-types cannot be frozen") {
+    // FixedRNG(0.05f) procs IceBeam's 10% freeze. The targets outspeed
+    // Starmie, so a frozen target has no turn left to thaw on.
+    auto iceBeam = [&](const char *target) {
+      BattleState state;
+      state.teams[0][0] = buildCombatant(data, "Starmie", {"IceBeam"});
+      state.teams[1][0] = buildCombatant(data, target, {"Tackle"});
+      state.team_size = {1, 1};
+      FixedRNG rng(0.05f);
+      engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
+      return state.teams[1][0].status;
+    };
+    REQUIRE(iceBeam("Dragapult") == Status::Freeze); // control: the roll does freeze
+    REQUIRE(iceBeam("Weavile") == Status::None);
+  }
 }
 
 TEST_CASE("Frozen Pokemon skips its move, thaws on RNG proc", "[status][before_move]") {
