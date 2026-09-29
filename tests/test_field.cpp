@@ -197,7 +197,7 @@ TEST_CASE("The terrain ticks like the weather and ends after 5 turns", "[field][
   REQUIRE(state.terrain_turns_left == 0);
 }
 
-TEST_CASE("Voile Aurore needs snow and refuses to stack (ADR #39)", "[field][screen]") {
+TEST_CASE("Aurora Veil needs snow and refuses to stack (ADR #39)", "[field][screen]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -220,7 +220,7 @@ TEST_CASE("Voile Aurore needs snow and refuses to stack (ADR #39)", "[field][scr
   REQUIRE(countEvents<MoveFailedEvent>(e3) == 1);
 }
 
-TEST_CASE("Voile Aurore halves both categories; crits punch through", "[field][screen]") {
+TEST_CASE("Aurora Veil halves both categories; crits punch through", "[field][screen]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -251,7 +251,7 @@ TEST_CASE("Voile Aurore halves both categories; crits punch through", "[field][s
   REQUIRE(critVeil == crit);
 }
 
-TEST_CASE("Voile Aurore lasts 8 turns when the setter holds LightClay", "[field][screen]") {
+TEST_CASE("Aurora Veil lasts 8 turns when the setter holds LightClay", "[field][screen]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);

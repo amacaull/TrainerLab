@@ -228,8 +228,8 @@ TEST_CASE("Pinch abilities are inert above 1/3 HP and on off-type moves", "[abil
 }
 
 // ---------------------------------------------------------------------------
-// Phase 13: the roster abilities. Holders are simulated with overrideAbility
-// (test-only); the real holders arrive with the roster data in phase 14.
+// The roster abilities. Holders are simulated with overrideAbility
+// (test-only) so each ability is tested on a controlled Pokemon.
 // ---------------------------------------------------------------------------
 
 #include "engine/core/validate.hpp"
@@ -838,7 +838,7 @@ TEST_CASE("the ability table is indexed and its order is frozen", "[ability][ffi
     }
   }
 
-  SECTION("the weather family sits where phase 13 left it") {
+  SECTION("the weather family keeps its frozen position") {
     REQUIRE(findAbilityIdByName("DeltaStream") == 27);
     REQUIRE(findAbilityIdByName("SwiftSwim") == 28);
     REQUIRE(findAbilityIdByName("SandRush") == 29);

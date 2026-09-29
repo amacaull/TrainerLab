@@ -111,6 +111,10 @@ void FixedDamageEffect::apply(EffectContext &ctx) const {
     return;
   }
 
+  // Fixed damage is still a damaging hit: Disguise takes it (canon).
+  if (absorbedByDisguise(ctx))
+    return;
+
   int damage = mode_ == Mode::Level ? attacker.level : std::max(1, defender.currentHp / 2);
 
   if (damage >= defender.currentHp) {
@@ -214,16 +218,11 @@ void SleepTalkEffect::apply(EffectContext &ctx) const {
     failMove(ctx);
     return;
   }
-  const Move &called = ctx.data.moveByIndex(candidates[ctx.rng.rangeInt(0, n - 1)]);
-  ctx.events.emplace_back(MoveUsedEvent{ctx.user, called.name});
-  // Called moves skip accuracy (canon). Re-enter the chain with a scoped
-  // sub-context on the same state/events.
-  EffectContext sub{ctx.state, ctx.data, ctx.rng, ctx.events, ctx.user, ctx.target, called, -1};
-  for (const auto &effect : called.effects) {
-    effect->apply(sub);
-    if (sub.moveFailed)
-      break;
-  }
+  const int calledId = candidates[ctx.rng.rangeInt(0, n - 1)];
+  ctx.events.emplace_back(MoveUsedEvent{ctx.user, ctx.data.moveByIndex(calledId).name});
+  // The engine runs the called move through its full hit pipeline (Protect,
+  // immunities, invulnerability, accuracy) once this chain returns.
+  ctx.calledMoveId = calledId;
 }
 
 void DestinyBondEffect::apply(EffectContext &ctx) const {

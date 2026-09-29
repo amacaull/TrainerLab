@@ -259,7 +259,7 @@ TEST_CASE("every kind matches the contract table", "[ffi][convert]") {
     REQUIRE(f.kind == 35);
     REQUIRE(f.name_id == blaze);
     REQUIRE(f.i0 == 13);
-    // The whole point of phase 16a: 28 and 35 resolve against different
+    // The point of the flat table: 28 and 35 resolve against different
     // catalogs, so they cannot share a kind.
     REQUIRE(one(ItemDamageEvent{kA, "LifeOrb", 13}).kind != f.kind);
   }

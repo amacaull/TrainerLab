@@ -8,11 +8,11 @@
 
 // Flattening layer. std::variant has no guaranteed layout and std::string
 // cannot cross, so the type of an event becomes a number and its fields become
-// numbered slots. The table in FFI-CONTRACT.md section 6 defines what each
+// numbered slots. The event table in README.md section 6 defines what each
 // slot means per kind, and that table is what this file implements.
 //
-// No game logic lives here. Anything that slipped in would be invisible to the
-// pybind11 binding, which consumes the same two functions (ADR #52).
+// No game logic lives here: this layer only reshapes what the engine
+// produced, so every caller sees the same battle.
 namespace engine::ffi {
 
 // Rebuilds the variant from the tag. Throws E_ACTION on an unknown kind - the

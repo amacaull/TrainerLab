@@ -42,6 +42,14 @@ private:
   void executeAction(BattleState &state, int side, const Action &action, const Action *otherAction,
                      bool targetAlreadyActed, RNG &rng, EventLog &events) const;
 
+  // Everything that happens once a move is committed: Magic Bounce,
+  // invulnerability, Protect, Prankster vs Dark, accuracy, immunity
+  // abilities, the effect chain and the post-hit window. SleepTalk re-enters
+  // it for the move it calls.
+  void resolveHit(BattleState &state, int side, const Move &move, int pivotTarget,
+                  bool targetAlreadyActed, bool pranksterBoosted, RNG &rng,
+                  EventLog &events) const;
+
   const DataLoader &data_;
 };
 

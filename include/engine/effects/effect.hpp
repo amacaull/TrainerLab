@@ -28,6 +28,12 @@ struct EffectContext {
   int lastDamageDealt = 0;
   int powerOverride = 0;  // MultiHit escalating powers (TripleAxel); 0 = move.power
   int multiHitIndex = -1; // >= 0 while inside a MultiHit loop (Disguise pops one hit)
+  // True when the opponent has already acted this turn: Protect fails if
+  // nothing is left to protect against (canon).
+  bool targetAlreadyActed = false;
+  // Set by SleepTalk: the engine runs this move through the full hit
+  // pipeline (Protect, immunities, accuracy) once the current chain ends.
+  int calledMoveId = -1;
 };
 
 // To add a new effect: subclass Effect, register it in makeEffectFromJson

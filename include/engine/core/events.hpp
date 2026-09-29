@@ -148,7 +148,7 @@ struct RecoilDamageEvent {
   int damage;
 };
 
-struct TerrainStartedEvent { // posed for phase 13 (Createur Electrik)
+struct TerrainStartedEvent { // ElectricSurge
   Terrain terrain;
 };
 
@@ -194,7 +194,7 @@ struct AbilityDamageEvent {
   int damage;
 };
 
-// Posed for Sabotage (phase 14): the item is stripped from its holder.
+// KnockOff (or Magician on the victim's side): the item leaves its holder.
 struct ItemKnockedOffEvent {
   CombatantRef who;
   std::string itemName;

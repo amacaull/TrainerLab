@@ -65,13 +65,13 @@ public:
 } // namespace
 
 void registerSwitchHookAbilities(AbilityTable &table) {
-  static const Regenerator regeForce;
-  static const NaturalCure medicNature;
-  static const EmergencyExit repliTactique;
+  static const Regenerator regenerator;
+  static const NaturalCure naturalCure;
+  static const EmergencyExit emergencyExit;
   auto add = [&table](const Ability &a) { table.push_back(&a); };
-  add(regeForce);
-  add(medicNature);
-  add(repliTactique);
+  add(regenerator);
+  add(naturalCure);
+  add(emergencyExit);
 }
 
 } // namespace engine

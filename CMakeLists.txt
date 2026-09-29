@@ -48,14 +48,14 @@ if(BATTLE_ENGINE_BUILD_TESTS)
 endif()
 
 add_library(battle_engine_lib STATIC
-    # model: le vocabulaire du jeu (structs, tables, enums)
+    # model: the game's vocabulary (structs, tables, enums)
     src/model/types.cpp
     src/model/stats.cpp
     src/model/status.cpp
     src/model/move.cpp
     src/model/pokemon.cpp
     src/model/field.cpp
-    # core: orchestration et etat
+    # core: orchestration and state
     src/core/events.cpp
     src/core/battle_state.cpp
     src/core/validate.cpp
@@ -64,7 +64,7 @@ add_library(battle_engine_lib STATIC
     src/core/switching.cpp
     src/core/engine.cpp
     src/core/struggle.cpp
-    # familles extensibles
+    # extensible families
     src/abilities/ability.cpp
     src/abilities/damage_mods.cpp
     src/abilities/immunities.cpp
@@ -88,7 +88,7 @@ add_library(battle_engine_lib STATIC
     src/effects/recovery.cpp
     src/effects/force_switch.cpp
     src/effects/protect.cpp
-    # frontiere: couche consommee par cxx (Rust) et pybind11 (service IA)
+    # boundary: the flat layer consumed by cxx (Rust)
     src/ffi/ffi.cpp
     src/ffi/convert.cpp
 )

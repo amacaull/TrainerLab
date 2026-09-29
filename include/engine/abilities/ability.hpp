@@ -23,8 +23,8 @@ struct AbilityContext {
 // ability state must live in the BattleState POD, never in the Ability itself.
 // To add an ability: subclass in the matching family file (damage_mods,
 // immunities, weather_abilities, switch_hooks, triggers), then add it to that
-// family's register function. New abilities use canon French ASCII names
-// (ADR #40); the 12 legacy English ones die with the test roster in phase 14.
+// family's register function, at the end: the position is the FFI id.
+// Names are canon English in PascalCase ASCII (ADR #48).
 class Ability {
 public:
   virtual ~Ability() = default;

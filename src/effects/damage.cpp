@@ -15,6 +15,29 @@
 
 namespace engine {
 
+bool absorbedByDisguise(EffectContext &ctx) {
+  BattlePokemon &defender =
+      ctx.state
+          .teams[static_cast<size_t>(ctx.target.side)][static_cast<size_t>(ctx.target.teamIndex)];
+  const Ability *ability = abilityOf(ctx.data, defender);
+  if (!ability || !ability->hasDisguise() || defender.disguise_broken != 0)
+    return false;
+  defender.disguise_broken = 1;
+  ctx.events.emplace_back(AbilityTriggeredEvent{ctx.target, ability->name()});
+  int chip = std::max(1, defender.stats.hp / 8);
+  int hpBeforeChip = defender.currentHp;
+  defender.currentHp = std::max(0, defender.currentHp - chip);
+  ctx.events.emplace_back(AbilityDamageEvent{ctx.target, ability->name(), chip});
+  if (defender.isFainted())
+    ctx.events.emplace_back(FaintedEvent{ctx.target});
+  else
+    abilityHpCheck(ctx.state, ctx.data, ctx.target, hpBeforeChip, false, ctx.events);
+  if (ctx.multiHitIndex < 0)
+    ctx.moveFailed = true; // single hit: chain stops. Multi-hit: the
+                           // disguise eats this hit, the next ones land.
+  return true;
+}
+
 void DamageEffect::apply(EffectContext &ctx) const {
   const Move &move = ctx.move;
   int power = ctx.powerOverride > 0 ? ctx.powerOverride : move.power;
@@ -66,7 +89,7 @@ void DamageEffect::apply(EffectContext &ctx) const {
 
   if (move.category == MoveCategory::Status)
     return;
-  // Stat plumbing (phase 14): the category picks the pair unless the move
+  // Stat plumbing: the category picks the pair unless the move
   // overrides it (BodyPress: own Def as offense; Psyshock: special vs Def),
   // and FoulPlay swings with the TARGET's Attack, stages included.
   StatIndex atkIdx = (move.category == MoveCategory::Physical) ? StatIndex::Atk : StatIndex::SpA;
@@ -116,8 +139,10 @@ void DamageEffect::apply(EffectContext &ctx) const {
   float effAtk = static_cast<float>(atkStat) * atkMul;
   float effDef = static_cast<float>(defStat) * defMul;
 
-  // Held items modify the stat itself, after stages (Choix x1.5, ThickClub x2).
-  if (const Item *atkItem = heldItem(offenseSrc))
+  // Held items modify the stat itself, after stages (Choice x1.5, ThickClub
+  // x2). Always the attacker's item: FoulPlay borrows the target's Attack,
+  // not its Choice Band (canon).
+  if (const Item *atkItem = heldItem(attacker))
     effAtk *= atkItem->statMultiplier(atkIdx);
   if (const Item *defItem = heldItem(defender))
     effDef *= defItem->statMultiplier(defIdx);
@@ -157,7 +182,7 @@ void DamageEffect::apply(EffectContext &ctx) const {
   float typeMul =
       move.typeless ? 1.0f : ctx.data.typeChart().effectiveness(move.type, defType1, defType2);
 
-  // Souffle Delta neutralizes hits that are super effective against the
+  // Delta Stream neutralizes hits that are super effective against the
   // Flying component (ADR #47): that component's factor drops to x1.
   if (!move.typeless && ctx.state.weather == Weather::StrongWinds) {
     const TypeChart &chart = ctx.data.typeChart();
@@ -213,7 +238,7 @@ void DamageEffect::apply(EffectContext &ctx) const {
       isGrounded(attackerSp))
     terrainMul = 1.3f;
 
-  // Voile Aurore halves both categories on the protected side; crits punch
+  // Aurora Veil halves both categories on the protected side; crits punch
   // through the screen (canon, ADR #39).
   float screenMul = 1.0f;
   if (ctx.state.aurora_veil_turns[static_cast<size_t>(ctx.target.side)] > 0 && !crit)
@@ -237,24 +262,10 @@ void DamageEffect::apply(EffectContext &ctx) const {
     ctx.moveFailed = true;
   }
 
-  // Disguise: the first direct hit pops the disguise instead — no
-  // damage, no secondaries, a 1/8 max-HP chip (gen 8 rules, ADR #47).
-  if (defAbilityEarly && defAbilityEarly->hasDisguise() && defender.disguise_broken == 0) {
-    defender.disguise_broken = 1;
-    ctx.events.emplace_back(AbilityTriggeredEvent{ctx.target, defAbilityEarly->name()});
-    int chip = std::max(1, defender.stats.hp / 8);
-    int hpBeforeChip = defender.currentHp;
-    defender.currentHp = std::max(0, defender.currentHp - chip);
-    ctx.events.emplace_back(AbilityDamageEvent{ctx.target, defAbilityEarly->name(), chip});
-    if (defender.isFainted())
-      ctx.events.emplace_back(FaintedEvent{ctx.target});
-    else
-      abilityHpCheck(ctx.state, ctx.data, ctx.target, hpBeforeChip, false, ctx.events);
-    if (ctx.multiHitIndex < 0)
-      ctx.moveFailed = true; // single hit: chain stops. Multi-hit: the
-                             // disguise eats this hit, the next ones land.
+  // Disguise: the first direct hit pops the disguise instead (gen 8 rules,
+  // ADR #47). An immune hit never reaches it.
+  if (typeMul != 0.0f && absorbedByDisguise(ctx))
     return;
-  }
 
   // FocusSash intercepts a lethal hit taken at full HP (ADR #34).
   if (damage >= defender.currentHp) {

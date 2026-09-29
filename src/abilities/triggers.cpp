@@ -101,27 +101,27 @@ public:
 } // namespace
 
 void registerTriggerAbilities(AbilityTable &table) {
-  static const Moxie impudence;
-  static const Defiant acharne;
-  static const Berserk colerique;
-  static const Disguise fantomasque;
-  static const Pressure pression;
-  static const Unnerve tension;
-  static const Magician magicien;
-  static const Prankster farceur;
-  static const MagicBounce miroirMagik;
-  static const RockHead teteDeRoc;
+  static const Moxie moxie;
+  static const Defiant defiant;
+  static const Berserk berserk;
+  static const Disguise disguise;
+  static const Pressure pressure;
+  static const Unnerve unnerve;
+  static const Magician magician;
+  static const Prankster prankster;
+  static const MagicBounce magicBounce;
+  static const RockHead rockHead;
   auto add = [&table](const Ability &a) { table.push_back(&a); };
-  add(impudence);
-  add(acharne);
-  add(colerique);
-  add(fantomasque);
-  add(pression);
-  add(tension);
-  add(magicien);
-  add(farceur);
-  add(miroirMagik);
-  add(teteDeRoc);
+  add(moxie);
+  add(defiant);
+  add(berserk);
+  add(disguise);
+  add(pressure);
+  add(unnerve);
+  add(magician);
+  add(prankster);
+  add(magicBounce);
+  add(rockHead);
 }
 
 } // namespace engine

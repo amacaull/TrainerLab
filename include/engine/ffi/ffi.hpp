@@ -7,13 +7,13 @@
 #include <string>
 #include <vector>
 
-// Boundary layer for the Rust backend (cxx, ADR D1) and the Python AI service
-// (pybind11, ADR #52). Plain C++ on purpose: the bridge and its rust::Str
-// adapter live on the caller's side, so this header serves both.
+// Boundary layer for the Rust backend (cxx, ADR D1). Plain C++ on purpose:
+// the bridge and its rust::Str adapter live on the caller's side, so any
+// other binding could consume this header unchanged.
 //
 // Every function may throw. Messages carry a stable prefix - E_INIT, E_DATA,
-// E_ARG here, E_STATE / E_TEAM / E_ACTION from 16b-1 - because cxx transports
-// what() only. Full contract in FFI-CONTRACT.md.
+// E_ARG, E_STATE, E_TEAM, E_ACTION - because cxx transports what() only.
+// Full contract: README.md, section 6.
 namespace engine::ffi {
 
 // Idempotent for the same path. A different path throws: two catalogs in one
@@ -46,7 +46,7 @@ std::string ability_name(int id);
 // Reserved name_id values. Struggle is hardcoded (ADR #35), so it has no
 // catalog id, and -1 already means "this event carries no name" - hence a
 // distinct sentinel rather than an overload. Any other negative name_id is a
-// bug. See FFI-CONTRACT.md section 7.
+// bug. See README.md, section 6 (sentinels).
 constexpr int kFfiNoName = -1;
 constexpr int kFfiStruggle = -2;
 constexpr int kFfiStruggleRecoil = -3;
@@ -72,7 +72,7 @@ struct FfiAction {
 };
 
 // One event, flat. The meaning of i0/i1/f0/flags depends on kind - the table
-// in FFI-CONTRACT.md section 6 IS the contract, and the kind numbering there
+// in README.md section 6 IS the contract, and the kind numbering there
 // is authoritative (it does not derive from the variant's order).
 struct FfiEvent {
   uint8_t kind = 0;
@@ -89,7 +89,7 @@ constexpr uint8_t kFfiFlagStab = 1u << 0;
 constexpr uint8_t kFfiFlagCrit = 1u << 1;
 
 // Catalog entries for the frontend and the AI service. Enums travel as int:
-// their numbering is frozen (FFI-CONTRACT.md section 10).
+// their numbering is frozen (README.md section 6, "Ce qui est gelé").
 struct SpeciesEntry {
   std::string id_string;
   std::string display_name;

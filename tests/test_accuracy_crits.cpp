@@ -43,7 +43,7 @@ BattleState makeDuel(const DataLoader &data, const char *s0, std::vector<std::st
 
 } // namespace
 
-TEST_CASE("Secondary effects proc or not through RNG::chance (ADR #26)", "[phase8][secondary]") {
+TEST_CASE("Secondary effects proc or not through RNG::chance (ADR #26)", "[mechanics][secondary]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -59,7 +59,7 @@ TEST_CASE("Secondary effects proc or not through RNG::chance (ADR #26)", "[phase
   REQUIRE(burnAfter(0.05f) == Status::Burn);
 }
 
-TEST_CASE("Flinch skips the slower target's move and clears at end of turn", "[phase8][flinch]") {
+TEST_CASE("Flinch skips the slower target's move and clears at end of turn", "[mechanics][flinch]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -79,7 +79,7 @@ TEST_CASE("Flinch skips the slower target's move and clears at end of turn", "[p
   REQUIRE(state.teams[1][0].flinched == 0); // volatile cleared at end of turn
 }
 
-TEST_CASE("Crits multiply by 1.5 and flag the event", "[phase8][crit]") {
+TEST_CASE("Crits multiply by 1.5 and flag the event", "[mechanics][crit]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -110,7 +110,7 @@ TEST_CASE("Crits multiply by 1.5 and flag the event", "[phase8][crit]") {
   REQUIRE(crit <= normal * 3 / 2 + 2);
 }
 
-TEST_CASE("A crit ignores the defender's defensive boosts", "[phase8][crit]") {
+TEST_CASE("A crit ignores the defender's defensive boosts", "[mechanics][crit]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -126,7 +126,7 @@ TEST_CASE("A crit ignores the defender's defensive boosts", "[phase8][crit]") {
   REQUIRE(critHit(6) == critHit(0)); // +6 Def ignored on a crit
 }
 
-TEST_CASE("Recoil hits the user for a third of the damage dealt and can KO", "[phase8][recoil]") {
+TEST_CASE("Recoil hits the user for a third of the damage dealt and can KO", "[mechanics][recoil]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -152,7 +152,7 @@ TEST_CASE("Recoil hits the user for a third of the damage dealt and can KO", "[p
   REQUIRE(countEvents<FaintedEvent>(events2) == 1);
 }
 
-TEST_CASE("Recover heals half the max HP and fails at full", "[phase8][recovery]") {
+TEST_CASE("Recover heals half the max HP and fails at full", "[mechanics][recovery]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -171,7 +171,7 @@ TEST_CASE("Recover heals half the max HP and fails at full", "[phase8][recovery]
   REQUIRE(countEvents<MoveFailedEvent>(t2) == 1);
 }
 
-TEST_CASE("Roost heals and suppresses the Flying type until end of turn", "[phase8][recovery]") {
+TEST_CASE("Roost heals and suppresses the Flying type until end of turn", "[mechanics][recovery]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -198,7 +198,7 @@ TEST_CASE("Roost heals and suppresses the Flying type until end of turn", "[phas
 }
 
 TEST_CASE("Rest fully heals, cures the old status and sleeps 2 turns outside the Sleep Clause",
-          "[phase8][rest]") {
+          "[mechanics][rest]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -236,7 +236,7 @@ TEST_CASE("Rest fully heals, cures the old status and sleeps 2 turns outside the
 }
 
 TEST_CASE("Evasion stages make 100-accuracy moves missable (ADR #18 resolved)",
-          "[phase8][accuracy]") {
+          "[mechanics][accuracy]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -271,7 +271,7 @@ TEST_CASE("Evasion stages make 100-accuracy moves missable (ADR #18 resolved)",
 }
 
 TEST_CASE("Guts boosts physical damage x1.5 while statused and ignores the burn halving",
-          "[phase8][ability]") {
+          "[mechanics][ability]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -291,7 +291,7 @@ TEST_CASE("Guts boosts physical damage x1.5 while statused and ignores the burn 
   REQUIRE(burned <= healthy * 3 / 2 + 2);
 }
 
-TEST_CASE("Thick Fat halves incoming Fire damage", "[phase8][ability]") {
+TEST_CASE("Thick Fat halves incoming Fire damage", "[mechanics][ability]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -311,7 +311,7 @@ TEST_CASE("Thick Fat halves incoming Fire damage", "[phase8][ability]") {
   REQUIRE(fire <= water / 2 + 2);
 }
 
-TEST_CASE("Static paralyzes on contact only", "[phase8][ability]") {
+TEST_CASE("Static paralyzes on contact only", "[mechanics][ability]") {
   DataLoader data;
   engine::test::loadAll(data);
   engine::test::overrideAbility(data, "Luxray", "Static"); // roster: Intimidate
@@ -329,7 +329,7 @@ TEST_CASE("Static paralyzes on contact only", "[phase8][ability]") {
   REQUIRE(attackerStatus("Earthquake", 0.1f) == Status::None);  // no contact
 }
 
-TEST_CASE("Rough Skin chips a contact attacker for 1/8 max HP", "[phase8][ability]") {
+TEST_CASE("Rough Skin chips a contact attacker for 1/8 max HP", "[mechanics][ability]") {
   DataLoader data;
   engine::test::loadAll(data);
   engine::test::overrideAbility(data, "Excadrill", "RoughSkin"); // roster: SandRush
@@ -349,7 +349,7 @@ TEST_CASE("Rough Skin chips a contact attacker for 1/8 max HP", "[phase8][abilit
   REQUIRE(chip("StoneEdge") == 0);           // no contact
 }
 
-TEST_CASE("Speed ties are broken by the RNG (phase 0 debt resolved)", "[phase8][order]") {
+TEST_CASE("Speed ties are broken by the RNG", "[mechanics][order]") {
   DataLoader data;
   engine::test::loadAll(data);
   BattleEngine engine(data);
@@ -368,7 +368,7 @@ TEST_CASE("Speed ties are broken by the RNG (phase 0 debt resolved)", "[phase8][
   REQUIRE(firstMover(0.6f) == 1); // chance(0.5) misses: side 1 first
 }
 
-TEST_CASE("validateState checks the new volatile fields", "[phase8][validate]") {
+TEST_CASE("validateState checks the new volatile fields", "[mechanics][validate]") {
   DataLoader data;
   engine::test::loadAll(data);
 

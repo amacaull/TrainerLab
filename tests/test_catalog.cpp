@@ -4,6 +4,7 @@
 #include "engine/model/pokemon.hpp"
 
 #include <catch2/catch_test_macros.hpp>
+#include <nlohmann/json.hpp>
 
 using namespace engine;
 
@@ -95,4 +96,18 @@ TEST_CASE("DataLoader: every species has a valid movepool", "[catalog][data]") {
       REQUIRE(data.findMoveId(moveName) >= 0);
     }
   }
+}
+
+TEST_CASE("DataLoader refuses unknown keys and values instead of ignoring them",
+          "[catalog][data]") {
+  using nlohmann::json;
+  // The typo that once sent secondary drops onto the attacker.
+  REQUIRE_THROWS(makeEffectFromJson(
+      json{{"kind", "StatChange"}, {"stat", "Atk"}, {"delta", -1}, {"affectUser", true}}));
+  REQUIRE_THROWS(makeEffectFromJson(
+      json{{"kind", "StatChange"}, {"stat", "Atk"}, {"delta", -1}, {"target", "self"}}));
+  REQUIRE_THROWS(makeEffectFromJson(json{{"kind", "ClearHazards"}, {"scope", "all"}}));
+  REQUIRE_THROWS(makeEffectFromJson(json{{"kind", "Damage"}, {"power", 90}}));
+  REQUIRE_NOTHROW(makeEffectFromJson(
+      json{{"kind", "StatChange"}, {"stat", "Atk"}, {"delta", -1}, {"chance", 10}}));
 }

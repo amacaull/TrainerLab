@@ -14,8 +14,9 @@ void ProtectEffect::apply(EffectContext &ctx) const {
   if (user.isFainted())
     return;
 
+  // Nothing left to protect against when the user moves last (canon).
   float odds = 1.0f / std::pow(3.0f, static_cast<float>(user.protect_chain));
-  if (user.protect_chain > 0 && !ctx.rng.chance(odds)) {
+  if (ctx.targetAlreadyActed || (user.protect_chain > 0 && !ctx.rng.chance(odds))) {
     ctx.events.emplace_back(MoveFailedEvent{ctx.user, ctx.move.name});
     ctx.moveFailed = true;
     return; // protected_now stays 0: the chain resets at end of turn

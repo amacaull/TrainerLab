@@ -40,8 +40,7 @@ void ApplyStatusEffect::apply(EffectContext &ctx) const {
   // Type-chart immunity also blocks status moves (ThunderWave vs Ground).
   bool chartImmune = ctx.data.typeChart().effectiveness(ctx.move.type, sp.type1, sp.type2) == 0.0f;
 
-  // Canon: nothing can be frozen under harsh sunlight (ready for the
-  // phase 8 freeze secondaries).
+  // Canon: nothing can be frozen under harsh sunlight.
   bool sunBlocksFreeze = (status_ == Status::Freeze && ctx.state.weather == Weather::Sun);
 
   // Electric Terrain keeps grounded Pokemon awake (ADR #38).

@@ -114,7 +114,7 @@ TEST_CASE("every id round-trips through its name", "[ffi][catalog]") {
 TEST_CASE("lookups return -1 rather than throwing", "[ffi][catalog]") {
   ensureInit();
   // A miss is -1, not an exception. The Result<i32> these get in the bridge
-  // is for E_INIT only (FFI-CONTRACT.md 8.4).
+  // is for E_INIT only.
   REQUIRE(find_species_id("NoSuchPokemon") == -1);
   REQUIRE(find_move_id("NoSuchMove") == -1);
   REQUIRE(find_item_id("NoSuchItem") == -1);

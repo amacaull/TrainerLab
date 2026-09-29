@@ -44,13 +44,21 @@ void dealHazardDamage(BattlePokemon &in, CombatantRef ref, HazardKind kind, int 
 // Canon application order on entry: Stealth Rock, Spikes, Toxic Spikes.
 void applyEntryHazards(BattleState &state, const DataLoader &data, int side, EventLog &events) {
   BattlePokemon &in = state.active(side);
-  if (const Item *item = heldItem(in)) {
-    if (item->ignoresHazards())
-      return;
-  }
+  const Item *item = heldItem(in);
+  const bool boots = item != nullptr && item->ignoresHazards();
   const Species &sp = data.speciesByIndex(in.species_id);
   SideHazards &hz = state.hazards[static_cast<size_t>(side)];
   CombatantRef ref{side, state.activeIndex[static_cast<size_t>(side)]};
+
+  // Heavy-Duty Boots skip every hazard, but a grounded Poison-type still
+  // soaks up the Toxic Spikes (canon).
+  if (boots) {
+    if (hz.toxic_spikes > 0 && isGrounded(sp) && hasType(sp, Type::Poison)) {
+      hz.toxic_spikes = 0;
+      events.emplace_back(ToxicSpikesAbsorbedEvent{ref});
+    }
+    return;
+  }
 
   if (hz.stealth_rock > 0) {
     float eff = data.typeChart().effectiveness(Type::Rock, sp.type1, sp.type2);
@@ -97,7 +105,7 @@ void performSwitch(BattleState &state, const DataLoader &data, int side, int new
       AbilityContext actx{state, data, events, exitingRef};
       outAbility->onSwitchOut(actx);
     }
-    // Souffle Delta is presence-bound: it clears when its holder leaves,
+    // Delta Stream is presence-bound: it clears when its holder leaves,
     // faint included (ADR #47).
     if (std::string_view(outAbility->name()) == "DeltaStream" &&
         state.weather == Weather::StrongWinds) {

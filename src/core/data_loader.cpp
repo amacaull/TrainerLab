@@ -26,6 +26,8 @@
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
+#include <string_view>
+#include <vector>
 
 namespace fs = std::filesystem;
 using nlohmann::json;
@@ -52,14 +54,54 @@ StatIndex statIndexFromString(const std::string &s) {
   throw std::invalid_argument("statIndexFromString: unknown stat '" + s + "'");
 }
 
+using KeyList = std::vector<std::string_view>;
+
+// A key the loader does not know is a typo, not an option: an ignored
+// "affectsUser" once sent six secondary drops onto the wrong Pokemon.
+void requireKnownKeys(const json &j, const KeyList &allowed, const std::string &where) {
+  for (const auto &item : j.items()) {
+    if (std::find(allowed.begin(), allowed.end(), item.key()) == allowed.end())
+      throw std::invalid_argument(where + ": unknown key '" + item.key() + "'");
+  }
+}
+
+void requireOneOf(const std::string &value, const KeyList &allowed, const std::string &where) {
+  if (std::find(allowed.begin(), allowed.end(), value) == allowed.end())
+    throw std::invalid_argument(where + ": unexpected value '" + value + "'");
+}
+
+// Keys each effect kind reads, on top of "kind" and "chance".
+KeyList effectKeys(const std::string &kind) {
+  if (kind == "StatChange")
+    return {"kind", "chance", "stat", "delta", "affectsUser", "target"};
+  if (kind == "ApplyStatus")
+    return {"kind", "chance", "status"};
+  if (kind == "FixedDamage")
+    return {"kind", "chance", "mode"};
+  if (kind == "Recoil" || kind == "Recovery" || kind == "Drain")
+    return {"kind", "chance", "denominator"};
+  if (kind == "Protect")
+    return {"kind", "chance", "contactStatus"};
+  if (kind == "ClearHazards")
+    return {"kind", "chance", "bothSides", "scope", "clearScreens"};
+  if (kind == "SetHazard")
+    return {"kind", "chance", "hazard"};
+  if (kind == "SetWeather")
+    return {"kind", "chance", "weather"};
+  return {"kind", "chance"};
+}
+
 } // namespace
 
 EffectPtr makeEffectFromJson(const json &j) {
   const std::string kind = j.at("kind").get<std::string>();
+  requireKnownKeys(j, effectKeys(kind), "effect '" + kind + "'");
   if (kind == "MultiHit")
     return std::make_unique<MultiHitEffect>();
   if (kind == "Drain")
     return std::make_unique<DrainEffect>(j.value("denominator", 2));
+  if (kind == "FixedDamage")
+    requireOneOf(j.at("mode").get<std::string>(), {"level", "halfCurrentHp"}, "FixedDamage mode");
   if (kind == "FixedDamage")
     return std::make_unique<FixedDamageEffect>(j.at("mode").get<std::string>() == "level"
                                                    ? FixedDamageEffect::Mode::Level
@@ -85,8 +127,9 @@ EffectPtr makeEffectFromJson(const json &j) {
   if (kind == "StatChange") {
     StatIndex stat = statIndexFromString(j.at("stat").get<std::string>());
     int delta = j.at("delta").get<int>();
-    bool affectsUser =
-        j.value("affectsUser", false) || j.value("target", std::string("target")) == "user";
+    const std::string target = j.value("target", std::string("target"));
+    requireOneOf(target, {"target", "user"}, "StatChange target");
+    bool affectsUser = j.value("affectsUser", false) || target == "user";
     return std::make_unique<StatChangeEffect>(stat, delta, affectsUser);
   }
   if (kind == "Pivot")
@@ -99,7 +142,9 @@ EffectPtr makeEffectFromJson(const json &j) {
   if (kind == "SetHazard")
     return std::make_unique<SetHazardEffect>(hazardFromString(j.at("hazard").get<std::string>()));
   if (kind == "ClearHazards") {
-    bool both = j.value("bothSides", false) || j.value("scope", std::string("user")) == "both";
+    const std::string scope = j.value("scope", std::string("user"));
+    requireOneOf(scope, {"user", "both"}, "ClearHazards scope");
+    bool both = j.value("bothSides", false) || scope == "both";
     return std::make_unique<ClearHazardsEffect>(both, j.value("clearScreens", false));
   }
   if (kind == "Flinch")
@@ -196,6 +241,15 @@ void DataLoader::loadMoves(const std::string &dir) {
 
     Move m;
     m.name = j.at("name").get<std::string>();
+    requireKnownKeys(j,
+                     {"name", "type", "category", "power", "accuracy", "pp", "priority",
+                      "effects", "contact", "punch", "slicing", "bulletproof", "reflectable",
+                      "highCrit", "bypassesProtect", "selfOrField", "twoTurn", "solarCharge",
+                      "multiHit", "hitsDig", "hitsFly", "thawsUser", "usableWhileAsleep",
+                      "firstTurnOnly", "failsIfTargetNotAttacking", "requiresTargetItem",
+                      "boostedByTargetItem", "useTargetOffense", "powerFromTargetWeight",
+                      "offenseStat", "defenseStat", "alwaysHitsIfUserType", "accuracyInWeather"},
+                     "move '" + m.name + "'");
     m.type = typeFromString(j.at("type").get<std::string>());
     m.category = categoryFromString(j.at("category").get<std::string>());
     m.power = j.value("power", 0);
@@ -219,6 +273,8 @@ void DataLoader::loadMoves(const std::string &dir) {
       m.alwaysHitsIfUserType = typeFromString(j.at("alwaysHitsIfUserType").get<std::string>());
     if (j.contains("multiHit")) {
       const auto &mh = j.at("multiHit");
+      requireKnownKeys(mh, {"powers", "count", "min", "max", "perHitAccuracy"},
+                       "move '" + m.name + "' multiHit");
       if (mh.contains("powers")) {
         for (const auto &pw : mh.at("powers"))
           m.hitPowers.push_back(pw.get<int>());
@@ -256,6 +312,8 @@ void DataLoader::loadMoves(const std::string &dir) {
     bool selfOrField = j.value("selfOrField", false);
     m.blockedByProtect = !selfOrField;
     const std::string twoTurn = j.value("twoTurn", std::string(""));
+    requireOneOf(twoTurn, {"", "charge", "fly", "dig", "disappear"},
+                 "move '" + m.name + "' twoTurn");
     m.twoTurn = twoTurn == "charge"      ? TwoTurn::Charge
                 : twoTurn == "fly"       ? TwoTurn::Fly
                 : twoTurn == "dig"       ? TwoTurn::Dig
@@ -291,9 +349,15 @@ void DataLoader::loadSpecies(const std::string &dir) {
 
     Species s;
     s.id = j.at("id").get<std::string>();
+    requireKnownKeys(j,
+                     {"id", "displayName", "baseStats", "type1", "type2", "ability", "nature",
+                      "evs", "weight", "item", "legendary", "mega", "movepool"},
+                     "species '" + s.id + "'");
     s.displayName = j.at("displayName").get<std::string>();
 
     const auto &bs = j.at("baseStats");
+    requireKnownKeys(bs, {"hp", "atk", "def", "specAtk", "specDef", "speed"},
+                     "species '" + s.id + "' baseStats");
     s.baseStats.hp = bs.at("hp").get<int>();
     s.baseStats.atk = bs.at("atk").get<int>();
     s.baseStats.def = bs.at("def").get<int>();
@@ -310,6 +374,8 @@ void DataLoader::loadSpecies(const std::string &dir) {
     }
     if (j.contains("evs")) {
       const auto &ev = j.at("evs");
+      requireKnownKeys(ev, {"hp", "atk", "def", "specAtk", "specDef", "speed"},
+                       "species '" + s.id + "' evs");
       s.evs.hp = ev.value("hp", 0);
       s.evs.atk = ev.value("atk", 0);
       s.evs.def = ev.value("def", 0);

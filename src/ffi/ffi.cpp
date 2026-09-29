@@ -46,10 +46,10 @@ const BattleEngine &engine() {
 }
 
 // Prefix rewriting is the only channel Rust has: cxx transports what() and
-// loses the exception type (FFI-CONTRACT.md section 9).
+// loses the exception type (README.md section 6, errors).
 // E_ACTION refusals already start with their subcode, so the prefix is joined
 // without a space: Rust splits on the first two ':' and never reads the
-// sentence behind them (FFI-CONTRACT.md section 9).
+// sentence behind them (README.md section 6, errors).
 template <typename F> void rethrowAction(F &&f) {
   try {
     f();

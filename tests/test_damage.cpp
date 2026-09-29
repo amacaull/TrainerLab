@@ -60,7 +60,7 @@ TEST_CASE("Charizard outspeeds Venusaur", "[order]") {
   REQUIRE(firstMove->user.side == 0);
 }
 
-// Gengar now holds Levitate (phase 5), which voids Earthquake; the Ground
+// Gengar holds Levitate, which voids Earthquake; the Ground
 // coverage check moved to Pikachu (Electric, 2x weak).
 TEST_CASE("Earthquake on Pikachu is super-effective (Ground vs Electric)", "[damage][types]") {
   DataLoader data;

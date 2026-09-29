@@ -17,12 +17,13 @@ void ClearHazardsEffect::apply(EffectContext &ctx) const {
   if (bothSides_)
     clearSide(1 - ctx.user.side);
 
+  // Defog lifts the screens of the side it targets only; the user's own
+  // Aurora Veil stays up (canon).
   if (clearScreens_) {
-    for (int side = 0; side < kSideCount; ++side) {
-      if (ctx.state.aurora_veil_turns[static_cast<size_t>(side)] > 0) {
-        ctx.state.aurora_veil_turns[static_cast<size_t>(side)] = 0;
-        ctx.events.emplace_back(ScreenEndedEvent{side});
-      }
+    const int side = ctx.target.side;
+    if (ctx.state.aurora_veil_turns[static_cast<size_t>(side)] > 0) {
+      ctx.state.aurora_veil_turns[static_cast<size_t>(side)] = 0;
+      ctx.events.emplace_back(ScreenEndedEvent{side});
     }
   }
 }

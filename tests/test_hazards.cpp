@@ -276,7 +276,7 @@ TEST_CASE("Defog clears both sides and stores the Evasion drop", "[hazard]") {
   REQUIRE(countEvents<HazardsClearedEvent>(events) == 2);
   REQUIRE(state.hazards[0].spikes == 0);
   REQUIRE(state.hazards[1].toxic_spikes == 0);
-  // Evasion -1 stored on the target, inert until phase 8 (ADR #18).
+  // Evasion -1 stored on the target (ADR #18).
   REQUIRE(state.teams[1][0].stat_stages[static_cast<size_t>(StatIndex::Evasion)] == -1);
 }
 

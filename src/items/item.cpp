@@ -145,7 +145,7 @@ public:
   int screenDuration(int base) const override { return base + 3; } // 5 -> 8
 };
 
-// Registered now, wired by the multi-hit engine in phase 14.
+// No hook of its own: MultiHitEffect reads it by name (LoadedDice).
 class InertItem final : public Item {
 public:
   explicit InertItem(const char *itemName) : name_(itemName) {}
@@ -156,20 +156,35 @@ private:
 };
 
 // FROZEN ORDER (ADR #45): item_id crosses the FFI. Append only.
+// Static instances, like the abilities: stateless, never destroyed early.
+const LifeOrb kLifeOrb;
+const Leftovers kLeftovers;
+const BlackSludge kBlackSludge;
+const FlameOrb kFlameOrb;
+const SitrusBerry kSitrusBerry;
+const FocusSash kFocusSash;
+const ChoiceItem kChoiceBand{"ChoiceBand", StatIndex::Atk};
+const ChoiceItem kChoiceSpecs{"ChoiceSpecs", StatIndex::SpA};
+const ChoiceItem kChoiceScarf{"ChoiceScarf", StatIndex::Spe};
+const HeavyDutyBoots kHeavyDutyBoots;
+const InertItem kLoadedDice{"LoadedDice"};
+const ThickClub kThickClub;
+const LightClay kLightClay;
+
 const std::array<const Item *, 13> kItems = {
-    new LifeOrb,                                   // 0
-    new Leftovers,                                 // 1
-    new BlackSludge,                               // 2
-    new FlameOrb,                                  // 3
-    new SitrusBerry,                               // 4
-    new FocusSash,                                 // 5
-    new ChoiceItem("ChoiceBand", StatIndex::Atk),  // 6
-    new ChoiceItem("ChoiceSpecs", StatIndex::SpA), // 7
-    new ChoiceItem("ChoiceScarf", StatIndex::Spe), // 8
-    new HeavyDutyBoots,                            // 9
-    new InertItem("LoadedDice"),                   // 10
-    new ThickClub,                                 // 11
-    new LightClay,                                 // 12
+    &kLifeOrb,        // 0
+    &kLeftovers,      // 1
+    &kBlackSludge,    // 2
+    &kFlameOrb,       // 3
+    &kSitrusBerry,    // 4
+    &kFocusSash,      // 5
+    &kChoiceBand,     // 6
+    &kChoiceSpecs,    // 7
+    &kChoiceScarf,    // 8
+    &kHeavyDutyBoots, // 9
+    &kLoadedDice,     // 10
+    &kThickClub,      // 11
+    &kLightClay,      // 12
 };
 
 } // namespace

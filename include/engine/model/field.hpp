@@ -4,7 +4,7 @@
 
 namespace engine {
 
-// StrongWinds (Souffle Delta) is presence-bound: no countdown, normal
+// StrongWinds (Delta Stream) is presence-bound: no countdown, normal
 // setters fail against it, cleared when its holder leaves (ADR #47).
 //
 // Crosses the FFI boundary as int inside FfiEvent. Do not reorder.

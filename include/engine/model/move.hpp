@@ -27,7 +27,7 @@ struct Move {
   int accuracy = 100;
   int priority = 0; // -7..+5
   int pp = 0;       // base PP = max PP (no PP Ups; ADR #35)
-  // --- Phase 14 mechanic fields (all data-driven, default = canon-neutral) ---
+  // --- Mechanic fields (all data-driven, default = canon-neutral) ---
   // Damage stat plumbing: category picks atk/spa vs def/spd unless overridden.
   StatIndex offenseStat = StatIndex::Count; // Count = default by category (BodyPress: Def)
   StatIndex defenseStat = StatIndex::Count; // Psyshock: special move vs physical Def
@@ -49,8 +49,8 @@ struct Move {
   bool perHitAccuracy = false;
   std::vector<int> hitPowers;
 
-  // Weather-dependent accuracy overrides (0 = never miss): Blizzard under
-  // snow now, Thunder/Hurricane under rain and sun in phase 14 — data only.
+  // Weather-dependent accuracy overrides (0 = never miss), e.g. Blizzard
+  // under snow. Data only.
   std::vector<std::pair<Weather, int>> accuracyInWeather;
   bool makesContact = false;    // triggers Static / Rough Skin
   bool highCrit = false;        // +1 crit stage (Stone Edge...)

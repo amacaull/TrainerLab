@@ -13,7 +13,7 @@ namespace engine::ffi {
 
 namespace {
 
-// Kind numbering comes from FFI-CONTRACT.md section 6, NOT from the order of
+// Kind numbering comes from the README.md section 6 table, NOT from the order of
 // the std::variant - the two diverge (AbilityDamage sits 29th in the variant
 // and carries kind 35). Mapping by position would silently repoint every id
 // the day someone reorders the variant.

@@ -65,23 +65,23 @@ public:
 } // namespace
 
 void registerDamageModAbilities(AbilityTable &table) {
-  static const HugePower coloforce;
-  static const Technician technicien;
-  static const Adaptability adaptabilite;
-  static const ToughClaws griffeDure;
-  static const IronFist poingDeFer;
-  static const Sharpness incisif;
-  static const Unaware benet;
-  static const VesselOfRuin urneDuFleau;
+  static const HugePower hugePower;
+  static const Technician technician;
+  static const Adaptability adaptability;
+  static const ToughClaws toughClaws;
+  static const IronFist ironFist;
+  static const Sharpness sharpness;
+  static const Unaware unaware;
+  static const VesselOfRuin vesselOfRuin;
   auto add = [&table](const Ability &a) { table.push_back(&a); };
-  add(coloforce);
-  add(technicien);
-  add(adaptabilite);
-  add(griffeDure);
-  add(poingDeFer);
-  add(incisif);
-  add(benet);
-  add(urneDuFleau);
+  add(hugePower);
+  add(technician);
+  add(adaptability);
+  add(toughClaws);
+  add(ironFist);
+  add(sharpness);
+  add(unaware);
+  add(vesselOfRuin);
 }
 
 } // namespace engine

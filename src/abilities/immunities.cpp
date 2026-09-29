@@ -65,17 +65,17 @@ public:
 } // namespace
 
 void registerImmunityAbilities(AbilityTable &table) {
-  static const VoltAbsorb absorbeVolt;
-  static const LightningRod paratonnerre;
-  static const FlashFire torche;
-  static const Bulletproof pareBalles;
-  static const ClearBody corpsSain;
+  static const VoltAbsorb voltAbsorb;
+  static const LightningRod lightningRod;
+  static const FlashFire flashFire;
+  static const Bulletproof bulletproof;
+  static const ClearBody clearBody;
   auto add = [&table](const Ability &a) { table.push_back(&a); };
-  add(absorbeVolt);
-  add(paratonnerre);
-  add(torche);
-  add(pareBalles);
-  add(corpsSain);
+  add(voltAbsorb);
+  add(lightningRod);
+  add(flashFire);
+  add(bulletproof);
+  add(clearBody);
 }
 
 } // namespace engine

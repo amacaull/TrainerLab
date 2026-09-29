@@ -7,7 +7,7 @@ namespace engine {
 namespace {
 
 // Snow setter: the shared WeatherAbility pattern lives in ability.cpp with
-// the legacy setters; this one adds the "fails under Souffle Delta" guard
+// the legacy setters; this one adds the "fails under Delta Stream" guard
 // that every setter now needs, so all of them route through here eventually.
 class SnowWarning final : public Ability {
 public:
@@ -35,7 +35,7 @@ public:
   }
 };
 
-// Souffle Delta (ADR #47): presence-bound weather. No countdown; normal
+// Delta Stream (ADR #47): presence-bound weather. No countdown; normal
 // setters fail against it; it clears when the holder leaves the field
 // (handled in performSwitch, faint included).
 class DeltaStream final : public Ability {
@@ -75,21 +75,21 @@ public:
 } // namespace
 
 void registerWeatherAbilities(AbilityTable &table) {
-  static const SnowWarning alerteNeige;
-  static const ElectricSurge creaElec;
-  static const DeltaStream souffleDelta;
-  static const WeatherSpeed glissade{"SwiftSwim", Weather::Rain};
-  static const WeatherSpeed baigneSable{"SandRush", Weather::Sand};
-  static const WeatherSpeed chasseNeige{"SlushRush", Weather::Snow};
-  static const LeafGuard feuilleGarde;
+  static const SnowWarning snowWarning;
+  static const ElectricSurge electricSurge;
+  static const DeltaStream deltaStream;
+  static const WeatherSpeed swiftSwim{"SwiftSwim", Weather::Rain};
+  static const WeatherSpeed sandRush{"SandRush", Weather::Sand};
+  static const WeatherSpeed slushRush{"SlushRush", Weather::Snow};
+  static const LeafGuard leafGuard;
   auto add = [&table](const Ability &a) { table.push_back(&a); };
-  add(alerteNeige);
-  add(creaElec);
-  add(souffleDelta);
-  add(glissade);
-  add(baigneSable);
-  add(chasseNeige);
-  add(feuilleGarde);
+  add(snowWarning);
+  add(electricSurge);
+  add(deltaStream);
+  add(swiftSwim);
+  add(sandRush);
+  add(slushRush);
+  add(leafGuard);
 }
 
 } // namespace engine

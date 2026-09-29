@@ -299,7 +299,7 @@ void runFieldShowcase(const DataLoader &data, const BattleEngine &engine) {
   }
 }
 
-void runPhase89Showcase(const DataLoader &data, const BattleEngine &engine) {
+void runMechanicsShowcase(const DataLoader &data, const BattleEngine &engine) {
   BattleState state;
   state.teams[0][0] = buildCombatant(data, "Dragapult", {"PhantomForce"});
   state.teams[0][1] = buildCombatant(data, "Weavile", {"TripleAxel"});
@@ -436,7 +436,7 @@ int main() {
     }
     runSwitchShowcase(data, engine);
     runFieldShowcase(data, engine);
-    runPhase89Showcase(data, engine);
+    runMechanicsShowcase(data, engine);
 
     return 0;
   } catch (const std::exception &e) {

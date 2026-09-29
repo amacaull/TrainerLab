@@ -31,3 +31,15 @@ TEST_CASE("Full battle ends in a KO", "[engine][integration]") {
   REQUIRE(state.sideHasLost(1));
   REQUIRE_FALSE(state.sideHasLost(0));
 }
+
+TEST_CASE("MersenneRNG draws the same sequence on every platform", "[engine][rng]") {
+  // Golden values: a replayed battle must not depend on the standard
+  // library (libc++ on macOS, libstdc++ in the container).
+  MersenneRNG rng(42);
+  const int expected[5] = {7, 25, 51, 63, 82};
+  for (int want : expected)
+    REQUIRE(rng.rangeInt(1, 100) == want);
+  REQUIRE(rng.rangeInt(85, 100) == 97);
+  REQUIRE(rng.unit() == 0x1.262e14p-1f);
+  REQUIRE(rng.unit() == 0x1.7dd644p-2f);
+}

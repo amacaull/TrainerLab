@@ -85,46 +85,43 @@ int fasterSide(const BattleState &state, const DataLoader &data, RNG &rng) {
 // handles the wake-up and thaw transitions (mutates status counters).
 bool passesBeforeMove(BattlePokemon &user, const CombatantRef &ref, const Move &move, RNG &rng,
                       EventLog &events) {
+  // Canon order: sleep and freeze first, then flinch, then paralysis. A
+  // flinched sleeper still ticks its sleep counter.
+  switch (user.status) {
+  case Status::Sleep:
+    if (user.status_turns > 0) {
+      user.status_turns -= 1;
+      if (!move.usableWhileAsleep) {
+        events.emplace_back(MoveSkippedEvent{ref, SkipReason::Asleep});
+        return false;
+      }
+      break; // SleepTalk: acts while the counter keeps ticking
+    }
+    user.status = Status::None;
+    user.sleep_self_inflicted = 0;
+    events.emplace_back(StatusCuredEvent{ref, Status::Sleep});
+    break;
+  case Status::Freeze:
+    if (move.thawsUser || rng.chance(kThawChance)) { // Scald / FlareBlitz melt their user
+      user.status = Status::None;
+      events.emplace_back(StatusCuredEvent{ref, Status::Freeze});
+      break;
+    }
+    events.emplace_back(MoveSkippedEvent{ref, SkipReason::Frozen});
+    return false;
+  default:
+    break;
+  }
   if (user.flinched != 0) {
     user.flinched = 0;
     events.emplace_back(MoveSkippedEvent{ref, SkipReason::Flinched});
     return false;
   }
-  switch (user.status) {
-  case Status::Sleep:
-    if (user.status_turns > 0) {
-      user.status_turns -= 1;
-      if (move.usableWhileAsleep)
-        return true; // SleepTalk: acts while the counter keeps ticking
-      events.emplace_back(MoveSkippedEvent{ref, SkipReason::Asleep});
-      return false;
-    }
-    user.status = Status::None;
-    user.sleep_self_inflicted = 0;
-    events.emplace_back(StatusCuredEvent{ref, Status::Sleep});
-    return true;
-  case Status::Freeze:
-    if (move.thawsUser) { // Scald / FlareBlitz melt their own user
-      user.status = Status::None;
-      events.emplace_back(StatusCuredEvent{ref, Status::Freeze});
-      return true;
-    }
-    if (rng.chance(kThawChance)) {
-      user.status = Status::None;
-      events.emplace_back(StatusCuredEvent{ref, Status::Freeze});
-      return true;
-    }
-    events.emplace_back(MoveSkippedEvent{ref, SkipReason::Frozen});
+  if (user.status == Status::Paralysis && rng.chance(kFullParalysisChance)) {
+    events.emplace_back(MoveSkippedEvent{ref, SkipReason::FullyParalyzed});
     return false;
-  case Status::Paralysis:
-    if (rng.chance(kFullParalysisChance)) {
-      events.emplace_back(MoveSkippedEvent{ref, SkipReason::FullyParalyzed});
-      return false;
-    }
-    return true;
-  default:
-    return true;
   }
+  return true;
 }
 
 // Only sand chips (Rock/Ground/Steel immune); snow does not chip (ADR #37).
@@ -287,7 +284,6 @@ void BattleEngine::executeAction(BattleState &state, int side, const Action &act
   }
 
   int otherSide = 1 - side;
-  CombatantRef targetRef{otherSide, state.activeIndex[static_cast<size_t>(otherSide)]};
 
   // Charge turn of a two-turn move; SolarBeam skips it under the sun.
   if (!releasing && move.twoTurn != TwoTurn::None &&
@@ -306,7 +302,7 @@ void BattleEngine::executeAction(BattleState &state, int side, const Action &act
 
   const BattlePokemon &target = state.active(otherSide);
 
-  // Usability gates (phase 14) — the PP is already paid (canon).
+  // Usability gates — the PP is already paid (canon).
   if (move.firstTurnOnly && user.turns_on_field > 0) {
     events.emplace_back(MoveFailedEvent{userRef, move.name});
     return;
@@ -335,8 +331,31 @@ void BattleEngine::executeAction(BattleState &state, int side, const Action &act
     }
   }
 
+  // Prankster only boosts the move the user picked, never a called one.
+  bool pranksterBoosted = false;
+  if (ppSlot >= 0) {
+    if (const Ability *ability = abilityOf(data_, user))
+      pranksterBoosted = ability->priorityBoost(move) > 0;
+  }
+
+  resolveHit(state, side, move, pivotTarget, targetAlreadyActed, pranksterBoosted, rng, events);
+
+  // Recorded even on a miss or a block: DestinyBond's no-repeat rule reads it.
+  user.last_move_id = moveId; // Struggle leaves kNoMove: it never chains anything
+}
+
+void BattleEngine::resolveHit(BattleState &state, int side, const Move &move, int pivotTarget,
+                              bool targetAlreadyActed, bool pranksterBoosted, RNG &rng,
+                              EventLog &events) const {
+  const int otherSide = 1 - side;
+  CombatantRef userRef{side, state.activeIndex[static_cast<size_t>(side)]};
+  CombatantRef targetRef{otherSide, state.activeIndex[static_cast<size_t>(otherSide)]};
+  BattlePokemon &user = state.active(side);
+  const BattlePokemon &target = state.active(otherSide);
+  const Species &userSp = data_.speciesByIndex(user.species_id);
+
   // MagicBounce: a reflectable move re-runs with the roles swapped and
-  // skips Protect and accuracy (canon). A bounced Piege de Roc lands on
+  // skips Protect and accuracy (canon). A bounced Stealth Rock lands on
   // the original setter's side.
   bool bounced = false;
   if (move.reflectable && !target.isFainted()) {
@@ -349,11 +368,17 @@ void BattleEngine::executeAction(BattleState &state, int side, const Action &act
     }
   }
 
-  // Semi-invulnerable target: automatic miss, unless Earthquake digs it out.
+  // Toxic thrown by a Poison-type never misses, semi-invulnerable target included.
+  const bool typeGuaranteesHit =
+      move.alwaysHitsIfUserType != Type::Count &&
+      (userSp.type1 == move.alwaysHitsIfUserType || userSp.type2 == move.alwaysHitsIfUserType);
+
+  // Semi-invulnerable target: every move aimed at it misses, status moves
+  // included, unless Earthquake digs it out. Self and field moves still work.
   bool digReached = target.invulnerable_state == 2 && move.hitsDig;
   bool flyReached = target.invulnerable_state == 1 && move.hitsFly;
   if (!bounced && target.invulnerable_state != 0 && !digReached && !flyReached &&
-      move.category != MoveCategory::Status) {
+      move.blockedByProtect && !typeGuaranteesHit) {
     events.emplace_back(MissedEvent{userRef, move.name});
     return;
   }
@@ -365,7 +390,6 @@ void BattleEngine::executeAction(BattleState &state, int side, const Action &act
     // BanefulBunker: a contact attacker walks into the status.
     if (move.makesContact && target.protect_contact_status != 0) {
       Status status = static_cast<Status>(target.protect_contact_status);
-      const Species &userSp = data_.speciesByIndex(user.species_id);
       if (user.status == Status::None && !typeImmuneToStatus(status, userSp)) {
         user.status = status;
         events.emplace_back(StatusAppliedEvent{userRef, status});
@@ -374,21 +398,35 @@ void BattleEngine::executeAction(BattleState &state, int side, const Action &act
     return;
   }
 
+  // Prankster (gen 7+): a boosted status move aimed at a Dark-type fails.
+  if (!bounced && pranksterBoosted && move.category == MoveCategory::Status &&
+      move.blockedByProtect && !target.isFainted()) {
+    const Species &targetSp = data_.speciesByIndex(target.species_id);
+    if (targetSp.type1 == Type::Dark || targetSp.type2 == Type::Dark) {
+      events.emplace_back(MoveFailedEvent{userRef, move.name});
+      return;
+    }
+  }
+
   // Accuracy: accuracy <= 0 never misses; stages use the (3+n)/3 table on
   // the combined stage (user Acc - target Eva), clamped (ADR #18 resolved).
+  // Unaware ignores the other side's accuracy or evasion stage (canon).
   int accuracy = move.accuracy;
   for (const auto &[w, acc] : move.accuracyInWeather)
     if (w == state.weather)
       accuracy = acc; // 0 = never miss under this weather (Blizzard in snow)
-  if (move.alwaysHitsIfUserType != Type::Count) {
-    const Species &userSp = data_.speciesByIndex(user.species_id);
-    if (userSp.type1 == move.alwaysHitsIfUserType || userSp.type2 == move.alwaysHitsIfUserType)
-      accuracy = 0; // Toxic thrown by a Poison-type never misses
-  }
+  if (typeGuaranteesHit)
+    accuracy = 0;
   if (!bounced && accuracy > 0) {
-    int combined = user.stat_stages[static_cast<size_t>(StatIndex::Accuracy)] -
-                   target.stat_stages[static_cast<size_t>(StatIndex::Evasion)];
-    combined = std::clamp(combined, kMinStage, kMaxStage);
+    int accStage = user.stat_stages[static_cast<size_t>(StatIndex::Accuracy)];
+    int evaStage = target.stat_stages[static_cast<size_t>(StatIndex::Evasion)];
+    const Ability *userAbility = abilityOf(data_, user);
+    const Ability *targetAbility = abilityOf(data_, target);
+    if (targetAbility && targetAbility->ignoresStages())
+      accStage = 0;
+    if (userAbility && userAbility->ignoresStages())
+      evaStage = 0;
+    int combined = std::clamp(accStage - evaStage, kMinStage, kMaxStage);
     int effAcc = static_cast<int>(static_cast<float>(accuracy) * accuracyStageMultiplier(combined));
     if (effAcc < 100 && !rng.chancePct(effAcc)) {
       events.emplace_back(MissedEvent{userRef, move.name});
@@ -412,6 +450,7 @@ void BattleEngine::executeAction(BattleState &state, int side, const Action &act
   }
 
   EffectContext ctx{state, data_, rng, events, userRef, targetRef, move, pivotTarget};
+  ctx.targetAlreadyActed = targetAlreadyActed;
   for (const auto &effect : move.effects) {
     effect->apply(ctx);
     if (ctx.moveFailed)
@@ -421,14 +460,8 @@ void BattleEngine::executeAction(BattleState &state, int side, const Action &act
              // no phazing aimed at a Pokemon that is no longer there
   }
 
-  {
-    BattlePokemon &mover =
-        state.teams[static_cast<size_t>(userRef.side)][static_cast<size_t>(userRef.teamIndex)];
-    mover.last_move_id = moveId; // Struggle leaves kNoMove: it never chains anything
-  }
-
   // Post-hit window, slot-addressed via userRef (correct even if a pivot
-  // already moved the user to the bench): Orbe Vie recoil, Magician theft,
+  // already moved the user to the bench): Life Orb recoil, Magician theft,
   // Moxie on a KO.
   if (ctx.lastDamageDealt > 0) {
     const BattlePokemon &mover =
@@ -448,11 +481,18 @@ void BattleEngine::executeAction(BattleState &state, int side, const Action &act
         moverAbility->onAfterKO(actx);
     }
   }
+
+  // SleepTalk: the called move goes through this same pipeline, so Protect,
+  // immunities, invulnerability and accuracy all apply to it (canon).
+  if (ctx.calledMoveId >= 0 && !state.active(side).isFainted() && !state.isOver()) {
+    resolveHit(state, side, data_.moveByIndex(ctx.calledMoveId), -1, targetAlreadyActed, false,
+               rng, events);
+  }
 }
 
 namespace {
 
-// FFI-CONTRACT.md section 9: the subcode is the only machine-readable part of
+// README.md section 6 (errors): the subcode is the only machine-readable part of
 // a refusal. cxx transports what() and loses the exception type, and an
 // English sentence is not something a client can translate or act on. The
 // sentence stays behind it, for the server log.

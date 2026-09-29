@@ -12,7 +12,7 @@ avec la liste des événements à mettre en scène.
 | Talents | 45 |
 | Objets tenus | 13 |
 | Types | 18, table gen 6+ |
-| Tests | 266 (Catch2), dont un test de combats aléatoires en masse |
+| Tests | 279 (Catch2), dont un test de combats aléatoires en masse |
 
 ---
 
@@ -174,7 +174,7 @@ Les choix qui expliquent la forme du code, regroupés par thème.
 | **Effets en héritage virtuel** plutôt qu'en `std::variant` | L'extensibilité prime : un nouvel effet est une nouvelle classe |
 | **Effets secondaires = un wrapper générique** piloté par `"chance"` | N'importe quel effet devient un secondaire à X %, sans code dédié |
 | **Talents et objets en registres de listeners** | 45 talents sans `switch` géant ni modification du moteur |
-| **RNG injecté**, graine par appel | Tests déterministes, et un combat se rejoue à l'identique |
+| **RNG injecté**, graine par appel, tirages écrits à la main | Tests déterministes ; la même graine rejoue le même combat sur macOS comme sous Linux (les distributions de la bibliothèque standard diffèrent d'une plateforme à l'autre) |
 | **Arborescence par domaines**, miroir `include/` et `src/` | Lisible à 49 espèces et 95 attaques ; les tests sont nommés par domaine |
 | **Noms canon anglais en PascalCase ASCII** (`ShadowBall`, `GiratinaOrigin`) | Pas d'accents ni d'espaces dans les fichiers et les chaînes FFI ; l'affichage français est l'affaire du front |
 
@@ -200,7 +200,7 @@ Les choix qui expliquent la forme du code, regroupés par thème.
 | **Erreurs préfixées** (`E_TEAM`, `E_ACTION`…) | `cxx` ne transporte que le message : le préfixe dit à Rust si c'est l'erreur du joueur ou un bug |
 | **`FfiEvent` = une struct plate unique** plutôt que 36 types | Pont trivial ; le front fait de toute façon un `switch` sur `kind` |
 | **Chemin de `data/` obligatoire, aucun repli** | Un autre `data/` donne d'autres index : un repli silencieux réinterpréterait les parties en base |
-| **Empreinte du catalogue** vérifiée par Rust au chargement d'une partie | Détecte un catalogue modifié après la sauvegarde d'un combat |
+| **Empreinte du catalogue** vérifiée par Rust au chargement d'une partie | Détecte un catalogue dont les noms ou l'ordre ont changé après la sauvegarde d'un combat |
 
 ---
 
@@ -453,6 +453,22 @@ gelé, vérifié par un test :
 | `E_TEAM` | équipe refusée | 400 |
 | `E_ACTION` | action refusée | 400 |
 
+Un refus d'action porte en plus un **sous-code**, lui aussi gelé :
+`E_ACTION:<SOUS_CODE>: <phrase pour les logs>`. Rust découpe sur les deux
+premiers `:` et ne lit jamais la phrase.
+
+| Sous-code | Appel | Sens |
+|---|---|---|
+| `FAINTED` | `resolve_turn` | l'actif de ce camp est K.O. : `resolve_replacement` d'abord |
+| `INVALID_SWITCH` | `resolve_turn`, `resolve_replacement` | cible de changement hors équipe, déjà active ou K.O. |
+| `BAD_SLOT` | `resolve_turn` | index d'attaque hors de 0-3 |
+| `EMPTY_SLOT` | `resolve_turn` | emplacement d'attaque vide |
+| `NO_PP` | `resolve_turn` | plus de PP sur cette attaque |
+| `CHOICE_LOCKED` | `resolve_turn` | verrouillé par un objet Choix sur une autre attaque |
+| `BAD_KIND` | `resolve_turn` | `FfiAction.kind` ni 0 ni 1 |
+| `BAD_SIDE` | `resolve_replacement` | camp ni 0 ni 1 |
+| `NOT_FAINTED` | `resolve_replacement` | l'actif de ce camp n'est pas K.O. |
+
 Un `E_STATE` ou un `E_ARG` en retour de `resolve_turn` est toujours un bug
 côté appelant, jamais une issue normale de partie.
 
@@ -487,7 +503,9 @@ n'est stable ni entre plateformes ni entre versions de libstdc++), sur les
 quatre catalogues dans l'ordre espèces, attaques, objets, talents : le nombre
 d'entrées, puis chaque nom suivi de `\0`. Valeur actuelle :
 `0x9848D2D3F76497E5`, verrouillée par un test. Rust la stocke à la création
-d'une partie et la revérifie au chargement.
+d'une partie et la revérifie au chargement. Elle ne couvre que les **noms et
+l'ordre** : une correction de stats ou d'effet la laisse inchangée, et les
+parties en cours continuent simplement avec les nouvelles données.
 
 **En base**, on stocke les `id_string`, jamais les index, sauf à l'intérieur
 d'un `BattleState` sérialisé, que l'empreinte protège.
@@ -557,6 +575,9 @@ vide.
   `bulletproof`, `reflectable`, `highCrit`, `bypassesProtect`, `twoTurn`,
   `multiHit`, `firstTurnOnly`, et quelques drapeaux propres à une attaque
   (`powerFromTargetWeight`, `useTargetOffense`…).
+- Le chargeur est **strict** : une clé ou une valeur qu'il ne connaît pas
+  (faute de frappe comprise) arrête le démarrage avec le nom du fichier en
+  cause, au lieu d'être ignorée en silence.
 
 ### Ajouter une attaque ou une espèce
 

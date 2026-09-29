@@ -16,8 +16,7 @@ constexpr int kNoSpecies = -1;
 constexpr int kNoItem = -1;
 
 // Boostable stats, stable ordering for the stat_stages array.
-// Atk..Spe drive damage/speed; Accuracy/Evasion are stored and clamped now
-// but not yet wired into the accuracy roll (comes with phase 8).
+// Atk..Spe drive damage/speed; Accuracy/Evasion drive the accuracy roll.
 //
 // Crosses the FFI boundary as int inside FfiEvent. Do not reorder.
 enum class StatIndex : int { Atk = 0, Def, SpA, SpD, Spe, Accuracy, Evasion, Count };
@@ -44,7 +43,7 @@ struct Species {
   std::string nature = "Serious";
   std::string item;       // empty = no held item (Megas, test fixtures)
   Stats evs;              // 0-252 per stat, sum <= 510 (validated at load)
-  double weightKg = 0.0;  // consumed by weight-based moves (phase 14)
+  double weightKg = 0.0;  // consumed by weight-based moves (LowKick, GrassKnot)
   bool legendary = false; // team rule: max 1 (official list pending, data-only flip)
   bool mega = false;      // team rule: max 1. A data flag, not an id prefix guess
 
@@ -68,7 +67,7 @@ struct BattlePokemon {
   Status status = Status::None;
   int status_turns = 0;         // Sleep: turns left asleep. Toxic: damage ramp counter.
   int sleep_self_inflicted = 0; // Rest sleep: exempt from Sleep Clause (ADR #28)
-  std::array<int, kStatStageCount> stat_stages{}; // each in [-6, +6], reset on switch (phase 4)
+  std::array<int, kStatStageCount> stat_stages{}; // each in [-6, +6], reset on switch
 
   // Volatiles: cleared on switch-out; flinched/roosted also at end of turn.
   int flinched = 0;

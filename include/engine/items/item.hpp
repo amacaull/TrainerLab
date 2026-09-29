@@ -29,10 +29,10 @@ public:
   // Stat multiplier applied after stages (Choice items, ThickClub).
   virtual float statMultiplier(StatIndex) const { return 1.0f; }
 
-  // Outgoing damage multiplier on damaging moves (Orbe Vie).
+  // Outgoing damage multiplier on damaging moves (Life Orb).
   virtual float damageMultiplier() const { return 1.0f; }
 
-  // After the holder's damaging move connected (Orbe Vie recoil).
+  // After the holder's damaging move connected (Life Orb recoil).
   virtual void onAfterDamagingMove(ItemContext &) const {}
 
   // End of turn, before status residuals (Leftovers, BlackSludge) — canon order:
