@@ -55,15 +55,15 @@ TEST_CASE("engine_init is idempotent and rejects a second data dir", "[ffi][init
 TEST_CASE("a missing data dir is reported, not crashed on", "[ffi][init]") {
   // engine_init's E_DATA path cannot be exercised once the singleton is warm,
   // and Catch2 randomises order - so the wrapped behaviour is asserted on the
-  // loader itself. The E_DATA prefix is covered by the Rust integration tests.
+  // loader itself. The E_DATA prefix is covered by the Python binding tests.
   engine::DataLoader local;
   REQUIRE_THROWS_AS(local.loadAll("/definitely/not/a/data/dir"), std::runtime_error);
 }
 
 TEST_CASE("catalog sizes match the shipped content", "[ffi][catalog]") {
   ensureInit();
-  // Fixture moves live outside data/: engine_init never loads them, so these are the numbers Rust
-  // will cache.
+  // Fixture moves live outside data/: engine_init never loads them, so these are the numbers
+  // callers will cache.
   REQUIRE(species_count() == 49);
   REQUIRE(move_count() == 95);
   REQUIRE(item_count() == 13);

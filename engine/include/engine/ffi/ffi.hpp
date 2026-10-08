@@ -8,7 +8,8 @@
 #include <vector>
 
 // Every function may throw. Messages start with a stable prefix (E_INIT, E_DATA, E_ARG, E_STATE,
-// E_TEAM, E_ACTION) because cxx only transports what(). Contract: README.md, section 6.
+// E_TEAM, E_ACTION): callers across a language boundary only get what(). Contract: README.md,
+// section 6.
 namespace engine::ffi {
 // Idempotent for the same path. Another path throws: two catalogs in one process would mean two id
 // spaces.
@@ -43,8 +44,8 @@ constexpr int kFfiStruggleRecoil = -3;
 int struggle_move_id();
 int struggle_recoil_ability_id();
 
-// Rust stores it when a battle is created and rechecks it on load. It covers the names and their
-// order only.
+// Anything that persists catalog ids stores it and rechecks it on load. It covers the names and
+// their order only.
 uint64_t catalog_fingerprint();
 
 struct FfiAction {

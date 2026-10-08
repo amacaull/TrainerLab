@@ -23,7 +23,7 @@ template <typename F> std::string messageOf(F &&f) {
 
 bool startsWith(const std::string &s, const char *prefix) { return s.rfind(prefix, 0) == 0; }
 
-// A 1v1 built the way Rust will: make_combatant only, never field by field.
+// A 1v1 built the way callers must: make_combatant only, never field by field.
 BattleState duel(const char *left, const char *right) {
   BattleState s;
   s.teams[0][0] = make_combatant(find_species_id(left));
@@ -225,7 +225,7 @@ TEST_CASE("every action refusal carries a frozen subcode", "[ffi][battle]") {
     REQUIRE(startsWith(actual, expected));
   }
 
-  // No space after the prefix: Rust splits on the first two ':'.
+  // No space after the prefix: callers split on the first two ':'.
   const std::string msg = cases[0].second;
   REQUIRE(msg.find("E_ACTION: ") == std::string::npos);
 }

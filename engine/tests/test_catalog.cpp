@@ -54,8 +54,8 @@ TEST_CASE("DataLoader: lookup by name returns valid id, miss returns -1", "[cata
   REQUIRE(data.findMoveId("NoSuchMove") == -1);
 }
 
-// Catalog ids must be stable across loads. The FFI client (Rust) caches
-// ids at startup and relies on them not shifting between engine restarts.
+// Catalog ids must be stable across loads: callers cache ids at startup and
+// rely on them not shifting between engine restarts.
 TEST_CASE("DataLoader: catalog order is deterministic across loads", "[catalog]") {
   DataLoader data1;
   DataLoader data2;

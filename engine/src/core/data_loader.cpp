@@ -173,7 +173,7 @@ json readJsonFile(const fs::path &p) {
   return j;
 }
 
-// Sorted: catalog ids must be stable across runs, Rust caches them.
+// Sorted: catalog ids must be stable across runs, callers cache them.
 std::vector<fs::path> sortedJsonFiles(const fs::path &dir) {
   std::vector<fs::path> files;
   for (auto &entry : fs::directory_iterator(dir)) {

@@ -40,7 +40,7 @@ const BattleEngine &engine() {
   return instance;
 }
 
-// The prefix is the only channel Rust has: cxx transports what() and loses the exception type.
+// The prefix survives any binding: callers across a language boundary only get what().
 // E_ACTION refusals already start with their subcode, hence no space.
 template <typename F> void rethrowAction(F &&f) {
   try {
