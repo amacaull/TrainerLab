@@ -10,5 +10,7 @@ namespace engine::ffi {
 // Throws E_ACTION on an unknown kind.
 Action toAction(const FfiAction &action);
 
+FfiAction toFfiAction(const Action &action);
+
 std::vector<FfiEvent> flatten(const EventLog &log);
 } // namespace engine::ffi

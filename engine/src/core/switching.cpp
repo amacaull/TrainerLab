@@ -20,6 +20,14 @@ bool isValidSwitchTarget(const BattleState &state, int side, int teamIndex) {
   return !p.isEmpty() && !p.isFainted();
 }
 
+std::vector<int> validSwitchTargets(const BattleState &state, int side) {
+  std::vector<int> targets;
+  for (int i = 0; i < state.team_size[static_cast<size_t>(side)]; ++i)
+    if (isValidSwitchTarget(state, side, i))
+      targets.push_back(i);
+  return targets;
+}
+
 int firstHealthyBenched(const BattleState &state, int side) {
   for (int i = 0; i < state.team_size[static_cast<size_t>(side)]; ++i) {
     if (isValidSwitchTarget(state, side, i))
@@ -129,6 +137,7 @@ void performSwitch(BattleState &state, const DataLoader &data, int side, int new
   events.emplace_back(SwitchedOutEvent{outRef});
 
   state.activeIndex[static_cast<size_t>(side)] = newIndex;
+  state.active(side).revealed = 1;
   CombatantRef inRef{side, newIndex};
   events.emplace_back(SwitchedInEvent{inRef});
 

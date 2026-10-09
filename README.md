@@ -10,8 +10,8 @@ and measured in Python.
 
 | Directory | Content |
 |---|---|
-| [`engine/`](engine/) | The battle engine: stateless, deterministic, 279 tests. See its [README](engine/README.md). |
-| `ai/` | Python: the engine binding, bots, a statistical tournament harness and a terminal mode to play against the AI. *Coming next.* |
+| [`engine/`](engine/) | The battle engine: stateless, deterministic, 287 tests. See its [README](engine/README.md). |
+| `ai/` | Python: the engine binding (done), bots, a statistical tournament harness and a terminal mode to play against the AI (in progress). |
 
 ## Goal
 

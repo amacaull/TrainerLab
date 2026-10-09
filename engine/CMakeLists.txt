@@ -62,6 +62,7 @@ add_library(battle_engine_lib STATIC
     src/core/switching.cpp
     src/core/engine.cpp
     src/core/struggle.cpp
+    src/core/observation.cpp
     # extensible families
     src/abilities/ability.cpp
     src/abilities/damage_mods.cpp

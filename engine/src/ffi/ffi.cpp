@@ -3,7 +3,9 @@
 #include "engine/abilities/ability.hpp"
 #include "engine/core/data_loader.hpp"
 #include "engine/core/engine.hpp"
+#include "engine/core/observation.hpp"
 #include "engine/core/rng.hpp"
+#include "engine/core/switching.hpp"
 #include "engine/core/validate.hpp"
 #include "engine/ffi/convert.hpp"
 #include "engine/items/item.hpp"
@@ -62,6 +64,11 @@ void requireId(bool ok, const char *what, int id, int count) {
   if (!ok)
     throw std::out_of_range("E_ARG: " + std::string(what) + " id " + std::to_string(id) +
                             " out of range [0, " + std::to_string(count) + ")");
+}
+
+void requireSide(int side) {
+  if (side != 0 && side != 1)
+    throw std::out_of_range("E_ARG: side " + std::to_string(side) + " out of range [0, 2)");
 }
 
 constexpr uint64_t kFnvOffset = 14695981039346656037ULL;
@@ -250,9 +257,31 @@ int faster_side(const BattleState &state, uint64_t seed) {
 bool is_over(const BattleState &state) { return state.isOver(); }
 
 bool side_has_lost(const BattleState &state, int side) {
-  if (side != 0 && side != 1)
-    throw std::out_of_range("E_ARG: side " + std::to_string(side) + " out of range [0, 2)");
+  requireSide(side);
   return state.sideHasLost(side);
+}
+
+std::vector<FfiAction> legal_actions(const BattleState &state, int side) {
+  requireSide(side);
+  validate_state(state);
+  std::vector<FfiAction> out;
+  for (const Action &action : engine().legalActions(state, side))
+    out.push_back(toFfiAction(action));
+  return out;
+}
+
+std::vector<int> legal_replacements(const BattleState &state, int side) {
+  requireSide(side);
+  validate_state(state);
+  if (!state.active(side).isFainted())
+    return {};
+  return validSwitchTargets(state, side);
+}
+
+BattleState observe(const BattleState &state, int side) {
+  requireSide(side);
+  validate_state(state);
+  return engine::observe(state, side);
 }
 
 int struggle_move_id() { return kFfiStruggle; }

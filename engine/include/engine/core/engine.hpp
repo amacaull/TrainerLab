@@ -5,6 +5,8 @@
 #include "engine/core/events.hpp"
 #include "engine/core/rng.hpp"
 
+#include <vector>
+
 namespace engine {
 class BattleEngine {
 public:
@@ -23,6 +25,11 @@ public:
   // Exposed so the caller orders simultaneous replacements: entry abilities land differently
   // depending on who arrives first.
   int fasterSide(const BattleState &state, RNG &rng) const;
+
+  // Exactly what checkAction accepts for this side, one entry per distinct outcome: a charging or
+  // Struggling Pokemon gets a single move entry, since the slot it names is ignored. Empty when the
+  // active is fainted. pivotTarget stays -1 (automatic).
+  std::vector<Action> legalActions(const BattleState &state, int side) const;
 
 private:
   // Throws on any illegal action, before any mutation.

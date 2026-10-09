@@ -69,6 +69,9 @@ void validatePokemon(const BattlePokemon &p, const DataLoader &data, int side, i
   if (p.turns_on_field < 0) {
     fail(where.str() + ": turns_on_field is negative");
   }
+  if (p.revealed != 0 && p.revealed != 1) {
+    fail(where.str() + ": revealed must be 0 or 1");
+  }
   if (p.destiny_bond_active != 0 && p.destiny_bond_active != 1) {
     fail(where.str() + ": destiny_bond_active must be 0 or 1");
   }

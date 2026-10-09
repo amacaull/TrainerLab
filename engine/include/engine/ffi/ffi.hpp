@@ -109,4 +109,16 @@ int faster_side(const BattleState &state, uint64_t seed);
 
 bool is_over(const BattleState &state);
 bool side_has_lost(const BattleState &state, int side);
+
+// What resolve_turn accepts for this side, one entry per distinct outcome (README.md, section 6).
+// Empty when the active is fainted: ask legal_replacements instead.
+std::vector<FfiAction> legal_actions(const BattleState &state, int side);
+
+// The team indices resolve_replacement accepts. Empty unless the active is fainted.
+std::vector<int> legal_replacements(const BattleState &state, int side);
+
+// The state as the player on `side` sees it (engine/core/observation.hpp). A view for decisions:
+// never pass it back to any function here, legal_actions included (validate_state rejects it).
+// Whoever owns the real state computes the legal actions and hands both to the player.
+BattleState observe(const BattleState &state, int side);
 } // namespace engine::ffi

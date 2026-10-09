@@ -25,6 +25,8 @@ struct SideHazards {
   int stealth_rock = 0;
   int spikes = 0;
   int toxic_spikes = 0;
+
+  bool operator==(const SideHazards &) const = default;
 };
 
 const char *weatherToString(Weather w);

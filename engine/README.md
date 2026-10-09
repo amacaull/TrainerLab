@@ -17,7 +17,7 @@ agents.
 | Abilities | 45 |
 | Held items | 13 |
 | Types | 18, gen 6+ chart |
-| Tests | 279 (Catch2), including a randomised battle fuzzer |
+| Tests | 287 (Catch2), including a randomised battle fuzzer |
 
 ---
 
@@ -222,6 +222,9 @@ only. After each call, it checks:
 - that every event is well formed (known kind, side, slot and `name_id` in
   bounds);
 - that a refused action changes nothing;
+- that `legal_actions` and `legal_replacements` list exactly what the engine
+  accepts, and that `observe` never shows an opponent that has not entered
+  the field;
 - **that the events are enough to rebuild the state**: HP, status, PP and
   item presence are replayed from the events alone, as a client would, then
   compared with the real state.
@@ -429,7 +432,58 @@ resolve_turn(state, a0, a1, seed) -> events
 resolve_replacement(state, side, team_index) -> events
 faster_side(state, seed) -> int               // order of simultaneous replacements
 is_over(state) / side_has_lost(state, side)
+
+// Decisions
+legal_actions(state, side) -> FfiAction list  // what resolve_turn accepts (below)
+legal_replacements(state, side) -> int list   // what resolve_replacement accepts
+observe(state, side) -> BattleState           // what this player can see (below)
 ```
+
+### Legal actions
+
+`legal_actions` returns exactly the actions `resolve_turn` accepts for one
+side, **one entry per distinct outcome**, so that a player choosing uniformly
+among them is not biased:
+
+| Situation | Entries |
+|---|---|
+| Active fainted | none: use `legal_replacements` |
+| Charging a two-turn move | one move entry naming the charging move; the engine ignores any other choice, switches included |
+| No usable PP (Struggle) | one move entry, plus the valid switches |
+| Locked by a Choice item | the locked move, plus the valid switches |
+| Otherwise | every slot with a move and PP left, plus every valid switch |
+
+`pivot_target` is always `-1` (automatic). The fuzzer checks, every turn,
+that each entry is accepted and each accepted action is listed.
+
+### The player's view
+
+`observe(state, side)` returns a copy of the state with what this player
+cannot see removed:
+
+- **An opponent that never entered the field** is reset to an empty slot
+  (`species_id == -1`). `team_size` stays: the player knows how many
+  Pokémon are left to discover. Each `BattlePokemon` carries a `revealed`
+  flag, set when it enters the field.
+- **The remaining turns of sleep** read 0, on both sides: a player does not
+  know its own counter either. Rest is the exception, since it always sleeps
+  two turns.
+
+Everything else stays exact, opponent HP included: the events show exact
+damage, and sets are fixed per species in a public catalog.
+
+The view is not a playable state: `validate_state` rejects its empty slots,
+so it never goes back into the engine. The caller computes the legal actions
+from the real state and hands both to the player.
+
+### Python binding
+
+`ai/bindings/` wraps this API with pybind11 as the module
+`trainerlab._engine`. Function names are unchanged; struct fields are in
+`snake_case` (`current_hp`, `active_index`), enums are `int`, and
+`FfiAction` / `FfiEvent` are `Action` / `Event`. Each error prefix becomes an
+exception class deriving from `EngineError` (`ActionError`, `TeamError`…),
+with the full message kept and the subcode in `ActionError.subcode`.
 
 ### Errors
 
@@ -598,13 +652,6 @@ differences):
 - **Emergency Exit** switches automatically (to the first valid
   replacement) instead of letting the player choose mid-turn, which would be
   incompatible with a turn resolved in a single call.
-
-**Not exposed yet**:
-
-- **`legal_actions(state, side)`**: callers must currently try an action and
-  read the `E_ACTION`.
-- **`observe(state, side)`**: a player's view of the state, without the
-  information a human player could not see.
 
 **Out of scope**: double battles, Trick Room, Substitute, in-battle Mega
 Evolution.

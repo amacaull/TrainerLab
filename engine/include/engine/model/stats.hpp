@@ -10,6 +10,8 @@ struct Stats {
   int specAtk = 0;
   int specDef = 0;
   int speed = 0;
+
+  bool operator==(const Stats &) const = default;
 };
 
 constexpr int kIv = 31;

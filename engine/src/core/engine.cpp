@@ -500,8 +500,46 @@ void BattleEngine::checkAction(const BattleState &state, int side, const Action 
   // pivotTarget may go stale mid-turn: PivotEffect re-checks it.
 }
 
+std::vector<Action> BattleEngine::legalActions(const BattleState &state, int side) const {
+  std::vector<Action> actions;
+  const BattlePokemon &actor = state.active(side);
+  if (actor.isFainted())
+    return actions;
+
+  // checkAction lets anything through while charging, and executeAction ignores it, switches
+  // included: the one entry names the charging move's slot when it has one.
+  if (actor.charging_move_id != kNoMove) {
+    int slot = 0;
+    for (int i = 0; i < kMaxMovesPerPokemon; ++i)
+      if (actor.move_ids[static_cast<size_t>(i)] == actor.charging_move_id)
+        slot = i;
+    actions.emplace_back(UseMove{slot});
+    return actions;
+  }
+
+  if (!canUseAnyMove(actor)) {
+    actions.emplace_back(UseMove{0}); // Struggle, whatever slot is named
+  } else {
+    const bool locked = choiceLockActive(actor);
+    for (int i = 0; i < kMaxMovesPerPokemon; ++i) {
+      const int moveId = actor.move_ids[static_cast<size_t>(i)];
+      if (moveId == kNoMove || actor.pp[static_cast<size_t>(i)] <= 0)
+        continue;
+      if (locked && moveId != actor.locked_move_id)
+        continue;
+      actions.emplace_back(UseMove{i});
+    }
+  }
+
+  for (int target : validSwitchTargets(state, side))
+    actions.emplace_back(SwitchAction{target});
+  return actions;
+}
+
 EventLog BattleEngine::startBattle(BattleState &state, RNG &rng) const {
   EventLog events;
+  for (int side = 0; side < kSideCount; ++side)
+    state.active(side).revealed = 1;
   int first = ::engine::fasterSide(state, data_, rng);
   for (int side : {first, 1 - first}) {
     CombatantRef ref{side, state.activeIndex[static_cast<size_t>(side)]};

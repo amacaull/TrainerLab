@@ -241,15 +241,98 @@ struct Fuzzer {
       if (!s.active(side).isFainted() || side_has_lost(s, side))
         continue;
       std::vector<int> bench;
-      for (int i = 0; i < kTeam; ++i)
-        if (!s.teams[size_t(side)][size_t(i)].isFainted())
-          bench.push_back(i);
+      for (int i = 0; i < kTeam; ++i) {
+        BattleState probe = s;
+        try {
+          resolve_replacement(probe, side, i);
+        } catch (const std::exception &) {
+          continue;
+        }
+        bench.push_back(i);
+      }
+      if (legal_replacements(s, side) != bench)
+        report("legal_replacements differs from what resolve_replacement accepts", seed, s.turn,
+               speciesOf(s, side, s.activeIndex[size_t(side)]));
       const int pickIdx = bench[size_t(pick(int(bench.size())))];
       if (!step(s, seed, "resolve_replacement",
                 [&] { return resolve_replacement(s, side, pickIdx); }))
         return false;
     }
     return true;
+  }
+
+  // legal_actions must match resolve_turn exactly: every listed action is accepted, and every
+  // accepted one is listed, bar the forced cases collapsed to one move entry (charging accepts
+  // anything, Struggle accepts every slot).
+  void checkLegality(const BattleState &s, uint64_t seed, uint64_t turnSeed) {
+    const std::vector<FfiAction> legal[2] = {legal_actions(s, 0), legal_actions(s, 1)};
+    for (int side = 0; side < kSideCount; ++side) {
+      const auto &mine = legal[size_t(side)];
+      const auto &theirs = legal[size_t(1 - side)];
+      if (mine.empty() || theirs.empty()) {
+        report("no legal action for a standing active", seed, s.turn, speciesOf(s, side, 0));
+        return;
+      }
+      auto accepted = [&](const FfiAction &a) {
+        BattleState probe = s;
+        try {
+          if (side == 0)
+            resolve_turn(probe, a, theirs[0], turnSeed);
+          else
+            resolve_turn(probe, theirs[0], a, turnSeed);
+        } catch (const std::exception &) {
+          return false;
+        }
+        return true;
+      };
+      auto listed = [&](const FfiAction &a) {
+        return std::any_of(mine.begin(), mine.end(), [&](const FfiAction &l) {
+          return l.kind == a.kind && l.index == a.index;
+        });
+      };
+      for (const FfiAction &a : mine)
+        if (!accepted(a))
+          report("legal_actions lists a refused action", seed, s.turn,
+                 "kind " + std::to_string(a.kind) + " index " + std::to_string(a.index));
+
+      const bool charging = s.active(side).charging_move_id != kNoMove;
+      int acceptedMoves = 0;
+      std::vector<FfiAction> grid;
+      for (int m = 0; m < kMaxMovesPerPokemon; ++m)
+        grid.push_back(FfiAction{0, m, -1});
+      for (int i = 0; i < kTeam; ++i)
+        grid.push_back(FfiAction{1, i, -1});
+      std::vector<FfiAction> missing;
+      for (const FfiAction &a : grid) {
+        if (!accepted(a))
+          continue;
+        if (a.kind == 0)
+          ++acceptedMoves;
+        if (!listed(a))
+          missing.push_back(a);
+      }
+      const bool struggling = acceptedMoves == kMaxMovesPerPokemon &&
+                              std::count_if(mine.begin(), mine.end(),
+                                            [](const FfiAction &a) { return a.kind == 0; }) == 1;
+      for (const FfiAction &a : missing)
+        if (!charging && !(struggling && a.kind == 0))
+          report("legal_actions misses an accepted action", seed, s.turn,
+                 "kind " + std::to_string(a.kind) + " index " + std::to_string(a.index));
+    }
+  }
+
+  // Each active has been seen, and no unrevealed opponent shows through observe().
+  void checkViews(const BattleState &s, uint64_t seed) {
+    for (int side = 0; side < kSideCount; ++side) {
+      if (s.active(side).revealed != 1)
+        report("active not revealed", seed, s.turn,
+               speciesOf(s, side, s.activeIndex[size_t(side)]));
+      const BattleState view = observe(s, side);
+      for (int i = 0; i < kTeam; ++i)
+        if (s.teams[size_t(1 - side)][size_t(i)].revealed == 0 &&
+            !(view.teams[size_t(1 - side)][size_t(i)] == BattlePokemon{}))
+          report("observe leaks an unrevealed opponent", seed, s.turn, speciesOf(s, 1 - side, i));
+    }
   }
 
   // A rejected pair must leave the state as it was.
@@ -285,6 +368,8 @@ struct Fuzzer {
         continue;
       }
       const uint64_t turnSeed = seed * 1000003u + uint64_t(s.turn);
+      checkViews(s, seed);
+      checkLegality(s, seed, turnSeed);
       bool played = false;
       for (int attempt = 0; attempt < 30 && !played; ++attempt) {
         const FfiAction a0 = randomAction(), a1 = randomAction();

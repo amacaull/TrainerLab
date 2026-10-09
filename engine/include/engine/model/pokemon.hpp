@@ -74,6 +74,9 @@ struct BattlePokemon {
   int last_move_id = kNoMove;
   int destiny_bond_active = 0;
   int protect_contact_status = 0;
+  int revealed = 0; // has been on the field: the opponent knows it exists (observe)
+
+  bool operator==(const BattlePokemon &) const = default;
 
   bool isFainted() const { return currentHp <= 0; }
   bool isEmpty() const { return species_id == kNoSpecies; }

@@ -38,6 +38,8 @@ struct BattleState {
   std::array<int, 2> wish_heal{0, 0};
   std::array<SideHazards, kSideCount> hazards{};
 
+  bool operator==(const BattleState &) const = default;
+
   const BattlePokemon &active(int side) const {
     return teams[static_cast<size_t>(side)]
                 [static_cast<size_t>(activeIndex[static_cast<size_t>(side)])];

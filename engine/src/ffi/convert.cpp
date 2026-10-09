@@ -271,6 +271,13 @@ Action toAction(const FfiAction &action) {
   }
 }
 
+FfiAction toFfiAction(const Action &action) {
+  if (const auto *sw = std::get_if<SwitchAction>(&action))
+    return FfiAction{1, sw->teamIndex, -1};
+  const auto &move = std::get<UseMove>(action);
+  return FfiAction{0, move.moveIndex, move.pivotTarget};
+}
+
 std::vector<FfiEvent> flatten(const EventLog &log) {
   std::vector<FfiEvent> out;
   out.reserve(log.size());
