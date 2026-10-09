@@ -17,7 +17,7 @@ agents.
 | Abilities | 45 |
 | Held items | 13 |
 | Types | 18, gen 6+ chart |
-| Tests | 287 (Catch2), including a randomised battle fuzzer |
+| Tests | 288 (Catch2), including a randomised battle fuzzer |
 
 ---
 
@@ -238,6 +238,15 @@ FUZZ_SEED=1592590343 ./build/tests/battle_engine_tests "[fuzz]"   # replays one 
 ```
 
 Every anomaly is printed with the seed that reproduces it.
+
+### Determinism across platforms
+
+The random draws are hand-written so that a seed means the same thing
+everywhere. A golden test (`[golden]` in `tests/test_ffi_battle.cpp`) plays a
+full seeded 6v6 and compares a digest of every event with a hard-coded value;
+CI runs it on Linux for every pull request, and on macOS too once merged on
+`main`. A deliberate rule or data change that moves the digest updates it in
+the same commit.
 
 ### Comparison with Showdown (`tools/showdown-diff`)
 

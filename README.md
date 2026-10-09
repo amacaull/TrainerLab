@@ -1,5 +1,7 @@
 # TrainerLab
 
+[![CI](https://github.com/amacaull/TrainerLab/actions/workflows/ci.yml/badge.svg)](https://github.com/amacaull/TrainerLab/actions/workflows/ci.yml)
+
 A Pokémon-style battle engine in C++20, and AI agents that play it, written
 and measured in Python.
 
@@ -10,7 +12,7 @@ and measured in Python.
 
 | Directory | Content |
 |---|---|
-| [`engine/`](engine/) | The battle engine: stateless, deterministic, 287 tests. See its [README](engine/README.md). |
+| [`engine/`](engine/) | The battle engine: stateless, deterministic, 288 tests. See its [README](engine/README.md). |
 | `ai/` | Python: the engine binding (done), bots, a statistical tournament harness and a terminal mode to play against the AI (in progress). |
 
 ## Goal

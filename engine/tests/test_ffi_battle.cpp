@@ -3,8 +3,10 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <array>
+#include <cstdint>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 using namespace engine;
 using namespace engine::ffi;
@@ -214,8 +216,9 @@ TEST_CASE("every action refusal carries a frozen subcode", "[ffi][battle]") {
        messageOf([&] { return resolve_turn(s, FfiAction{0, 7, -1}, FfiAction{0, 0, -1}, 1); })},
       {"E_ACTION:INVALID_SWITCH:",
        messageOf([&] { return resolve_turn(s, FfiAction{1, 5, -1}, FfiAction{0, 0, -1}, 1); })},
-      {"E_ACTION:FAINTED:",
-       messageOf([&] { return resolve_turn(fainted, FfiAction{0, 0, -1}, FfiAction{0, 0, -1}, 1); })},
+      {"E_ACTION:FAINTED:", messageOf([&] {
+         return resolve_turn(fainted, FfiAction{0, 0, -1}, FfiAction{0, 0, -1}, 1);
+       })},
       {"E_ACTION:NOT_FAINTED:", messageOf([&] { return resolve_replacement(s, 0, 1); })},
       {"E_ACTION:BAD_SIDE:", messageOf([&] { return resolve_replacement(s, 7, 0); })},
   };
@@ -260,4 +263,69 @@ TEST_CASE("MoveUsed and Charging carry the PP actually spent in i0", "[ffi][batt
     REQUIRE(first(release, 0, 0).i0 == 0);
     REQUIRE(before - s.active(0).pp[1] == 1);
   }
+}
+
+// Same seed, same battle, on every platform: the CI runs this on macOS and Linux against one
+// hard-coded digest. A mismatch means a platform-dependent draw or float computation crept in.
+// If a deliberate rule or data change moves it, update the digest in the same commit.
+TEST_CASE("a seeded battle replays identically on every platform", "[ffi][golden]") {
+  engine_init(BATTLE_ENGINE_DATA_DIR);
+  const char *teams[2][6] = {
+      {"Dragapult", "Snorlax", "Toxapex", "Excadrill", "Blissey", "Corviknight"},
+      {"Gyarados", "KommoO", "Infernape", "Primarina", "TapuKoko", "Mimikyu"}};
+  BattleState s;
+  for (size_t side = 0; side < 2; ++side) {
+    for (size_t i = 0; i < 6; ++i)
+      s.teams[side][i] = make_combatant(find_species_id(teams[side][i]));
+    s.team_size[side] = 6;
+  }
+
+  uint64_t digest = 0xcbf29ce484222325ull;
+  auto mix = [&](int64_t v) {
+    for (int b = 0; b < 8; ++b) {
+      digest ^= static_cast<uint64_t>(v >> (8 * b)) & 0xffu;
+      digest *= 0x100000001b3ull;
+    }
+  };
+  auto record = [&](const std::vector<FfiEvent> &events) {
+    for (const FfiEvent &e : events) {
+      mix(e.kind);
+      mix(e.side);
+      mix(e.slot);
+      mix(e.name_id);
+      mix(e.i0);
+      mix(e.i1);
+      mix(static_cast<int64_t>(e.f0 * 1000.0f));
+      mix(e.flags);
+    }
+  };
+
+  // Choices come from a fixed LCG, not the engine's RNG, so only the engine can drift.
+  uint64_t lcg = 12345;
+  auto pick = [&](size_t n) {
+    lcg = lcg * 6364136223846793005ull + 1442695040888963407ull;
+    return static_cast<size_t>((lcg >> 33) % n);
+  };
+
+  record(start_battle(s, 42));
+  while (!is_over(s) && s.turn < 500) {
+    const uint64_t seed = 42u * 1000003u + static_cast<uint64_t>(s.turn);
+    const auto a0 = legal_actions(s, 0);
+    const auto a1 = legal_actions(s, 1);
+    // Two statements: the order of function arguments is unspecified, so two pick() calls in one
+    // call would be drawn in a different order by gcc and clang.
+    const FfiAction c0 = a0[pick(a0.size())];
+    const FfiAction c1 = a1[pick(a1.size())];
+    record(resolve_turn(s, c0, c1, seed));
+    const int first = faster_side(s, seed);
+    for (int side : {first, 1 - first}) {
+      const auto options = legal_replacements(s, side);
+      if (!options.empty() && !side_has_lost(s, side))
+        record(resolve_replacement(s, side, options[pick(options.size())]));
+    }
+  }
+
+  REQUIRE(is_over(s));
+  INFO("turns: " << s.turn << ", digest: 0x" << std::hex << digest);
+  REQUIRE(digest == 0x49f8b6c143a770ecull);
 }

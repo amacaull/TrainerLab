@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A new push to the same branch cancels the run it makes obsolete.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  engine:
+    name: Engine (${{ matrix.os }})
+    # Linux on every PR, macOS too once merged on main: the golden battle test then proves a seed
+    # replays identically on both, without making each PR wait for a macOS runner.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ github.event_name == 'push' && fromJSON('["ubuntu-latest", "macos-latest"]') || fromJSON('["ubuntu-latest"]') }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S engine -B engine/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+
+      - name: Build
+        run: cmake --build engine/build -j
+
+      - name: Test
+        run: ctest --test-dir engine/build --output-on-failure
+
+  python:
+    name: Python (${{ matrix.os }})
+    # Pure Python over an engine already tested on both platforms: Linux is enough.
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: ai
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: ai/pyproject.toml
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Lint
+        run: |
+          ruff check
+          ruff format --check
+
+      - name: Type check (package)
+        run: mypy src
+
+      # The two steps below wake up with the first test file.
+      - name: Type check (tests)
+        if: hashFiles('ai/tests/**/*.py') != ''
+        run: mypy tests
+
+      - name: Test
+        if: hashFiles('ai/tests/**/*.py') != ''
+        run: pytest
