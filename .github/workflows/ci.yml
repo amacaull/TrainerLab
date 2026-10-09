@@ -10,16 +10,12 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Linux only. macOS is covered by running the engine tests locally before any engine PR: the
+# golden battle test pins the same digest on both platforms.
 jobs:
   engine:
-    name: Engine (${{ matrix.os }})
-    # Linux on every PR, macOS too once merged on main: the golden battle test then proves a seed
-    # replays identically on both, without making each PR wait for a macOS runner.
-    strategy:
-      fail-fast: false
-      matrix:
-        os: ${{ github.event_name == 'push' && fromJSON('["ubuntu-latest", "macos-latest"]') || fromJSON('["ubuntu-latest"]') }}
-    runs-on: ${{ matrix.os }}
+    name: Engine
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -33,12 +29,8 @@ jobs:
         run: ctest --test-dir engine/build --output-on-failure
 
   python:
-    name: Python (${{ matrix.os }})
-    # Pure Python over an engine already tested on both platforms: Linux is enough.
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-    runs-on: ${{ matrix.os }}
+    name: Python
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ai

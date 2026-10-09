@@ -243,10 +243,10 @@ Every anomaly is printed with the seed that reproduces it.
 
 The random draws are hand-written so that a seed means the same thing
 everywhere. A golden test (`[golden]` in `tests/test_ffi_battle.cpp`) plays a
-full seeded 6v6 and compares a digest of every event with a hard-coded value;
-CI runs it on Linux for every pull request, and on macOS too once merged on
-`main`. A deliberate rule or data change that moves the digest updates it in
-the same commit.
+full seeded 6v6 and compares a digest of every event with a hard-coded value.
+CI runs it on Linux; run it locally on macOS before merging an engine change.
+A deliberate rule or data change that moves the digest updates it in the same
+commit.
 
 ### Comparison with Showdown (`tools/showdown-diff`)
 
