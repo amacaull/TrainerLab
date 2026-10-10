@@ -106,3 +106,15 @@ def test_when_both_sides_must_replace_the_faster_side_goes_first() -> None:
     order = env.pending_replacements()
 
     assert order == [1, 0]
+
+
+def test_an_invalid_replacement_is_refused_and_changes_nothing() -> None:
+    env = BattleEnvironment(["Dragapult", "Snorlax"], ["KommoO", "Blissey"], seed=42)
+    env.play_turn(env.legal_actions(0)[0], env.legal_actions(1)[0])
+    view_before = env.observe(1)
+
+    with pytest.raises(ActionError) as error:
+        env.replace(1, team_index=0)
+
+    assert error.value.subcode == "INVALID_SWITCH"
+    assert env.observe(1) == view_before
