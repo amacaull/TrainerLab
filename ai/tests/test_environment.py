@@ -29,3 +29,13 @@ def test_playing_a_turn_returns_the_events() -> None:
     events = env.play_turn(env.legal_actions(0)[0], env.legal_actions(1)[0])
 
     assert events
+
+
+def test_a_side_sees_both_leads_but_not_the_opposing_bench() -> None:
+    env = BattleEnvironment(["Dragapult", "Snorlax"], ["Blissey"], seed=42)
+
+    view = env.observe(1)
+
+    assert not view.pokemon(0, 0).is_empty()
+    assert view.pokemon(0, 1).is_empty()
+    assert not view.pokemon(1, 0).is_empty()
