@@ -21,3 +21,11 @@ def test_the_turn_number_advances_after_a_turn() -> None:
     env.play_turn(env.legal_actions(0)[0], env.legal_actions(1)[0])
 
     assert env.turn == turn_before + 1
+
+
+def test_playing_a_turn_returns_the_events() -> None:
+    env = BattleEnvironment(["Dragapult", "Snorlax"], ["Blissey"], seed=42)
+
+    events = env.play_turn(env.legal_actions(0)[0], env.legal_actions(1)[0])
+
+    assert events
