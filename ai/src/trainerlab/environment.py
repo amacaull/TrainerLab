@@ -28,8 +28,8 @@ class BattleEnvironment:
     def legal_actions(self, side: int) -> list[_engine.Action]:
         return _engine.legal_actions(self._state, side)
 
-    def play_turn(self, action0: _engine.Action, action1: _engine.Action) -> None:
-        _engine.resolve_turn(self._state, action0, action1, self._turn_seed())
+    def play_turn(self, action0: _engine.Action, action1: _engine.Action) -> list[_engine.Event]:
+        return _engine.resolve_turn(self._state, action0, action1, self._turn_seed())
 
     def _turn_seed(self) -> int:
         # Same formula as the engine's golden test: each turn gets its own deterministic seed.
