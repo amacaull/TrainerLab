@@ -1,5 +1,5 @@
 from trainerlab.environment import BattleEnvironment
-
+from trainerlab._engine import Action
 
 def test_a_new_battle_is_not_over() -> None:
     env = BattleEnvironment(["Dragapult", "Snorlax"], ["Blissey"], seed=42)
@@ -39,3 +39,12 @@ def test_a_side_sees_both_leads_but_not_the_opposing_bench() -> None:
     assert not view.pokemon(0, 0).is_empty()
     assert view.pokemon(0, 1).is_empty()
     assert not view.pokemon(1, 0).is_empty()
+
+
+def test_after_a_switch_the_side_sees_its_new_active() -> None:
+    env = BattleEnvironment(["Dragapult", "Snorlax"], ["Blissey"], seed=42)
+    switch_to_snorlax = Action.switch(1)
+
+    env.play_turn(switch_to_snorlax, env.legal_actions(1)[0])
+
+    assert env.observe(0).active_index[0] == 1
