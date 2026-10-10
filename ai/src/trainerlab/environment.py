@@ -36,6 +36,9 @@ class BattleEnvironment:
     def play_turn(self, action0: _engine.Action, action1: _engine.Action) -> list[_engine.Event]:
         return _engine.resolve_turn(self._state, action0, action1, self._turn_seed())
 
+    def pending_replacements(self) -> list[int]:
+        return [side for side in (0, 1) if _engine.legal_replacements(self._state, side)]
+
     def _turn_seed(self) -> int:
         # Same formula as the engine's golden test: each turn gets its own deterministic seed.
         return self._seed * 1_000_003 + self._state.turn
