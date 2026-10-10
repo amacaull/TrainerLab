@@ -74,3 +74,13 @@ def test_after_a_knock_out_the_side_must_replace() -> None:
     env.play_turn(env.legal_actions(0)[0], env.legal_actions(1)[0])
 
     assert env.pending_replacements() == [1]
+
+
+def test_a_turn_is_refused_while_a_replacement_is_pending() -> None:
+    env = BattleEnvironment(["Dragapult", "Snorlax"], ["KommoO", "Blissey"], seed=42)
+    env.play_turn(env.legal_actions(0)[0], env.legal_actions(1)[0])
+
+    with pytest.raises(ActionError) as error:
+        env.play_turn(env.legal_actions(0)[0], Action.move(0))
+
+    assert error.value.subcode == "FAINTED"
