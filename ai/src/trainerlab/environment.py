@@ -13,8 +13,10 @@ class BattleEnvironment:
     def __init__(self, team0: list[str], team1: list[str], *, seed: int) -> None:
         _engine.engine_init(str(DATA_DIR))
         self._state = _engine.BattleState()
-        self._state.set_team(0, _build_team(team0))
-        self._state.set_team(1, _build_team(team1))
+        for side, species in enumerate((team0, team1)):
+            team = _build_team(species)
+            _engine.validate_team(team)
+            self._state.set_team(side, team)
         self._seed = seed
         _engine.start_battle(self._state, seed)
 

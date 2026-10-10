@@ -1,7 +1,8 @@
 import pytest
 
-from trainerlab._engine import Action, ActionError
+from trainerlab._engine import Action, ActionError, TeamError
 from trainerlab.environment import BattleEnvironment
+
 
 def test_a_new_battle_is_not_over() -> None:
     env = BattleEnvironment(["Dragapult", "Snorlax"], ["Blissey"], seed=42)
@@ -51,6 +52,7 @@ def test_after_a_switch_the_side_sees_its_new_active() -> None:
 
     assert env.observe(0).active_index[0] == 1
 
+
 def test_an_illegal_action_is_refused_and_changes_nothing() -> None:
     env = BattleEnvironment(["Dragapult", "Snorlax"], ["Blissey"], seed=42)
     view_before = env.observe(0)
@@ -59,3 +61,8 @@ def test_an_illegal_action_is_refused_and_changes_nothing() -> None:
         env.play_turn(Action.switch(0), env.legal_actions(1)[0])
 
     assert env.observe(0) == view_before
+
+
+def test_creating_a_battle_with_an_invalid_team_is_refused() -> None:
+    with pytest.raises(TeamError):
+        BattleEnvironment(["Dragapult", "Dragapult"], ["Blissey"], seed=42)
