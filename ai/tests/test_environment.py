@@ -66,3 +66,11 @@ def test_an_illegal_action_is_refused_and_changes_nothing() -> None:
 def test_creating_a_battle_with_an_invalid_team_is_refused() -> None:
     with pytest.raises(TeamError):
         BattleEnvironment(["Dragapult", "Dragapult"], ["Blissey"], seed=42)
+
+
+def test_after_a_knock_out_the_side_must_replace() -> None:
+    env = BattleEnvironment(["Dragapult", "Snorlax"], ["KommoO", "Blissey"], seed=42)
+
+    env.play_turn(env.legal_actions(0)[0], env.legal_actions(1)[0])
+
+    assert env.pending_replacements() == [1]
