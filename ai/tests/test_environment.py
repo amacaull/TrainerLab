@@ -95,3 +95,14 @@ def test_after_a_replacement_the_new_pokemon_is_active_and_play_resumes() -> Non
     assert env.observe(1).active_index[1] == 1
     assert env.pending_replacements() == []
     assert env.legal_actions(1)
+
+
+def test_when_both_sides_must_replace_the_faster_side_goes_first() -> None:
+    env = BattleEnvironment(["MegaBanette", "Snorlax"], ["Excadrill", "Blissey"], seed=42)
+    destiny_bond = Action.move(3)
+    earthquake = Action.move(0)
+    env.play_turn(destiny_bond, earthquake)
+
+    order = env.pending_replacements()
+
+    assert order == [1, 0]
