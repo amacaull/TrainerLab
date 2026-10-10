@@ -40,7 +40,9 @@ class BattleEnvironment:
         return _engine.resolve_replacement(self._state, side, team_index)
 
     def pending_replacements(self) -> list[int]:
-        return [side for side in (0, 1) if _engine.legal_replacements(self._state, side)]
+        first = _engine.faster_side(self._state, self._turn_seed())
+        order = (first, 1 - first)
+        return [side for side in order if _engine.legal_replacements(self._state, side)]
 
     def _turn_seed(self) -> int:
         # Same formula as the engine's golden test: each turn gets its own deterministic seed.
