@@ -36,6 +36,9 @@ class BattleEnvironment:
     def play_turn(self, action0: _engine.Action, action1: _engine.Action) -> list[_engine.Event]:
         return _engine.resolve_turn(self._state, action0, action1, self._turn_seed())
 
+    def replace(self, side: int, *, team_index: int) -> list[_engine.Event]:
+        return _engine.resolve_replacement(self._state, side, team_index)
+
     def pending_replacements(self) -> list[int]:
         return [side for side in (0, 1) if _engine.legal_replacements(self._state, side)]
 
