@@ -84,3 +84,14 @@ def test_a_turn_is_refused_while_a_replacement_is_pending() -> None:
         env.play_turn(env.legal_actions(0)[0], Action.move(0))
 
     assert error.value.subcode == "FAINTED"
+
+
+def test_after_a_replacement_the_new_pokemon_is_active_and_play_resumes() -> None:
+    env = BattleEnvironment(["Dragapult", "Snorlax"], ["KommoO", "Blissey"], seed=42)
+    env.play_turn(env.legal_actions(0)[0], env.legal_actions(1)[0])
+
+    env.replace(1, team_index=1)
+
+    assert env.observe(1).active_index[1] == 1
+    assert env.pending_replacements() == []
+    assert env.legal_actions(1)
