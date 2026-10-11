@@ -30,6 +30,8 @@ class BattleEnvironment:
     def winner(self) -> int | None:
         if _engine.side_has_lost(self._state, 1):
             return 0
+        if _engine.side_has_lost(self._state, 0):
+            return 1
         return None
 
     def legal_actions(self, side: int) -> list[_engine.Action]:

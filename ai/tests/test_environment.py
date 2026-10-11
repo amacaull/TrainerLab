@@ -127,3 +127,12 @@ def test_when_a_side_has_no_pokemon_left_the_other_side_wins() -> None:
 
     assert env.is_over()
     assert env.winner() == 0
+
+
+def test_when_the_other_side_has_no_pokemon_left_side_1_wins() -> None:
+    env = BattleEnvironment(["KommoO"], ["Dragapult"], seed=42)
+
+    env.play_turn(env.legal_actions(0)[0], env.legal_actions(1)[0])
+
+    assert env.is_over()
+    assert env.winner() == 1
