@@ -26,6 +26,7 @@ def test_a_new_battle_is_not_over() -> None:
     env = BattleEnvironment(["Dragapult", "Snorlax"], ["Blissey"], seed=42)
 
     assert not env.is_over()
+    assert env.winner() is None
 
 
 def test_each_side_has_legal_actions_at_the_start() -> None:
@@ -129,6 +130,19 @@ def test_when_both_sides_must_replace_the_faster_side_goes_first() -> None:
     order = env.pending_replacements()
 
     assert order == [1, 0]
+
+
+def test_the_slower_side_cannot_replace_first() -> None:
+    env = BattleEnvironment(["MegaBanette", "Snorlax"], ["Excadrill", "Blissey"], seed=42)
+    destiny_bond = Action.move(3)
+    earthquake = Action.move(0)
+    env.play_turn(destiny_bond, earthquake)
+    view_before = env.observe(0)
+
+    with pytest.raises(RuntimeError, match="first"):
+        env.replace(0, team_index=1)
+
+    assert env.observe(0) == view_before
 
 
 def test_an_invalid_replacement_is_refused_and_changes_nothing() -> None:

@@ -56,6 +56,9 @@ class BattleEnvironment:
 
     def replace(self, side: int, *, team_index: int) -> list[_engine.Event]:
         self._require_not_over()
+        pending = self.pending_replacements()
+        if side in pending and side != pending[0]:
+            raise RuntimeError(f"Side {pending[0]} must replace first")
         return _engine.resolve_replacement(self._state, side, team_index)
 
     def _require_not_over(self) -> None:
