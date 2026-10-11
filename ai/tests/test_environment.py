@@ -118,3 +118,12 @@ def test_an_invalid_replacement_is_refused_and_changes_nothing() -> None:
 
     assert error.value.subcode == "INVALID_SWITCH"
     assert env.observe(1) == view_before
+
+
+def test_when_a_side_has_no_pokemon_left_the_other_side_wins() -> None:
+    env = BattleEnvironment(["Dragapult"], ["KommoO"], seed=42)
+
+    env.play_turn(env.legal_actions(0)[0], env.legal_actions(1)[0])
+
+    assert env.is_over()
+    assert env.winner() == 0

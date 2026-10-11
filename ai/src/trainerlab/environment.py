@@ -25,7 +25,12 @@ class BattleEnvironment:
         return self._state.turn
 
     def is_over(self) -> bool:
-        return False
+        return _engine.is_over(self._state)
+
+    def winner(self) -> int | None:
+        if _engine.side_has_lost(self._state, 1):
+            return 0
+        return None
 
     def legal_actions(self, side: int) -> list[_engine.Action]:
         return _engine.legal_actions(self._state, side)
