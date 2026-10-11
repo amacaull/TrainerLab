@@ -1,9 +1,13 @@
+import random
+
 import pytest
 
 from trainerlab._engine import Action, ActionError, TeamError
 from trainerlab.environment import BattleEnvironment
 
 EventRecord = tuple[int, int, int, int, int, int, float, int]
+TEAM0 = ["Dragapult", "Snorlax", "Toxapex", "Excadrill", "Blissey", "Corviknight"]
+TEAM1 = ["Gyarados", "KommoO", "Infernape", "Primarina", "TapuKoko", "Mimikyu"]
 
 
 def _event_log(seed: int) -> list[EventRecord]:
@@ -207,3 +211,19 @@ def test_different_seeds_give_different_events() -> None:
     second = _event_log(seed=2)
 
     assert first != second
+
+
+@pytest.mark.parametrize("seed", range(20))
+def test_a_full_battle_between_random_players_ends_with_a_result(seed: int) -> None:
+    env = BattleEnvironment(TEAM0, TEAM1, seed=seed)
+    rng = random.Random(seed)
+
+    while not env.is_over():
+        pending = env.pending_replacements()
+        if pending:
+            for side in pending:
+                env.replace(side, team_index=rng.choice(env.legal_replacements(side)))
+        else:
+            env.play_turn(rng.choice(env.legal_actions(0)), rng.choice(env.legal_actions(1)))
+
+    assert env.winner() in (0, 1, None)

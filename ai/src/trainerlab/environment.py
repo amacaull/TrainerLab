@@ -44,6 +44,9 @@ class BattleEnvironment:
     def legal_actions(self, side: int) -> list[_engine.Action]:
         return _engine.legal_actions(self._state, side)
 
+    def legal_replacements(self, side: int) -> list[int]:
+        return _engine.legal_replacements(self._state, side)
+
     def observe(self, side: int) -> _engine.BattleState:
         return _engine.observe(self._state, side)
 
@@ -62,7 +65,7 @@ class BattleEnvironment:
     def pending_replacements(self) -> list[int]:
         first = _engine.faster_side(self._state, self._turn_seed())
         order = (first, 1 - first)
-        return [side for side in order if _engine.legal_replacements(self._state, side)]
+        return [side for side in order if self.legal_replacements(side)]
 
     def _turn_seed(self) -> int:
         # Same formula as the engine's golden test: each turn gets its own deterministic seed.
