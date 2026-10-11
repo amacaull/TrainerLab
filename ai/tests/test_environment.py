@@ -157,3 +157,13 @@ def test_replacing_after_the_end_is_refused() -> None:
 
     with pytest.raises(RuntimeError, match="over"):
         env.replace(1, team_index=0)
+
+
+def test_a_battle_that_reaches_the_turn_limit_is_a_draw() -> None:
+    env = BattleEnvironment(["Snorlax"], ["Blissey"], seed=42, max_turns=3)
+
+    for _ in range(3):
+        env.play_turn(env.legal_actions(0)[0], env.legal_actions(1)[0])
+
+    assert env.is_over()
+    assert env.winner() is None

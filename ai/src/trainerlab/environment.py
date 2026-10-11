@@ -10,7 +10,9 @@ DATA_DIR = Path(__file__).resolve().parents[3] / "engine" / "data"
 
 
 class BattleEnvironment:
-    def __init__(self, team0: list[str], team1: list[str], *, seed: int) -> None:
+    def __init__(
+        self, team0: list[str], team1: list[str], *, seed: int, max_turns: int = 1000
+    ) -> None:
         _engine.engine_init(str(DATA_DIR))
         self._state = _engine.BattleState()
         for side, species in enumerate((team0, team1)):
@@ -18,6 +20,7 @@ class BattleEnvironment:
             _engine.validate_team(team)
             self._state.set_team(side, team)
         self._seed = seed
+        self._max_turns = max_turns
         _engine.start_battle(self._state, seed)
 
     @property
@@ -25,7 +28,7 @@ class BattleEnvironment:
         return self._state.turn
 
     def is_over(self) -> bool:
-        return _engine.is_over(self._state)
+        return _engine.is_over(self._state) or self.turn >= self._max_turns
 
     def winner(self) -> int | None:
         if _engine.side_has_lost(self._state, 1):
