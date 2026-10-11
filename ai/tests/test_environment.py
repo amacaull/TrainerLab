@@ -166,6 +166,15 @@ def test_an_invalid_replacement_is_refused_and_changes_nothing() -> None:
     assert env.observe(1) == view_before
 
 
+def test_a_free_replacement_without_a_knock_out_is_refused() -> None:
+    env = BattleEnvironment(["Dragapult", "Snorlax"], ["Blissey"], seed=42)
+
+    with pytest.raises(ActionError) as error:
+        env.replace(0, team_index=1)
+
+    assert error.value.subcode == "NOT_FAINTED"
+
+
 def test_when_a_side_has_no_pokemon_left_the_other_side_wins() -> None:
     env = BattleEnvironment(["Dragapult"], ["KommoO"], seed=42)
 
