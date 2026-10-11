@@ -68,6 +68,11 @@ def test_creating_a_battle_with_an_invalid_team_is_refused() -> None:
         BattleEnvironment(["Dragapult", "Dragapult"], ["Blissey"], seed=42)
 
 
+def test_an_unknown_species_is_refused_with_its_name() -> None:
+    with pytest.raises(ValueError, match="KomoO"):
+        BattleEnvironment(["KomoO"], ["Dragapult"], seed=42)
+
+
 def test_after_a_knock_out_the_side_must_replace() -> None:
     env = BattleEnvironment(["Dragapult", "Snorlax"], ["KommoO", "Blissey"], seed=42)
 
