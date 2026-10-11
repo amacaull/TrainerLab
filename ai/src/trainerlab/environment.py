@@ -41,12 +41,16 @@ class BattleEnvironment:
         return _engine.observe(self._state, side)
 
     def play_turn(self, action0: _engine.Action, action1: _engine.Action) -> list[_engine.Event]:
-        if self.is_over():
-            raise RuntimeError("The battle is over")
+        self._require_not_over()
         return _engine.resolve_turn(self._state, action0, action1, self._turn_seed())
 
     def replace(self, side: int, *, team_index: int) -> list[_engine.Event]:
+        self._require_not_over()
         return _engine.resolve_replacement(self._state, side, team_index)
+
+    def _require_not_over(self) -> None:
+        if self.is_over():
+            raise RuntimeError("The battle is over")
 
     def pending_replacements(self) -> list[int]:
         first = _engine.faster_side(self._state, self._turn_seed())

@@ -149,3 +149,11 @@ def test_playing_after_the_end_is_refused() -> None:
 
     with pytest.raises(RuntimeError, match="over"):
         env.play_turn(env.legal_actions(0)[0], Action.move(0))
+
+
+def test_replacing_after_the_end_is_refused() -> None:
+    env = BattleEnvironment(["Dragapult"], ["KommoO"], seed=42)
+    env.play_turn(env.legal_actions(0)[0], env.legal_actions(1)[0])
+
+    with pytest.raises(RuntimeError, match="over"):
+        env.replace(1, team_index=0)
