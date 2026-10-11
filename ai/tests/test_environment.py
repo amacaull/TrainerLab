@@ -167,3 +167,14 @@ def test_a_battle_that_reaches_the_turn_limit_is_a_draw() -> None:
 
     assert env.is_over()
     assert env.winner() is None
+
+
+def test_when_both_sides_lose_their_last_pokemon_together_it_is_a_draw() -> None:
+    env = BattleEnvironment(["MegaBanette"], ["Excadrill"], seed=42)
+    destiny_bond = Action.move(3)
+    earthquake = Action.move(0)
+
+    env.play_turn(destiny_bond, earthquake)
+
+    assert env.is_over()
+    assert env.winner() is None

@@ -31,9 +31,13 @@ class BattleEnvironment:
         return _engine.is_over(self._state) or self.turn >= self._max_turns
 
     def winner(self) -> int | None:
-        if _engine.side_has_lost(self._state, 1):
+        side0_lost = _engine.side_has_lost(self._state, 0)
+        side1_lost = _engine.side_has_lost(self._state, 1)
+        if side0_lost and side1_lost:
+            return None
+        if side1_lost:
             return 0
-        if _engine.side_has_lost(self._state, 0):
+        if side0_lost:
             return 1
         return None
 
