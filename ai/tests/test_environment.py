@@ -100,6 +100,15 @@ def test_after_a_knock_out_the_side_must_replace() -> None:
     assert env.pending_replacements() == [1]
 
 
+def test_after_a_knock_out_the_healthy_bench_can_replace() -> None:
+    env = BattleEnvironment(["Dragapult", "Snorlax"], ["KommoO", "Blissey"], seed=42)
+
+    env.play_turn(env.legal_actions(0)[0], env.legal_actions(1)[0])
+
+    assert env.legal_replacements(1) == [1]
+    assert env.legal_replacements(0) == []
+
+
 def test_a_turn_is_refused_while_a_replacement_is_pending() -> None:
     env = BattleEnvironment(["Dragapult", "Snorlax"], ["KommoO", "Blissey"], seed=42)
     env.play_turn(env.legal_actions(0)[0], env.legal_actions(1)[0])
