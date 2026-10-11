@@ -3,6 +3,20 @@ import pytest
 from trainerlab._engine import Action, ActionError, TeamError
 from trainerlab.environment import BattleEnvironment
 
+EventRecord = tuple[int, int, int, int, int, int, float, int]
+
+
+def _event_log(seed: int) -> list[EventRecord]:
+    """Snorlax's Body Slam against Blissey's Seismic Toss for two turns, every event recorded."""
+    env = BattleEnvironment(["Snorlax"], ["Blissey"], seed=seed)
+    body_slam = Action.move(1)
+    seismic_toss = Action.move(3)
+    log: list[EventRecord] = []
+    for _ in range(2):
+        events = env.play_turn(body_slam, seismic_toss)
+        log += [(e.kind, e.side, e.slot, e.name_id, e.i0, e.i1, e.f0, e.flags) for e in events]
+    return log
+
 
 def test_a_new_battle_is_not_over() -> None:
     env = BattleEnvironment(["Dragapult", "Snorlax"], ["Blissey"], seed=42)
@@ -178,3 +192,11 @@ def test_when_both_sides_lose_their_last_pokemon_together_it_is_a_draw() -> None
 
     assert env.is_over()
     assert env.winner() is None
+
+
+def test_the_same_seed_and_choices_give_the_same_events() -> None:
+    first = _event_log(seed=42)
+    second = _event_log(seed=42)
+
+    assert first
+    assert first == second
