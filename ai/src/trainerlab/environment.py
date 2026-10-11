@@ -41,6 +41,8 @@ class BattleEnvironment:
         return _engine.observe(self._state, side)
 
     def play_turn(self, action0: _engine.Action, action1: _engine.Action) -> list[_engine.Event]:
+        if self.is_over():
+            raise RuntimeError("The battle is over")
         return _engine.resolve_turn(self._state, action0, action1, self._turn_seed())
 
     def replace(self, side: int, *, team_index: int) -> list[_engine.Event]:

@@ -141,3 +141,11 @@ def test_when_the_other_side_has_no_pokemon_left_side_1_wins() -> None:
 
     assert env.is_over()
     assert env.winner() == 1
+
+
+def test_playing_after_the_end_is_refused() -> None:
+    env = BattleEnvironment(["Dragapult"], ["KommoO"], seed=42)
+    env.play_turn(env.legal_actions(0)[0], env.legal_actions(1)[0])
+
+    with pytest.raises(RuntimeError, match="over"):
+        env.play_turn(env.legal_actions(0)[0], Action.move(0))
