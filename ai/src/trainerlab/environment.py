@@ -67,6 +67,6 @@ def _build_team(species: list[str]) -> list[_engine.BattlePokemon]:
     for name in species:
         species_id = _engine.find_species_id(name)
         if species_id == _engine.NO_SPECIES:
-            raise ValueError(f"unknown species: {name!r}")
+            raise ValueError(f"Unknown species: {name!r}")
         team.append(_engine.make_combatant(species_id))
     return team
