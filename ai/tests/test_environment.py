@@ -200,3 +200,10 @@ def test_the_same_seed_and_choices_give_the_same_events() -> None:
 
     assert first
     assert first == second
+
+
+def test_different_seeds_give_different_events() -> None:
+    first = _event_log(seed=1)
+    second = _event_log(seed=2)
+
+    assert first != second
