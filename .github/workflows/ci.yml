@@ -12,12 +12,14 @@ concurrency:
 
 # Linux only. macOS is covered by running the engine tests locally before any engine PR: the
 # golden battle test pins the same digest on both platforms.
+# The runner image is pinned: a new Ubuntu brings a new gcc, whose new warnings would turn the
+# build red (warnings are errors) without any change in this repository.
 jobs:
   engine:
     name: Engine
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Configure
         run: cmake -S engine -B engine/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
@@ -30,14 +32,14 @@ jobs:
 
   python:
     name: Python
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: ai
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
