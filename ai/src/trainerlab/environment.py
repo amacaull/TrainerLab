@@ -1,4 +1,3 @@
-# ai/src/trainerlab/environment.py
 """The referee of a battle: owns the real state and enforces the rules of the game."""
 
 from pathlib import Path
