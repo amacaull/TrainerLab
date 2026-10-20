@@ -61,6 +61,7 @@ jobs:
         if: hashFiles('ai/tests/**/*.py') != ''
         run: mypy tests
 
+      # Fails if any line or branch of the package is left untested (see pyproject.toml).
       - name: Test
         if: hashFiles('ai/tests/**/*.py') != ''
-        run: pytest
+        run: pytest --cov
