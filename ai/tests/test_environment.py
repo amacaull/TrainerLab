@@ -1,13 +1,12 @@
 import random
 
 import pytest
+from teams import TEAM0, TEAM1
 
 from trainerlab._engine import Action, ActionError, TeamError
 from trainerlab.environment import BattleEnvironment
 
 EventRecord = tuple[int, int, int, int, int, int, float, int]
-TEAM0 = ["Dragapult", "Snorlax", "Toxapex", "Excadrill", "Blissey", "Corviknight"]
-TEAM1 = ["Gyarados", "KommoO", "Infernape", "Primarina", "TapuKoko", "Mimikyu"]
 
 
 def _event_log(seed: int) -> list[EventRecord]:
