@@ -1,13 +1,11 @@
 import pytest
+from teams import TEAM0, TEAM1
 
 from trainerlab import _engine
 from trainerlab._engine import Action, ActionError
 from trainerlab.battle import play_battle
 from trainerlab.bots import RandomBot
 from trainerlab.environment import BattleEnvironment
-
-TEAM0 = ["Dragapult", "Snorlax", "Toxapex", "Excadrill", "Blissey", "Corviknight"]
-TEAM1 = ["Gyarados", "KommoO", "Infernape", "Primarina", "TapuKoko", "Mimikyu"]
 
 
 class SpyBot:

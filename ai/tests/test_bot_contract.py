@@ -3,14 +3,12 @@
 from collections.abc import Callable
 
 import pytest
+from teams import TEAM0, TEAM1
 
 from trainerlab import _engine
 from trainerlab.battle import play_battle
 from trainerlab.bots import Bot, RandomBot
 from trainerlab.environment import BattleEnvironment
-
-TEAM0 = ["Dragapult", "Snorlax", "Toxapex", "Excadrill", "Blissey", "Corviknight"]
-TEAM1 = ["Gyarados", "KommoO", "Infernape", "Primarina", "TapuKoko", "Mimikyu"]
 
 # Every new bot is added here and inherits the whole contract.
 BOT_FACTORIES: list[Callable[[int], Bot]] = [
