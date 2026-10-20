@@ -106,7 +106,7 @@ TEST_CASE("a battle runs end to end across the boundary", "[ffi][battle]") {
     REQUIRE_FALSE(ev.empty());
   }
 
-  SECTION("the same seed replays identically, a different one need not") {
+  SECTION("the same seed replays ly, a different one need not") {
     BattleState a = duel("Dragapult", "Snorlax");
     BattleState b = duel("Dragapult", "Snorlax");
     start_battle(a, 7);
@@ -268,7 +268,7 @@ TEST_CASE("MoveUsed and Charging carry the PP actually spent in i0", "[ffi][batt
 // Same seed, same battle, on every platform: the CI runs this on macOS and Linux against one
 // hard-coded digest. A mismatch means a platform-dependent draw or float computation crept in.
 // If a deliberate rule or data change moves it, update the digest in the same commit.
-TEST_CASE("a seeded battle replays identically on every platform", "[ffi][golden]") {
+TEST_CASE("a seeded battle replays ly on every platform", "[ffi][golden]") {
   engine_init(BATTLE_ENGINE_DATA_DIR);
   const char *teams[2][6] = {
       {"Dragapult", "Snorlax", "Toxapex", "Excadrill", "Blissey", "Corviknight"},
