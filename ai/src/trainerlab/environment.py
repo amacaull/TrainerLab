@@ -1,5 +1,6 @@
 """The referee of a battle: owns the real state and enforces the rules of the game."""
 
+import random
 from pathlib import Path
 
 from trainerlab import _engine
@@ -82,3 +83,23 @@ def _build_team(species: list[str]) -> list[_engine.BattlePokemon]:
             raise ValueError(f"Unknown species: {name!r}")
         team.append(_engine.make_combatant(species_id))
     return team
+
+
+def random_team_pair(seed: int, size: int = 6) -> tuple[list[str], list[str]]:
+    """Two random teams that obey the team building rules, the same ones for the same seed."""
+    _engine.engine_init(str(DATA_DIR))
+    rng = random.Random(seed)
+    species = [_engine.species_id_string(i) for i in range(_engine.species_count())]
+    return _random_team(rng, species, size), _random_team(rng, species, size)
+
+
+def _random_team(rng: random.Random, species: list[str], size: int) -> list[str]:
+    # Draw until the engine accepts the team: about one draw in two breaks the Mega or the
+    # legendary limit.
+    while True:
+        team = rng.sample(species, size)
+        try:
+            _engine.validate_team(_build_team(team))
+        except _engine.TeamError:
+            continue
+        return team

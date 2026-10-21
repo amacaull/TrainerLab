@@ -1,5 +1,3 @@
-from teams import TEAM0, TEAM1
-
 from trainerlab._engine import Action
 from trainerlab.bots import HeuristicBot, RandomBot
 from trainerlab.environment import BattleEnvironment
@@ -58,8 +56,6 @@ def test_the_heuristic_bot_beats_the_random_bot() -> None:
     result = run_tournament(
         lambda seed: HeuristicBot(),
         lambda seed: RandomBot(seed=seed),
-        team0=TEAM0,
-        team1=TEAM1,
         pairs=100,
     )
     low, _ = result.interval

@@ -12,12 +12,15 @@ from typing import Literal
 
 from trainerlab.battle import play_battle
 from trainerlab.bots import Bot
-from trainerlab.environment import BattleEnvironment
+from trainerlab.environment import BattleEnvironment, random_team_pair
 
 Outcome = Literal["win", "draw", "loss"]
 
 # Builds a fresh bot from a seed, so that every battle starts from a known state.
 BotFactory = Callable[[int], Bot]
+
+# Gives the two teams of the pair played with a seed.
+TeamSource = Callable[[int], tuple[list[str], list[str]]]
 
 Z_95 = 1.96  # two-sided 95 % confidence
 
@@ -78,14 +81,18 @@ def run_tournament(
     make_a: BotFactory,
     make_b: BotFactory,
     *,
-    team0: list[str],
-    team1: list[str],
     pairs: int = 500,
     first_seed: int = 0,
+    teams: TeamSource = random_team_pair,
 ) -> TournamentResult:
-    """Plays `pairs` pairs of battles, from seed `first_seed` upwards, and tallies A's record."""
+    """Plays `pairs` pairs of battles, from seed `first_seed` upwards, and tallies A's record.
+
+    By default each pair draws its own two random teams, so that a result holds across team
+    compositions rather than for one matchup.
+    """
     tally = {"win": 0, "draw": 0, "loss": 0}
     for seed in range(first_seed, first_seed + pairs):
+        team0, team1 = teams(seed)
         for outcome in play_pair(make_a, make_b, seed=seed, team0=team0, team1=team1):
             tally[outcome] += 1
     return TournamentResult(wins=tally["win"], draws=tally["draw"], losses=tally["loss"])
