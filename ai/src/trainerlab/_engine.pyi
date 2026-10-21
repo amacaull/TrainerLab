@@ -4,7 +4,7 @@ TrainerLab battle engine: the flat C++ API, unchanged.
 from __future__ import annotations
 import collections.abc
 import typing
-__all__: list[str] = ['ACTION_MOVE', 'ACTION_SWITCH', 'Action', 'ActionError', 'ArgError', 'BattlePokemon', 'BattleState', 'DataError', 'EngineError', 'Event', 'FLAG_CRIT', 'FLAG_STAB', 'InitError', 'MAX_MOVES', 'MoveEntry', 'NO_ITEM', 'NO_MOVE', 'NO_NAME', 'NO_SPECIES', 'STRUGGLE', 'STRUGGLE_RECOIL', 'SideHazards', 'SpeciesEntry', 'StateError', 'Stats', 'TEAM_SIZE', 'TeamError', 'ability_count', 'ability_name', 'catalog_fingerprint', 'engine_data_dir', 'engine_init', 'engine_is_initialised', 'faster_side', 'find_ability_id', 'find_item_id', 'find_move_id', 'find_species_id', 'is_over', 'item_count', 'item_name', 'legal_actions', 'legal_replacements', 'make_combatant', 'move_count', 'move_entry', 'move_name', 'observe', 'resolve_replacement', 'resolve_turn', 'side_has_lost', 'species_count', 'species_display_name', 'species_entry', 'species_id_string', 'start_battle', 'struggle_move_id', 'struggle_recoil_ability_id', 'validate_state', 'validate_team']
+__all__: list[str] = ['ACTION_MOVE', 'ACTION_SWITCH', 'Action', 'ActionError', 'ArgError', 'BattlePokemon', 'BattleState', 'DataError', 'EngineError', 'Event', 'FLAG_CRIT', 'FLAG_STAB', 'InitError', 'MAX_MOVES', 'MoveEntry', 'NO_ITEM', 'NO_MOVE', 'NO_NAME', 'NO_SPECIES', 'STRUGGLE', 'STRUGGLE_RECOIL', 'SideHazards', 'SpeciesEntry', 'StateError', 'Stats', 'TEAM_SIZE', 'TeamError', 'ability_count', 'ability_name', 'catalog_fingerprint', 'engine_data_dir', 'engine_init', 'engine_is_initialised', 'faster_side', 'find_ability_id', 'find_item_id', 'find_move_id', 'find_species_id', 'is_over', 'item_count', 'item_name', 'legal_actions', 'legal_replacements', 'make_combatant', 'move_count', 'move_entry', 'move_name', 'observe', 'resolve_replacement', 'resolve_turn', 'side_has_lost', 'species_count', 'species_display_name', 'species_entry', 'species_id_string', 'start_battle', 'struggle_move_id', 'struggle_recoil_ability_id', 'type_effectiveness', 'validate_state', 'validate_team']
 class EngineError(Exception):
     """
     A contract violation reported by the engine. str(e) keeps the full message.
@@ -549,6 +549,10 @@ def struggle_move_id() -> int:
     ...
 def struggle_recoil_ability_id() -> int:
     ...
+def type_effectiveness(move_type: typing.SupportsInt | typing.SupportsIndex, species_id: typing.SupportsInt | typing.SupportsIndex) -> float:
+    """
+    The type chart multiplier of a move type against a species. Abilities are ignored.
+    """
 def validate_state(state: BattleState) -> None:
     ...
 def validate_team(team: collections.abc.Sequence[BattlePokemon]) -> None:
