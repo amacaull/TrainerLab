@@ -3,7 +3,11 @@ from teams import TEAM0, TEAM1
 
 from trainerlab import _engine
 from trainerlab.bots import RandomBot
+from trainerlab.environment import DATA_DIR
 from trainerlab.harness import TournamentResult, play_pair, run_tournament, wilson_interval
+
+_engine.engine_init(str(DATA_DIR))
+DESTINY_BOND = _engine.find_move_id("DestinyBond")
 
 
 class FirstChoiceBot:
@@ -16,6 +20,19 @@ class FirstChoiceBot:
 
     def choose_replacement(self, side: int, view: _engine.BattleState, options: list[int]) -> int:
         return options[0]
+
+
+class DestinyBondBot(FirstChoiceBot):
+    """Uses Destiny Bond when its Pokemon knows it, its first option otherwise."""
+
+    def choose_action(
+        self, side: int, view: _engine.BattleState, legal: list[_engine.Action]
+    ) -> _engine.Action:
+        moves = view.active(side).move_ids
+        for action in legal:
+            if action.kind == _engine.ACTION_MOVE and moves[action.index] == DESTINY_BOND:
+                return action
+        return legal[0]
 
 
 def _random(seed: int) -> RandomBot:
@@ -115,27 +132,55 @@ def test_outcomes_are_counted_from_bot_a_point_of_view() -> None:
     assert outcomes == ("win", "loss")
 
 
+def test_a_battle_both_sides_lose_counts_as_a_draw() -> None:
+    # Mega Banette's Destiny Bond takes Excadrill down with it: both last Pokemon fall.
+    def destiny_bond_or_first(seed: int) -> DestinyBondBot:
+        return DestinyBondBot()
+
+    outcomes = play_pair(
+        destiny_bond_or_first,
+        destiny_bond_or_first,
+        seed=0,
+        team0=["MegaBanette"],
+        team1=["Excadrill"],
+    )
+
+    assert outcomes == ("draw", "draw")
+
+
 # --- The tournament ----------------------------------------------------------------------------
 
 
 def test_a_tournament_records_every_game() -> None:
-    result = run_tournament(_random, _random, team0=TEAM0, team1=TEAM1, pairs=10)
+    result = run_tournament(_random, _random, pairs=10)
 
     assert result.games == 20
 
 
 def test_the_same_seeds_give_the_same_tournament() -> None:
-    first = run_tournament(_random, _random, team0=TEAM0, team1=TEAM1, pairs=10, first_seed=3)
-    second = run_tournament(_random, _random, team0=TEAM0, team1=TEAM1, pairs=10, first_seed=3)
+    first = run_tournament(_random, _random, pairs=10, first_seed=3)
+    second = run_tournament(_random, _random, pairs=10, first_seed=3)
 
     assert first == second
 
 
 def test_a_bot_against_itself_is_compatible_with_an_even_match() -> None:
-    result = run_tournament(_random, _random, team0=TEAM0, team1=TEAM1, pairs=100)
+    result = run_tournament(_random, _random, pairs=100)
     low, high = result.interval
 
     assert low < 0.5 < high
+
+
+def test_each_pair_plays_the_teams_drawn_for_its_seed() -> None:
+    requested: list[int] = []
+
+    def fixed_teams(seed: int) -> tuple[list[str], list[str]]:
+        requested.append(seed)
+        return TEAM0, TEAM1
+
+    run_tournament(_random, _random, pairs=3, first_seed=5, teams=fixed_teams)
+
+    assert requested == [5, 6, 7]
 
 
 def test_a_draw_counts_as_half_a_win() -> None:
