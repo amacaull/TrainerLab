@@ -5,7 +5,7 @@ from trainerlab import _engine
 from trainerlab._engine import Action, ActionError
 from trainerlab.battle import play_battle
 from trainerlab.bots import RandomBot
-from trainerlab.environment import BattleEnvironment
+from trainerlab.environment import BattleEnvironment, random_team_pair
 
 
 class SpyBot:
@@ -110,3 +110,22 @@ def test_after_a_double_knock_out_the_loop_asks_the_faster_side_first() -> None:
     play_battle(env, destiny_bond, earthquake)
 
     assert replacements[:2] == [1, 0]
+
+
+def _random_battle(seed: int) -> BattleEnvironment:
+    team0, team1 = random_team_pair(seed)
+    env = BattleEnvironment(team0, team1, seed=seed)
+    play_battle(env, RandomBot(seed=2 * seed), RandomBot(seed=2 * seed + 1))
+    return env
+
+
+def test_a_replacement_that_faints_on_entry_is_asked_again_in_the_right_order() -> None:
+    # Found by a tournament: after a double knock-out, side 1's replacement faints on Stealth Rock,
+    # so side 1 must replace again before side 0.
+    assert _random_battle(689).is_over()
+
+
+def test_a_replacement_that_ends_the_battle_stops_the_loop() -> None:
+    # Found by a tournament: after a double knock-out, side 1's last Pokemon faints on Stealth
+    # Rock as it enters, which ends the battle before side 0 replaces.
+    assert _random_battle(2835).is_over()

@@ -14,11 +14,13 @@ def play_battle(env: BattleEnvironment, bot0: Bot, bot1: Bot) -> int | None:
     while not env.is_over():
         pending = env.pending_replacements()
         if pending:
-            for side in pending:
-                team_index = bots[side].choose_replacement(
-                    side, env.observe(side), env.legal_replacements(side)
-                )
-                env.replace(side, team_index=team_index)
+            # One replacement at a time, then ask again: an incoming Pokemon can faint on entry
+            # (Stealth Rock...), which changes who must replace next, or even ends the battle.
+            side = pending[0]
+            team_index = bots[side].choose_replacement(
+                side, env.observe(side), env.legal_replacements(side)
+            )
+            env.replace(side, team_index=team_index)
         else:
             action0, action1 = (
                 bots[side].choose_action(side, env.observe(side), env.legal_actions(side))
