@@ -11,6 +11,7 @@
 #include "engine/items/item.hpp"
 #include "engine/model/move.hpp"
 #include "engine/model/pokemon.hpp"
+#include "engine/model/types.hpp"
 
 #include <cstdint>
 #include <stdexcept>
@@ -165,6 +166,14 @@ SpeciesEntry species_entry(int id) {
   e.mega = sp.mega;
   e.legendary = sp.legendary;
   return e;
+}
+
+float type_effectiveness(int move_type, int species_id) {
+  const DataLoader &d = loader();
+  requireId(move_type >= 0 && move_type < TypeCount, "type", move_type, TypeCount);
+  requireId(d.isValidSpeciesId(species_id), "species", species_id, d.speciesCount());
+  const Species &sp = d.speciesByIndex(species_id);
+  return d.typeChart().effectiveness(static_cast<Type>(move_type), sp.type1, sp.type2);
 }
 
 MoveEntry move_entry(int id) {

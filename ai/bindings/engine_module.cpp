@@ -420,6 +420,8 @@ void bindFunctions(py::module_ &m) {
   m.def("ability_name", &ability_name, py::arg("id"));
   m.def("species_entry", &species_entry, py::arg("id"));
   m.def("move_entry", &move_entry, py::arg("id"));
+  m.def("type_effectiveness", &type_effectiveness, py::arg("move_type"), py::arg("species_id"),
+        "The type chart multiplier of a move type against a species. Abilities are ignored.");
   m.def("struggle_move_id", &struggle_move_id);
   m.def("struggle_recoil_ability_id", &struggle_recoil_ability_id);
   m.def("catalog_fingerprint", &catalog_fingerprint);

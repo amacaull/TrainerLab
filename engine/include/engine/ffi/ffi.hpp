@@ -93,6 +93,11 @@ struct MoveEntry {
 SpeciesEntry species_entry(int id);
 MoveEntry move_entry(int id);
 
+// The type chart multiplier of a move type against a species (0, 0.25, 0.5, 1, 2 or 4), so that a
+// client never copies the chart. Chart only: an ability that grants an immunity (Levitate, Volt
+// Absorb...) is not taken into account. move_type uses the Type numbering of README.md, section 6.
+float type_effectiveness(int move_type, int species_id);
+
 BattlePokemon make_combatant(int species_id);
 
 void validate_team(const std::array<BattlePokemon, kTeamSize> &team, int team_size);

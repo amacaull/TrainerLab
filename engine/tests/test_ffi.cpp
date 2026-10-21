@@ -1,5 +1,6 @@
 #include "engine/core/data_loader.hpp"
 #include "engine/ffi/ffi.hpp"
+#include "engine/model/types.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -193,4 +194,45 @@ TEST_CASE("the flat structs default to 'absent' rather than to zero", "[ffi][con
 
   REQUIRE(kFfiFlagStab == 1);
   REQUIRE(kFfiFlagCrit == 2);
+}
+
+TEST_CASE("type_effectiveness reads the chart against both types of a species", "[ffi][catalog]") {
+  ensureInit();
+  auto eff = [](engine::Type move, const char *species) {
+    return type_effectiveness(static_cast<int>(move), find_species_id(species));
+  };
+
+  SECTION("both types multiply") {
+    REQUIRE(eff(engine::Type::Electric, "Gyarados") == 4.0f); // Water/Flying
+    REQUIRE(eff(engine::Type::Dragon, "KommoO") == 2.0f);     // Dragon/Fighting
+    REQUIRE(eff(engine::Type::Fire, "Gyarados") == 0.5f);
+  }
+
+  SECTION("an immunity on either type wins") {
+    REQUIRE(eff(engine::Type::Ground, "Gyarados") == 0.0f);  // Flying
+    REQUIRE(eff(engine::Type::Normal, "Dragapult") == 0.0f); // Ghost
+  }
+
+  SECTION("a single-typed species counts its type once") {
+    REQUIRE(eff(engine::Type::Fighting, "Blissey") == 2.0f); // Normal
+    REQUIRE(eff(engine::Type::Fire, "Blissey") == 1.0f);
+  }
+
+  SECTION("abilities are not part of the chart") {
+    REQUIRE(eff(engine::Type::Ground, "MegaGengar") == 2.0f); // Ghost/Poison, Levitate ignored
+  }
+}
+
+TEST_CASE("type_effectiveness rejects an unknown type or species with E_ARG", "[ffi][catalog]") {
+  ensureInit();
+  const int blissey = find_species_id("Blissey");
+  for (const std::string &msg : {
+           messageOf([&] { return type_effectiveness(-1, blissey); }),
+           messageOf([&] { return type_effectiveness(engine::TypeCount, blissey); }),
+           messageOf([] { return type_effectiveness(0, -1); }),
+           messageOf([] { return type_effectiveness(0, species_count()); }),
+       }) {
+    INFO(msg);
+    REQUIRE(startsWith(msg, "E_ARG:"));
+  }
 }
