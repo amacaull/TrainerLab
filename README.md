@@ -6,7 +6,8 @@ A Pokémon-style battle engine in C++20, and AI agents that play it, written
 and measured in Python.
 
 > **Status: work in progress.** The engine is complete and tested. Hand-written
-> bots are measured; a terminal mode to play against them comes next.
+> bots are measured, and you can play against them in the terminal:
+> `trainerlab-play` (see [`ai/README.md`](ai/README.md)).
 
 ## Results so far
 

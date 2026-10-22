@@ -15,8 +15,26 @@ python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 
 pytest --cov                                  # every test, 100 % line and branch coverage required
+trainerlab-play                               # play a battle against the best bot
 trainerlab-tournament matchup damage          # rule 3 against rule 1, 500 pairs
 ```
+
+## Playing in the terminal
+
+```bash
+trainerlab-play                                # random teams, against the best bot (rule 4)
+trainerlab-play --opponent damage --seed 42    # choose the bot, replay a battle with its seed
+trainerlab-play --team Dragapult,Snorlax,Toxapex,Excadrill,Blissey,Corviknight
+```
+
+Each turn shows both active Pokémon (HP, status, stat stages), your bench,
+what you have seen of the foe's team, the field, then your options: moves
+with their type, power and PP, and switches. Type the number of your choice.
+The turn's events are then told in plain sentences, from your side.
+
+You see exactly what the bots see: the same `observe` view, and the same
+events. A seed replays the same battle, so a surprising loss can be studied
+again.
 
 ## How it fits together
 
@@ -28,6 +46,9 @@ trainerlab-tournament matchup damage          # rule 3 against rule 1, 500 pairs
 | `harness.py` | **The measurement.** Plays paired battles and computes a score with its confidence interval. |
 | `estimate.py` | **The bots' mental model of damage**, built only from what a player can see. |
 | `tournament.py` | **The command** `trainerlab-tournament`: the only place that knows every bot by name. |
+| `human.py` | **You, as a bot.** The game loop asks you exactly what it asks any bot; a wrong key is asked again. |
+| `render.py` | **The text.** Views, options and events turned into sentences, with colours in a terminal. |
+| `play.py` | **The command** `trainerlab-play`. |
 
 A bot never sees the real state: it receives `observe(side)`, which hides
 the opponent's Pokémon that have not entered the field and the remaining
