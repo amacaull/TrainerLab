@@ -3,7 +3,7 @@
 import random
 from typing import Protocol
 
-from trainerlab import _engine
+from trainerlab import _engine, estimate
 
 
 class Bot(Protocol):
@@ -128,3 +128,43 @@ def _matchup(candidate: _engine.BattlePokemon, opponent: _engine.BattlePokemon) 
     dealt = _best_damage(candidate, opponent.species_id)
     taken = _best_damage(opponent, candidate.species_id)
     return dealt - taken
+
+
+WORTH_SAVING = 0.5  # share of its HP a threatened Pokemon must keep to be worth saving
+CHEAP_HIT = 1 / 3  # share of its remaining HP the incoming Pokemon may lose to the hit
+
+
+class SurvivalBot(MatchupBot):
+    """Rule 4: rule 3, but leaves a Pokemon that the opponent would knock out before it can act,
+    for a bench Pokemon that survives the hit; the best matchup among those that do.
+
+    Damage and speed come from the mental model in `estimate`, not from the engine.
+    """
+
+    def choose_action(
+        self, side: int, view: _engine.BattleState, legal: list[_engine.Action]
+    ) -> _engine.Action:
+        escape = _escape(side, view, legal)
+        return escape if escape is not None else super().choose_action(side, view, legal)
+
+
+def _escape(
+    side: int, view: _engine.BattleState, legal: list[_engine.Action]
+) -> _engine.Action | None:
+    """The switch to make when the active would fall before acting, if a bench Pokemon survives."""
+    active, opponent = view.active(side), view.active(1 - side)
+    if active.current_hp < WORTH_SAVING * active.stats.hp:
+        return None  # a weakened Pokemon is worth more as a free switch-in when it faints
+    outsped = estimate.effective_speed(opponent) > estimate.effective_speed(active)
+    if not outsped or estimate.strongest_hit(opponent, active) < active.current_hp:
+        return None
+    survivors = [
+        action
+        for action in legal
+        if action.kind == _engine.ACTION_SWITCH
+        and estimate.strongest_hit(opponent, view.pokemon(side, action.index))
+        <= CHEAP_HIT * view.pokemon(side, action.index).current_hp
+    ]
+    if not survivors:
+        return None
+    return max(survivors, key=lambda switch: _matchup(view.pokemon(side, switch.index), opponent))
