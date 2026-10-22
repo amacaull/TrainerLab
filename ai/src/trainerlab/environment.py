@@ -21,7 +21,12 @@ class BattleEnvironment:
             self._state.set_team(side, team)
         self._seed = seed
         self._max_turns = max_turns
-        _engine.start_battle(self._state, seed)
+        self._opening_events = _engine.start_battle(self._state, seed)
+
+    @property
+    def opening_events(self) -> list[_engine.Event]:
+        """What happened as the leads entered the field (Intimidate, Snow Warning...)."""
+        return self._opening_events
 
     @property
     def turn(self) -> int:
