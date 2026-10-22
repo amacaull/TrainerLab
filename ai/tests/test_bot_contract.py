@@ -7,7 +7,7 @@ from teams import TEAM0, TEAM1
 
 from trainerlab import _engine
 from trainerlab.battle import play_battle
-from trainerlab.bots import Bot, HeuristicBot, RandomBot, SwitchingBot
+from trainerlab.bots import Bot, HeuristicBot, MatchupBot, RandomBot, SwitchingBot
 from trainerlab.environment import BattleEnvironment
 
 # Every new bot is added here and inherits the whole contract.
@@ -15,6 +15,7 @@ BOT_FACTORIES: list[Callable[[int], Bot]] = [
     lambda seed: RandomBot(seed=seed),
     lambda seed: HeuristicBot(),
     lambda seed: SwitchingBot(),
+    lambda seed: MatchupBot(),
 ]
 
 
