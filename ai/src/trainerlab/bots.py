@@ -97,8 +97,34 @@ def _refuge(
 
 def _strongest_move_type(attacker: _engine.BattlePokemon, defender_species: int) -> int | None:
     """The type of the attacker's highest expected damage move, or None if none deals damage."""
-    slots = range(len(attacker.move_ids))
-    best = max(slots, key=lambda slot: _expected_damage(attacker, slot, defender_species))
+    best = _strongest_slot(attacker, defender_species)
     if _expected_damage(attacker, best, defender_species) == 0:
         return None
     return _engine.move_entry(attacker.move_ids[best]).type
+
+
+def _strongest_slot(attacker: _engine.BattlePokemon, defender_species: int) -> int:
+    slots = range(len(attacker.move_ids))
+    return max(slots, key=lambda slot: _expected_damage(attacker, slot, defender_species))
+
+
+def _best_damage(attacker: _engine.BattlePokemon, defender_species: int) -> float:
+    return _expected_damage(attacker, _strongest_slot(attacker, defender_species), defender_species)
+
+
+class MatchupBot(HeuristicBot):
+    """Rule 3: rule 1, but replaces a fainted Pokemon with the bench Pokemon that has the best
+    matchup against the opposing active: the most damage it can deal, minus the most it can take.
+
+    Built on rule 1, not rule 2: rule 2 loses to rule 1 on random teams.
+    """
+
+    def choose_replacement(self, side: int, view: _engine.BattleState, options: list[int]) -> int:
+        opponent = view.active(1 - side)
+        return max(options, key=lambda index: _matchup(view.pokemon(side, index), opponent))
+
+
+def _matchup(candidate: _engine.BattlePokemon, opponent: _engine.BattlePokemon) -> float:
+    dealt = _best_damage(candidate, opponent.species_id)
+    taken = _best_damage(opponent, candidate.species_id)
+    return dealt - taken
