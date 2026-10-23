@@ -17,6 +17,22 @@ enum class TwoTurn : int { None = 0, Charge, Fly, Dig, Disappear };
 MoveCategory categoryFromString(std::string_view s);
 std::string_view categoryName(MoveCategory c);
 
+// What one effect of a move does, as written in its JSON, for clients that describe moves.
+// The engine itself never reads it: the effects below are what run.
+struct EffectInfo {
+  std::string kind;               // the JSON "kind": "StatChange", "ApplyStatus", "Recoil"...
+  int chance = 100;               // percent; 100 for an effect that always applies
+  int stat = -1;                  // StatChange: a StatIndex
+  int delta = 0;                  // StatChange: stages, signed
+  bool affectsUser = false;       // StatChange: the user rather than the target
+  int status = -1;                // ApplyStatus: a Status; Protect: the status inflicted on contact
+  int denominator = 0;            // Recoil, Recovery, Drain: a fraction 1/denominator
+  int hazard = -1;                // SetHazard: a HazardKind
+  int weather = -1;               // SetWeather: a Weather
+  bool bothSides = false;         // ClearHazards: both sides rather than the user's
+  bool damageEqualsLevel = false; // FixedDamage: the user's level (else half the target's HP)
+};
+
 struct Move {
   std::string name;
   Type type = Type::Normal;
@@ -56,6 +72,7 @@ struct Move {
   bool reflectable = false;
   TwoTurn twoTurn = TwoTurn::None;
   std::vector<EffectPtr> effects;
+  std::vector<EffectInfo> effectInfo; // same order as effects
 
   Move() = default;
   Move(const Move &) = delete;

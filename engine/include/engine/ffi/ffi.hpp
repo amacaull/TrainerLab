@@ -80,6 +80,21 @@ struct SpeciesEntry {
   bool legendary = false;
 };
 
+// One effect of a move, as its data describes it (see EffectInfo in engine/model/move.hpp).
+struct EffectEntry {
+  std::string kind;
+  int32_t chance = 100;
+  int32_t stat = -1;
+  int32_t delta = 0;
+  bool affects_user = false;
+  int32_t status = -1;
+  int32_t denominator = 0;
+  int32_t hazard = -1;
+  int32_t weather = -1;
+  bool both_sides = false;
+  bool damage_equals_level = false;
+};
+
 struct MoveEntry {
   std::string name;
   int32_t type = 0;
@@ -88,6 +103,9 @@ struct MoveEntry {
   int32_t accuracy = 0;
   int32_t pp = 0;
   int32_t priority = 0;
+  bool power_from_target_weight =
+      false;                        // Grass Knot, Low Kick: power 0, set by the target's weight
+  std::vector<EffectEntry> effects; // in the order they apply, "Damage" included
 };
 
 SpeciesEntry species_entry(int id);

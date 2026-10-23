@@ -4,7 +4,7 @@ TrainerLab battle engine: the flat C++ API, unchanged.
 from __future__ import annotations
 import collections.abc
 import typing
-__all__: list[str] = ['ACTION_MOVE', 'ACTION_SWITCH', 'Action', 'ActionError', 'ArgError', 'BattlePokemon', 'BattleState', 'DataError', 'EngineError', 'Event', 'FLAG_CRIT', 'FLAG_STAB', 'InitError', 'MAX_MOVES', 'MoveEntry', 'NO_ITEM', 'NO_MOVE', 'NO_NAME', 'NO_SPECIES', 'STRUGGLE', 'STRUGGLE_RECOIL', 'SideHazards', 'SpeciesEntry', 'StateError', 'Stats', 'TEAM_SIZE', 'TeamError', 'ability_count', 'ability_name', 'catalog_fingerprint', 'engine_data_dir', 'engine_init', 'engine_is_initialised', 'faster_side', 'find_ability_id', 'find_item_id', 'find_move_id', 'find_species_id', 'is_over', 'item_count', 'item_name', 'legal_actions', 'legal_replacements', 'make_combatant', 'move_count', 'move_entry', 'move_name', 'observe', 'resolve_replacement', 'resolve_turn', 'side_has_lost', 'species_count', 'species_display_name', 'species_entry', 'species_id_string', 'start_battle', 'struggle_move_id', 'struggle_recoil_ability_id', 'type_effectiveness', 'validate_state', 'validate_team']
+__all__: list[str] = ['ACTION_MOVE', 'ACTION_SWITCH', 'Action', 'ActionError', 'ArgError', 'BattlePokemon', 'BattleState', 'DataError', 'EffectEntry', 'EngineError', 'Event', 'FLAG_CRIT', 'FLAG_STAB', 'InitError', 'MAX_MOVES', 'MoveEntry', 'NO_ITEM', 'NO_MOVE', 'NO_NAME', 'NO_SPECIES', 'STRUGGLE', 'STRUGGLE_RECOIL', 'SideHazards', 'SpeciesEntry', 'StateError', 'Stats', 'TEAM_SIZE', 'TeamError', 'ability_count', 'ability_name', 'catalog_fingerprint', 'engine_data_dir', 'engine_init', 'engine_is_initialised', 'faster_side', 'find_ability_id', 'find_item_id', 'find_move_id', 'find_species_id', 'is_over', 'item_count', 'item_name', 'legal_actions', 'legal_replacements', 'make_combatant', 'move_count', 'move_entry', 'move_name', 'observe', 'resolve_replacement', 'resolve_turn', 'side_has_lost', 'species_count', 'species_display_name', 'species_entry', 'species_id_string', 'start_battle', 'struggle_move_id', 'struggle_recoil_ability_id', 'type_effectiveness', 'validate_state', 'validate_team']
 class EngineError(Exception):
     """
     A contract violation reported by the engine. str(e) keeps the full message.
@@ -445,6 +445,43 @@ class SpeciesEntry:
     @property
     def weight_kg(self) -> float:
         ...
+class EffectEntry:
+    """
+    One effect of a move, as its data describes it. Unused fields keep their defaults: -1 for stat, status, hazard and weather.
+    """
+    @property
+    def affects_user(self) -> bool:
+        ...
+    @property
+    def both_sides(self) -> bool:
+        ...
+    @property
+    def chance(self) -> int:
+        ...
+    @property
+    def damage_equals_level(self) -> bool:
+        ...
+    @property
+    def delta(self) -> int:
+        ...
+    @property
+    def denominator(self) -> int:
+        ...
+    @property
+    def hazard(self) -> int:
+        ...
+    @property
+    def kind(self) -> str:
+        ...
+    @property
+    def stat(self) -> int:
+        ...
+    @property
+    def status(self) -> int:
+        ...
+    @property
+    def weather(self) -> int:
+        ...
 class MoveEntry:
     @property
     def accuracy(self) -> int:
@@ -453,10 +490,16 @@ class MoveEntry:
     def category(self) -> int:
         ...
     @property
+    def effects(self) -> list[EffectEntry]:
+        ...
+    @property
     def name(self) -> str:
         ...
     @property
     def power(self) -> int:
+        ...
+    @property
+    def power_from_target_weight(self) -> bool:
         ...
     @property
     def pp(self) -> int:

@@ -88,6 +88,31 @@ KeyList effectKeys(const std::string &kind) {
 }
 } // namespace
 
+namespace {
+// Read after makeEffectFromJson, which has already validated every key and value.
+EffectInfo effectInfoFromJson(const json &j) {
+  EffectInfo info;
+  info.kind = j.at("kind").get<std::string>();
+  info.chance = j.value("chance", 100);
+  if (j.contains("stat"))
+    info.stat = static_cast<int>(statIndexFromString(j.at("stat").get<std::string>()));
+  info.delta = j.value("delta", 0);
+  info.affectsUser = j.value("affectsUser", false) || j.value("target", std::string()) == "user";
+  if (j.contains("status"))
+    info.status = static_cast<int>(statusFromString(j.at("status").get<std::string>()));
+  if (j.contains("contactStatus"))
+    info.status = static_cast<int>(statusFromString(j.at("contactStatus").get<std::string>()));
+  info.denominator = j.value("denominator", info.kind == "Drain" ? 2 : 0);
+  if (j.contains("hazard"))
+    info.hazard = static_cast<int>(hazardFromString(j.at("hazard").get<std::string>()));
+  if (j.contains("weather"))
+    info.weather = static_cast<int>(weatherFromString(j.at("weather").get<std::string>()));
+  info.bothSides = j.value("bothSides", false) || j.value("scope", std::string()) == "both";
+  info.damageEqualsLevel = j.value("mode", std::string()) == "level";
+  return info;
+}
+} // namespace
+
 EffectPtr makeEffectFromJson(const json &j) {
   const std::string kind = j.at("kind").get<std::string>();
   requireKnownKeys(j, effectKeys(kind), "effect '" + kind + "'");
@@ -313,6 +338,7 @@ void DataLoader::loadMoves(const std::string &dir) {
     if (j.contains("effects")) {
       for (const auto &e : j.at("effects")) {
         EffectPtr effect = makeEffectFromJson(e);
+        m.effectInfo.push_back(effectInfoFromJson(e));
         if (e.contains("chance")) {
           float p = e.at("chance").get<float>() / 100.0f;
           effect = std::make_unique<SecondaryEffect>(p, std::move(effect));
