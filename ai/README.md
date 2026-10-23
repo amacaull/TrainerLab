@@ -25,12 +25,31 @@ trainerlab-tournament matchup damage          # rule 3 against rule 1, 500 pairs
 trainerlab-play                                # random teams, against the best bot (rule 4)
 trainerlab-play --opponent damage --seed 42    # choose the bot, replay a battle with its seed
 trainerlab-play --team Dragapult,Snorlax,Toxapex,Excadrill,Blissey,Corviknight
+trainerlab-play --speed fast --log battle.txt
 ```
 
-Each turn shows both active Pokémon (HP, status, stat stages), your bench,
-what you have seen of the foe's team, the field, then your options: moves
-with their type, power and PP, and switches. Type the number of your choice.
-The turn's events are then told in plain sentences, from your side.
+Each turn clears the screen and draws framed panels: the board (both active
+Pokémon with their types, status, stat stages and an HP bar that turns yellow
+then red, your bench, what you have seen of the foe's team, the field), the
+previous turn, and your moves, each damaging one tagged with its type
+effectiveness on the foe (`x2`, `x1/2`, `x0`…). Type the number of your
+choice, or `?` for the details of your moves: category, accuracy, priority
+and what they do besides damage ("30% chance to paralyze the target").
+
+`Switch…` opens a second menu with the Pokémon that can come in: their types,
+HP and status, and how they take the foe's types ("weak to Fighting",
+"immune to Ghost"). `0` goes back to the moves.
+
+The turn's events are then typed out letter by letter, pausing longer on
+knock-outs, critical hits and super effective hits. A summary closes the
+battle: knock-outs on each side and your most decisive Pokémon.
+
+| Option | Effect |
+|---|---|
+| `--speed instant\|fast\|normal\|slow` | how fast the history is typed (default: `normal`) |
+| `--no-hints` | hides the type effectiveness tags, for players who prefer to work them out from the type chart |
+| `--log FILE` | writes the whole battle to a file, without colours, to read or analyse later |
+| `--no-color` | plain text |
 
 You see exactly what the bots see: the same `observe` view, and the same
 events. A seed replays the same battle, so a surprising loss can be studied
@@ -48,6 +67,8 @@ again.
 | `tournament.py` | **The command** `trainerlab-tournament`: the only place that knows every bot by name. |
 | `human.py` | **You, as a bot.** The game loop asks you exactly what it asks any bot; a wrong key is asked again. |
 | `render.py` | **The text.** Views, options and events turned into sentences, with colours in a terminal. |
+| `screen.py` | **The terminal.** Framed panels, cleared screens and the typed-out history, with the log file. |
+| `stats.py` | **The end-of-battle summary.** Knock-outs and damage dealt, credited to the Pokémon that attacked. |
 | `play.py` | **The command** `trainerlab-play`. |
 
 A bot never sees the real state: it receives `observe(side)`, which hides

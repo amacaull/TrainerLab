@@ -384,6 +384,21 @@ void bindActionsAndEvents(py::module_ &m) {
       .def_readonly("mega", &SpeciesEntry::mega)
       .def_readonly("legendary", &SpeciesEntry::legendary);
 
+  py::class_<EffectEntry>(m, "EffectEntry",
+                          "One effect of a move, as its data describes it. Unused fields keep "
+                          "their defaults: -1 for stat, status, hazard and weather.")
+      .def_readonly("kind", &EffectEntry::kind)
+      .def_readonly("chance", &EffectEntry::chance)
+      .def_readonly("stat", &EffectEntry::stat)
+      .def_readonly("delta", &EffectEntry::delta)
+      .def_readonly("affects_user", &EffectEntry::affects_user)
+      .def_readonly("status", &EffectEntry::status)
+      .def_readonly("denominator", &EffectEntry::denominator)
+      .def_readonly("hazard", &EffectEntry::hazard)
+      .def_readonly("weather", &EffectEntry::weather)
+      .def_readonly("both_sides", &EffectEntry::both_sides)
+      .def_readonly("damage_equals_level", &EffectEntry::damage_equals_level);
+
   py::class_<MoveEntry>(m, "MoveEntry")
       .def_readonly("name", &MoveEntry::name)
       .def_readonly("type", &MoveEntry::type)
@@ -391,7 +406,9 @@ void bindActionsAndEvents(py::module_ &m) {
       .def_readonly("power", &MoveEntry::power)
       .def_readonly("accuracy", &MoveEntry::accuracy)
       .def_readonly("pp", &MoveEntry::pp)
-      .def_readonly("priority", &MoveEntry::priority);
+      .def_readonly("priority", &MoveEntry::priority)
+      .def_readonly("power_from_target_weight", &MoveEntry::power_from_target_weight)
+      .def_readonly("effects", &MoveEntry::effects);
 }
 
 // ---------------------------------------------------------------------------------------------

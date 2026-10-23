@@ -1,5 +1,8 @@
 #include "engine/core/data_loader.hpp"
 #include "engine/ffi/ffi.hpp"
+#include "engine/model/field.hpp"
+#include "engine/model/pokemon.hpp"
+#include "engine/model/status.hpp"
 #include "engine/model/types.hpp"
 
 #include <catch2/catch_test_macros.hpp>
@@ -235,4 +238,65 @@ TEST_CASE("type_effectiveness rejects an unknown type or species with E_ARG", "[
     INFO(msg);
     REQUIRE(startsWith(msg, "E_ARG:"));
   }
+}
+
+TEST_CASE("move_entry describes each effect as its data writes it", "[ffi][catalog]") {
+  ensureInit();
+  auto effects = [](const char *name) { return move_entry(find_move_id(name)).effects; };
+
+  SECTION("damage then a secondary status, with its chance") {
+    const auto body_slam = effects("BodySlam");
+    REQUIRE(body_slam.size() == 2);
+    REQUIRE(body_slam[0].kind == "Damage");
+    REQUIRE(body_slam[0].chance == 100);
+    REQUIRE(body_slam[1].kind == "ApplyStatus");
+    REQUIRE(body_slam[1].status == static_cast<int>(engine::Status::Paralysis));
+    REQUIRE(body_slam[1].chance == 30);
+  }
+
+  SECTION("stat changes on the user") {
+    const auto close_combat = effects("CloseCombat");
+    REQUIRE(close_combat[1].stat == static_cast<int>(engine::StatIndex::Def));
+    REQUIRE(close_combat[1].delta == -1);
+    REQUIRE(close_combat[1].affects_user);
+    REQUIRE(close_combat[2].stat == static_cast<int>(engine::StatIndex::SpD));
+  }
+
+  SECTION("a stat change on the user, written with \"target\": \"user\"") {
+    const auto swords_dance = effects("SwordsDance");
+    REQUIRE(swords_dance[0].stat == static_cast<int>(engine::StatIndex::Atk));
+    REQUIRE(swords_dance[0].delta == 2);
+    REQUIRE(swords_dance[0].affects_user);
+  }
+
+  SECTION("a stat change on the target, and hazards cleared on both sides") {
+    const auto defog = effects("Defog");
+    REQUIRE(defog[0].stat == static_cast<int>(engine::StatIndex::Evasion));
+    REQUIRE_FALSE(defog[0].affects_user);
+    REQUIRE(defog[1].kind == "ClearHazards");
+    REQUIRE(defog[1].both_sides);
+  }
+
+  SECTION("fractions: recoil, and drain with its default of one half") {
+    REQUIRE(effects("BraveBird")[1].denominator == 3);
+    REQUIRE(effects("DrainPunch")[1].kind == "Drain");
+    REQUIRE(effects("DrainPunch")[1].denominator == 2);
+  }
+
+  SECTION("fixed damage: the user's level, or half the target's HP") {
+    REQUIRE(effects("SeismicToss")[0].kind == "FixedDamage");
+    REQUIRE(effects("SeismicToss")[0].damage_equals_level);
+    REQUIRE_FALSE(effects("Ruination")[0].damage_equals_level);
+  }
+
+  SECTION("a hazard, and the status a protection inflicts on contact") {
+    REQUIRE(effects("StealthRock")[0].hazard == static_cast<int>(engine::HazardKind::StealthRock));
+    REQUIRE(effects("BanefulBunker")[0].status == static_cast<int>(engine::Status::Poison));
+  }
+}
+
+TEST_CASE("move_entry tells moves whose power comes from the target's weight", "[ffi][catalog]") {
+  ensureInit();
+  REQUIRE(move_entry(find_move_id("GrassKnot")).power_from_target_weight);
+  REQUIRE_FALSE(move_entry(find_move_id("SeismicToss")).power_from_target_weight);
 }

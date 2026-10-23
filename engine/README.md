@@ -427,7 +427,9 @@ find_species_id(id_string) / find_move_id(name) / find_item_id(name) / find_abil
                                    // -1 if unknown: probing is legitimate
 species_id_string(id) / species_display_name(id) / move_name(id) / item_name(id) / ability_name(id)
 species_entry(id) -> SpeciesEntry  // id_string, display_name, types, weight, mega, legendary
-move_entry(id)    -> MoveEntry     // name, type, category, power, accuracy, pp, priority
+move_entry(id)    -> MoveEntry     // name, type, category, power, accuracy, pp, priority,
+                                   // power_from_target_weight, and effects: each effect's kind,
+                                   // chance, stat and delta, status, fraction, hazard, weather
 type_effectiveness(move_type, species_id) -> float   // chart multiplier, abilities ignored
 catalog_fingerprint() -> u64
 

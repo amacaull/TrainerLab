@@ -188,6 +188,11 @@ MoveEntry move_entry(int id) {
   e.accuracy = m.accuracy;
   e.pp = m.pp;
   e.priority = m.priority;
+  e.power_from_target_weight = m.powerFromTargetWeight;
+  for (const EffectInfo &info : m.effectInfo)
+    e.effects.push_back(EffectEntry{info.kind, info.chance, info.stat, info.delta,
+                                    info.affectsUser, info.status, info.denominator, info.hazard,
+                                    info.weather, info.bothSides, info.damageEqualsLevel});
   return e;
 }
 
