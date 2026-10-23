@@ -105,25 +105,81 @@ possible, the variant is fixed before measuring at all.
 
 ## Results
 
-All on random teams, 500 pairs (1000 battles) unless stated.
+Every bot against every other, on random teams, **5000 pairs (10 000 battles)
+per duel**, seeds 0–4999. Each cell is the score of the row's bot against the
+column's bot; the whole interval is above 0.5 when the row's bot is better.
 
-| Measurement | Score | 95 % interval | Command |
+| Bot ↓ against → | random | damage (rule 1) | switching (rule 2) | matchup (rule 3) | survival (rule 4) |
+|---|---|---|---|---|---|
+| **random** | 0.499 | *0.027* | *0.075* | *0.027* | *0.025* |
+| **damage** (rule 1) | 0.973 | 0.500 | *0.574* | *0.416* | *0.406* |
+| **switching** (rule 2) | 0.925 | 0.426 | 0.500 | *0.370* | *0.363* |
+| **matchup** (rule 3) | 0.973 | 0.584 | 0.630 | 0.500 | *0.483* |
+| **survival** (rule 4) | **0.975** | **0.594** | **0.637** | **0.517** | 0.500 |
+
+Cells in italics are not measured separately: each is one minus the measured
+duel the other way round.
+
+```mermaid
+xychart-beta
+    title "Score against rule 1 (damage), 5000 pairs"
+    x-axis ["random", "switching", "matchup", "survival"]
+    y-axis "Score" 0 --> 1
+    bar [0.027, 0.426, 0.584, 0.594]
+    line [0.5, 0.5, 0.5, 0.5]
+```
+
+```mermaid
+xychart-beta
+    title "Each rule against the one it builds on, 5000 pairs"
+    x-axis ["rule 1 vs random", "rule 2 vs rule 1", "rule 3 vs rule 1", "rule 4 vs rule 3"]
+    y-axis "Score" 0 --> 1
+    bar [0.973, 0.426, 0.584, 0.517]
+    line [0.5, 0.5, 0.5, 0.5]
+```
+
+The measured duels, with their intervals:
+
+| Duel | Score | 95 % interval | Record (W / D / L) |
 |---|---|---|---|
-| Random against random (sanity check) | 0.496 | [0.465, 0.527] | `trainerlab-tournament random random` |
-| Rule 1 against random | **0.970** | [0.957, 0.979] | `trainerlab-tournament damage random` |
-| Rule 2 against rule 1 | 0.411 | [0.381, 0.442] | `trainerlab-tournament switching damage` |
-| … confirmed on unseen seeds | 0.435 | [0.405, 0.466] | `… --first-seed 10000` |
-| Rule 3 against rule 1 | **0.598** | [0.567, 0.628] | `trainerlab-tournament matchup damage` |
-| … confirmed on unseen seeds | **0.580** | [0.549, 0.610] | `… --first-seed 10000` |
-| Rule 4 against rule 3, 3000 pairs | **0.513** | [0.501, 0.526] | `trainerlab-tournament survival matchup --pairs 3000 --first-seed 20000` |
+| random vs random | 0.499 | [0.489, 0.509] | 4963 / 57 / 4980 |
+| damage vs random | 0.973 | [0.970, 0.976] | 9728 / 5 / 267 |
+| switching vs random | 0.925 | [0.919, 0.930] | 9236 / 23 / 741 |
+| matchup vs random | 0.973 | [0.970, 0.976] | 9731 / 5 / 264 |
+| survival vs random | 0.975 | [0.971, 0.978] | 9743 / 6 / 251 |
+| switching vs damage | 0.426 | [0.416, 0.435] | 4235 / 43 / 5722 |
+| matchup vs damage | 0.584 | [0.574, 0.593] | 5812 / 51 / 4137 |
+| survival vs damage | 0.594 | [0.584, 0.603] | 5912 / 52 / 4036 |
+| matchup vs switching | 0.630 | [0.621, 0.640] | 6281 / 43 / 3676 |
+| survival vs switching | 0.637 | [0.627, 0.646] | 6345 / 45 / 3610 |
+| survival vs matchup | 0.517 | [0.507, 0.527] | 5148 / 45 / 4807 |
 
-The best bot is rule 4, by a small margin over rule 3.
+Any line reproduces with `trainerlab-tournament <bot> <opponent> --pairs 5000`.
+
+**What the table says.**
+
+- **Rule 4 is the best bot**: it beats every other one, rule 3 included
+  (0.517, the whole interval above 0.5).
+- **Against the random bot, every rule looks alike** (about 0.97): the
+  replacement rules of 3 and 4 only pay off against an opponent that plays
+  well. Beating the random bot says little once a bot is reasonable.
+- **Rule 2 is worse than rule 1 against everyone**, the random bot included.
+- **The mirror duels give exactly 0.500, by construction**: a deterministic
+  bot against itself plays the same battle twice in a pair, sides swapped, so
+  every pair is one win and one loss, or two draws. They check that the
+  harness is symmetric, not that the bots are balanced. Random against random,
+  whose two bots differ, is the real sanity check: 0.499.
+
+**How the rules were chosen.** Each decision was made earlier on 500 pairs
+(seeds 0–499), then confirmed on unseen seeds (10000–10499), before these
+5000-pair runs. Seeds 0–4999 include those first 500, so a tenth of these
+battles were already seen when the rules were chosen.
 
 ### Negative results
 
-**Rule 2 loses to rule 1.** Switching out of a super effective threat costs a
-turn, and the incoming Pokémon takes the hit. It is kept in the code as a
-measured negative result.
+**Rule 2 loses to rule 1** (0.426 [0.416, 0.435]). Switching out of a super
+effective threat costs a turn, and the incoming Pokémon takes the hit. It is
+kept in the code as a measured negative result.
 
 **Rule 4 as first defined did not beat rule 3** (0.494 [0.464, 0.525], from
 the version described in the commit that introduced rule 4). It
