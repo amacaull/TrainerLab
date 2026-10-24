@@ -63,6 +63,7 @@ again.
 | `bots.py` | **The players.** Each bot picks among the options the referee offers, from its side's view only. |
 | `battle.py` | **The game loop.** Asks each bot for its choices and hands them to the referee until the end. |
 | `harness.py` | **The measurement.** Plays paired battles and computes a score with its confidence interval. |
+| `decisions.py` | **The data.** Replays the battles of a tournament and gives every decision: what the bot saw, its options, its choice, and how the battle ended. |
 | `estimate.py` | **The bots' mental model of damage**, built only from what a player can see. |
 | `tournament.py` | **The command** `trainerlab-tournament`: the only place that knows every bot by name. |
 | `human.py` | **You, as a bot.** The game loop asks you exactly what it asks any bot; a wrong key is asked again. |
@@ -75,6 +76,28 @@ A bot never sees the real state: it receives `observe(side)`, which hides
 the opponent's Pokémon that have not entered the field and the remaining
 turns of sleep. A test spies on what the loop hands the bots to keep it that
 way.
+
+## Replaying every decision
+
+The engine and the bots are deterministic, so two bots and a seed define a
+pair of battles entirely. No battle is stored: `decisions` replays them, and
+the same call always gives the same decisions.
+
+```python
+from trainerlab.decisions import decisions
+from trainerlab.tournament import BOTS
+
+for d in decisions(BOTS["survival"], BOTS["matchup"], seeds=range(20000, 21000)):
+    d.view, d.legal, d.choice  # what the deciding side saw, its options, its choice
+    d.side, d.by_a, d.turn  # who decided (bot A or bot B), and when
+    d.outcome  # "win", "draw" or "loss", for the side that decided
+```
+
+The battles are exactly those a tournament with the same bots and seeds
+measures: both run through one function that sets up a pair from its seed.
+Decisions come battle by battle, so a long series streams instead of filling
+the memory. A dataset is named by its bots, its seeds and the commit of the
+code: if a bot changes, its battles change.
 
 ## Method
 

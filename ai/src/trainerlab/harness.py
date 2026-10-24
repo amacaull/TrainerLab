@@ -6,7 +6,7 @@ A draw counts as half a win.
 """
 
 import math
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from typing import Literal
 
@@ -58,6 +58,26 @@ class TournamentResult:
         return wilson_interval(self.wins + self.draws / 2, self.games)
 
 
+def pair_battles(
+    make_a: BotFactory,
+    make_b: BotFactory,
+    *,
+    seed: int,
+    team0: list[str],
+    team1: list[str],
+) -> Iterator[tuple[int, BattleEnvironment, Bot, Bot]]:
+    """The two battles of a pair, ready to play: bot A's side, the referee, the bots of sides 0, 1.
+
+    The one place that decides how a seed sets up a battle, so that anything replaying a
+    tournament plays exactly the battles it measured.
+    """
+    for a_side in (0, 1):
+        env = BattleEnvironment(team0, team1, seed=seed)
+        bot_a, bot_b = make_a(2 * seed), make_b(2 * seed + 1)
+        bot0, bot1 = (bot_a, bot_b) if a_side == 0 else (bot_b, bot_a)
+        yield a_side, env, bot0, bot1
+
+
 def play_pair(
     make_a: BotFactory,
     make_b: BotFactory,
@@ -67,13 +87,12 @@ def play_pair(
     team1: list[str],
 ) -> tuple[Outcome, Outcome]:
     """Plays one pair of battles and returns bot A's outcome in each."""
-    outcomes: list[Outcome] = []
-    for a_side in (0, 1):
-        env = BattleEnvironment(team0, team1, seed=seed)
-        bot_a, bot_b = make_a(2 * seed), make_b(2 * seed + 1)
-        bots = (bot_a, bot_b) if a_side == 0 else (bot_b, bot_a)
-        winner = play_battle(env, *bots)
-        outcomes.append(_outcome(winner, a_side))
+    outcomes = [
+        outcome_of(play_battle(env, bot0, bot1), a_side)
+        for a_side, env, bot0, bot1 in pair_battles(
+            make_a, make_b, seed=seed, team0=team0, team1=team1
+        )
+    ]
     return outcomes[0], outcomes[1]
 
 
@@ -98,7 +117,8 @@ def run_tournament(
     return TournamentResult(wins=tally["win"], draws=tally["draw"], losses=tally["loss"])
 
 
-def _outcome(winner: int | None, a_side: int) -> Outcome:
+def outcome_of(winner: int | None, side: int) -> Outcome:
+    """How a battle ended for `side`, given the winning side (None for a draw)."""
     if winner is None:
         return "draw"
-    return "win" if winner == a_side else "loss"
+    return "win" if winner == side else "loss"
