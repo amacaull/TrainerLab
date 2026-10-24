@@ -11,6 +11,7 @@
 #include "engine/model/types.hpp"
 
 #include <algorithm>
+#include <array>
 #include <stdexcept>
 #include <string>
 #include <variant>
@@ -582,10 +583,16 @@ EventLog BattleEngine::resolveTurn(BattleState &state, const Action &a0, const A
   auto order = computeOrder(state, a0, a1, rng);
   const Action *actions[2] = {&a0, &a1};
 
+  // Each action belongs to the Pokemon that chose it. One pulled out before acting (EmergencyExit,
+  // a phazing move) takes its action with it: the newcomer does not act this turn (canon).
+  const std::array<int, kSideCount> chooser = state.activeIndex;
+
   bool firstActed = false;
   for (int side : order) {
     if (state.isOver())
       break;
+    if (state.activeIndex[static_cast<size_t>(side)] != chooser[static_cast<size_t>(side)])
+      continue;
     executeAction(state, side, *actions[side], actions[1 - side], firstActed, rng, events);
     firstActed = true;
   }

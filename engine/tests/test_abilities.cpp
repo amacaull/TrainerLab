@@ -508,6 +508,33 @@ TEST_CASE("EmergencyExit auto-switches below half (divergence from canon)", "[ab
   REQUIRE(state.activeIndex[0] == 1);
 }
 
+// Canon: a Pokemon that enters mid-turn does not act. The action was chosen by the one that left;
+// running it would play the newcomer's move in the same slot.
+TEST_CASE("a Pokemon pulled in by EmergencyExit does not act that turn", "[abilities]") {
+  DataLoader data;
+  engine::test::loadAll(data);
+  overrideAbility(data, "Snorlax", "EmergencyExit");
+  BattleEngine engine(data);
+
+  BattleState state;
+  state.teams[0][0] = engine::test::buildCombatant(data, "Snorlax", {"Tackle"});
+  state.teams[0][1] = engine::test::buildCombatant(data, "Gyarados", {"SwordsDance"});
+  state.teams[1][0] = engine::test::buildCombatant(data, "Conkeldurr", {"Tackle"});
+  state.team_size = {2, 1};
+  state.teams[0][0].currentHp = state.teams[0][0].stats.hp / 2 + 30;
+  const int pp = state.teams[0][1].pp[0];
+
+  FixedRNG rng(0.99f); // Conkeldurr outspeeds Snorlax: its hit lands first
+  EventLog events = engine.resolveTurn(state, UseMove{0}, UseMove{0}, rng);
+
+  REQUIRE(state.activeIndex[0] == 1);
+  for (const auto &ev : events)
+    if (const auto *used = std::get_if<MoveUsedEvent>(&ev))
+      REQUIRE(used->user.side == 1);
+  REQUIRE(state.teams[0][1].stat_stages[static_cast<size_t>(StatIndex::Atk)] == 0);
+  REQUIRE(state.teams[0][1].pp[0] == pp);
+}
+
 TEST_CASE("Regenerator heals a third on the way out; NaturalCure purges the status",
           "[abilities]") {
   DataLoader data;

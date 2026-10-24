@@ -663,7 +663,9 @@ differences):
 
 - **Emergency Exit** switches automatically (to the first valid
   replacement) instead of letting the player choose mid-turn, which would be
-  incompatible with a turn resolved in a single call.
+  incompatible with a turn resolved in a single call. As in the games, the
+  Pokémon that comes in does not act that turn: the action belonged to the one
+  that left (the same holds after a phazing move).
 
 **Out of scope**: double battles, Trick Room, Substitute, in-battle Mega
 Evolution.
