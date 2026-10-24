@@ -71,6 +71,7 @@ again.
 | `screen.py` | **The terminal.** Framed panels, cleared screens and the typed-out history, with the log file. |
 | `stats.py` | **The end-of-battle summary.** Knock-outs and damage dealt, credited to the Pokémon that attacked. |
 | `play.py` | **The command** `trainerlab-play`. |
+| `watch.py` | **The command** `trainerlab-watch`: replays a battle between two bots, with what each one saw and estimated. |
 
 A bot never sees the real state: it receives `observe(side)`, which hides
 the opponent's Pokémon that have not entered the field and the remaining
@@ -98,6 +99,24 @@ measures: both run through one function that sets up a pair from its seed.
 Decisions come battle by battle, so a long series streams instead of filling
 the memory. A dataset is named by its bots, its seeds and the commit of the
 code: if a bot changes, its battles change.
+
+## Watching a battle between bots
+
+```bash
+trainerlab-watch survival matchup --losses --pairs 50 --first-seed 20000
+trainerlab-watch survival matchup --seed 20004 --a-side 1 | less
+```
+
+The first command lists the battles bot A lost, each as the command that
+replays it. The second replays one: at every decision, the bot's Pokémon
+against the foe's, who moves first and the foe's best hit, then every option
+with the bot's damage estimate and the one it chose (`>`); then the events of
+the turn, as they really happened.
+
+A mistake shows where the estimate and the events disagree: a move estimated
+at 120 HP that does not affect the target, a Pokémon kept in that was
+expected to survive. The battle is the one a tournament played, through the
+same setup of a pair from its seed.
 
 ## Method
 
