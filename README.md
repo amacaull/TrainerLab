@@ -7,7 +7,7 @@ and measured in Python.
 
 > **Status: work in progress.** The engine is complete and tested. Hand-written
 > bots are measured, and you can play against them in the terminal:
-> `trainerlab-play` (see [`ai/README.md`](ai/README.md)).
+> `trainerlab play`, or just `trainerlab` for a menu (see [`ai/README.md`](ai/README.md)).
 
 ## Results so far
 

@@ -1,7 +1,7 @@
-"""Command line entry point: play a battle against a bot from the terminal.
+"""`trainerlab play`: play a battle against a bot from the terminal.
 
-trainerlab-play --opponent survival --seed 42
-trainerlab-play --team Dragapult,Snorlax,Toxapex,Excadrill,Blissey,Corviknight --no-hints
+trainerlab play --against survivor --seed 42
+trainerlab play --team Dragapult,Snorlax,Toxapex,Excadrill,Blissey,Corviknight --no-hints
 """
 
 import argparse
@@ -15,9 +15,9 @@ from trainerlab.battle import play_battle
 from trainerlab.environment import BattleEnvironment, random_team_pair
 from trainerlab.human import Ask, HumanPlayer
 from trainerlab.render import Style, describe_board, narrate
+from trainerlab.roster import BOTS, DEFAULT_OPPONENT
 from trainerlab.screen import SPEEDS, Screen, Write
 from trainerlab.stats import BattleStats
-from trainerlab.tournament import BOTS
 
 ME = 0
 RESULTS = {ME: "You won!", 1 - ME: "You lost.", None: "It's a draw."}
@@ -29,8 +29,15 @@ def _stdout(text: str) -> None:
 
 
 def main(argv: list[str] | None = None, ask: Ask = input, write: Write = _stdout) -> int:
-    parser = argparse.ArgumentParser(description="Play a battle against a bot.")
-    parser.add_argument("--opponent", choices=sorted(BOTS), default="survival")
+    parser = argparse.ArgumentParser(
+        prog="trainerlab play", description="Play a battle against a bot."
+    )
+    parser.add_argument(
+        "--against",
+        choices=list(BOTS),
+        default=DEFAULT_OPPONENT,
+        help=f"the bot to play against (default: {DEFAULT_OPPONENT})",
+    )
     parser.add_argument("--seed", type=int, help="replays the same battle (default: random)")
     parser.add_argument("--team", help="your Pokemon, comma-separated (default: random)")
     parser.add_argument("--speed", choices=list(SPEEDS), default="normal", help="text speed")
@@ -62,7 +69,7 @@ def main(argv: list[str] | None = None, ask: Ask = input, write: Write = _stdout
 
         width = max(60, min(100, shutil.get_terminal_size().columns))
         screen = Screen(write, width=width, speed=args.speed, clear=terminal, log=log)
-        return _play(env, args.opponent, seed, team, screen, style, ask, not args.no_hints)
+        return _play(env, args.against, seed, team, screen, style, ask, not args.no_hints)
 
 
 def title_for(before: _engine.BattleState, after: _engine.BattleState) -> str:

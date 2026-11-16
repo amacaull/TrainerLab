@@ -1,7 +1,7 @@
-"""Command line entry point: replays a battle between two bots, with what each bot saw.
+"""`trainerlab watch`: replays a battle between two bots, with what each bot saw.
 
-    trainerlab-watch survival matchup --losses --pairs 50 --first-seed 20000
-    trainerlab-watch survival matchup --seed 20017 --a-side 1
+    trainerlab watch survivor matcher --losses --pairs 50 --from 20000
+    trainerlab watch survivor matcher --seed 20017 --side 1
 
 The first form lists the battles of a tournament that bot A lost, as commands to watch each one.
 The second replays one of them: at every decision, the options the bot had, its estimate of
@@ -19,9 +19,10 @@ from trainerlab.battle import play_battle
 from trainerlab.bots import Bot
 from trainerlab.environment import random_team_pair
 from trainerlab.harness import outcome_of, pair_battles, play_pair
+from trainerlab.options import add_bots, add_pairs, seeds_of
 from trainerlab.play import title_for
 from trainerlab.render import Style, describe_events, describe_move, describe_switch
-from trainerlab.tournament import BOTS
+from trainerlab.roster import BOTS
 
 Write = Callable[[str], None]
 
@@ -35,37 +36,37 @@ def _stdout(text: str) -> None:
 
 
 def main(argv: list[str] | None = None, write: Write = _stdout) -> int:
-    parser = argparse.ArgumentParser(description="Replay a battle between two bots.")
-    parser.add_argument("bot_a", choices=sorted(BOTS))
-    parser.add_argument("bot_b", choices=sorted(BOTS))
+    parser = argparse.ArgumentParser(
+        prog="trainerlab watch", description="Replay a battle between two bots."
+    )
+    add_bots(parser)
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--seed", type=int, help="the pair of the battle to replay")
     mode.add_argument("--losses", action="store_true", help="list the battles bot A lost")
-    parser.add_argument("--a-side", type=int, choices=(0, 1), default=0, help="bot A's side")
-    parser.add_argument("--pairs", type=int, default=50, help="pairs to scan with --losses")
-    parser.add_argument("--first-seed", type=int, default=0, help="first seed with --losses")
+    parser.add_argument("--side", type=int, choices=(0, 1), default=0, help="bot A's side")
+    add_pairs(parser, 50, what="to scan with --losses")
     args = parser.parse_args(argv)
     if write is _stdout:
         # Stop quietly when the output is piped into a command that exits early (head, grep -q).
         signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
     if args.losses:
-        _list_losses(args.bot_a, args.bot_b, args.first_seed, args.pairs, write)
+        _list_losses(args.bot_a, args.bot_b, seeds_of(args), write)
     else:
-        _watch(args.bot_a, args.bot_b, args.seed, args.a_side, write)
+        _watch(args.bot_a, args.bot_b, args.seed, args.side, write)
     return 0
 
 
-def _list_losses(bot_a: str, bot_b: str, first_seed: int, pairs: int, write: Write) -> None:
+def _list_losses(bot_a: str, bot_b: str, seeds: range, write: Write) -> None:
     lost = 0
-    for seed in range(first_seed, first_seed + pairs):
+    for seed in seeds:
         team0, team1 = random_team_pair(seed)
         outcomes = play_pair(BOTS[bot_a], BOTS[bot_b], seed=seed, team0=team0, team1=team1)
         for a_side, outcome in enumerate(outcomes):
             if outcome == "loss":
                 lost += 1
-                write(f"trainerlab-watch {bot_a} {bot_b} --seed {seed} --a-side {a_side}\n")
-    write(f"{bot_a} lost {lost} of {2 * pairs} battles against {bot_b}.\n")
+                write(f"trainerlab watch {bot_a} {bot_b} --seed {seed} --side {a_side}\n")
+    write(f"{bot_a} lost {lost} of {2 * len(seeds)} battles against {bot_b}.\n")
 
 
 def _watch(bot_a: str, bot_b: str, seed: int, a_side: int, write: Write) -> None:
