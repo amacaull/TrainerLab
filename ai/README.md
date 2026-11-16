@@ -145,6 +145,7 @@ possible, the variant is fixed before measuring at all.
 | `SwitchingBot` | `switching` | **Rule 2.** Rule 1, but leaves a super effective threat for a Pokémon that resists it. |
 | `MatchupBot` | `matchup` | **Rule 3.** Rule 1, but replaces a fainted Pokémon with the best matchup: damage it can deal minus damage it can take. |
 | `SurvivalBot` | `survival` | **Rule 4.** Rule 3, but leaves a Pokémon the opponent would knock out before it acts, if it still has half its HP and a bench Pokémon loses at most a third of its HP to the hit. |
+| `OutlookBot` | `outlook` | **Rule 5.** Rule 4, but plays the move with the highest damage expected by the engine itself (`expected_damage`, its mean), instead of power × STAB × type effectiveness × accuracy. Escapes and replacements are rule 4's. |
 
 ## Results
 
@@ -323,10 +324,38 @@ trainerlab-audit survival matchup --pairs 1000 --first-seed 20000
   (20042-0, 20048-0, 20013-1…), and stay silent on look-alikes, such as a
   hit taken by Disguise, which is no immunity.
 
-**What comes next.** The first family calls for a damage estimate computed by
-the engine itself, which knows abilities, fixed damage, multi-hit moves and
-the conditions under which a move fails, rather than a second, rougher model
-of it in Python.
+**What came next.** The first family called for a damage estimate computed
+by the engine itself, which knows abilities, fixed damage, multi-hit moves
+and the conditions under which a move fails, rather than a second, rougher
+model of it in Python: that is rule 5, below.
+
+## Rule 5: the damage the engine expects
+
+The engine now answers one question for any move:
+`_engine.expected_damage(view, side, slot)` gives the minimum, maximum and
+mean HP the move would take from the opposing active, by playing it through
+its own rules over every outcome of the dice (see the engine README, section
+6). Rule 5 is rule 4 with one change: among its moves, it plays the highest
+mean. A move into Levitate, Seismic Toss, a second Fake Out, Poltergeist on a
+foe with no item or three hits of Triple Axel are now worth what they are
+really worth.
+
+The rule was fixed before measuring, and measured once, on seeds that served
+to choose nothing (30000–34999):
+
+```bash
+trainerlab-tournament outlook survival --pairs 5000 --first-seed 30000
+```
+
+| Duel | Score | 95 % interval | Record (W / D / L) |
+|---|---|---|---|
+| outlook (rule 5) vs survival (rule 4) | **0.631** | [0.621, 0.640] | 6289 / 37 / 3674 |
+
+**Rule 5 beats rule 4 by thirteen points**, more than any step since rule 1
+against the random bot (rule 3 gained 8.6 points on rule 1, rule 4 1.7 on
+rule 3). The error analysis pointed there: half the losses a decision
+caused came from a wrong damage estimate. Rule 5 is measured against rule 4
+only, not yet against every other bot.
 
 ## The damage model
 
@@ -339,8 +368,10 @@ hits are within ±20 %.
 
 ## Known limitations
 
-- Expected damage ignores abilities (Levitate, Volt Absorb…), multi-hit moves
-  and fixed-damage moves (Seismic Toss), so the bots often pick a useless
-  move: one decision in ten fails or has no effect (see Error analysis).
+- Rules 1 to 4 score a move by power × STAB × type effectiveness × accuracy,
+  which ignores abilities (Levitate, Volt Absorb…), multi-hit moves and
+  fixed-damage moves (Seismic Toss): one decision in ten fails or has no
+  effect (see Error analysis). Rule 5 asks the engine instead, for its move
+  choice only: its escapes and replacements still use these estimates.
 - Bots look one turn ahead at most, and never predict the opponent.
 - The measured gap between rules 3 and 4 is about one point: real, but small.
