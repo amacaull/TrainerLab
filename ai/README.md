@@ -24,7 +24,7 @@ trainerlab bots                     # every bot and what it does
 ## One command
 
 Everything goes through `trainerlab`. With no argument it opens a menu: the
-mode (play, duel, watch, audit, dataset), then its options one at a time,
+mode (play, duel, watch, audit, dataset, train), then its options one at a time,
 each with a default that Enter keeps. Before running, it prints the same
 command in one line:
 
@@ -100,6 +100,8 @@ again.
 | `watch.py` | **`trainerlab watch`**: replays a battle between two bots, with what each one saw and estimated. |
 | `audit.py` | **`trainerlab audit`**: counts the mistakes of a bot that a program can spot on its own. |
 | `dataset.py` | **`trainerlab dataset`**: turns the decisions of a series of battles into features and labels, in a `.npz` file. |
+| `model.py` | **The win probability model**: a logistic regression or a small neural network, in numpy, with its training and its scores. |
+| `train.py` | **`trainerlab train`**: fits a model on a dataset and measures it on battles it has never seen. |
 
 A bot never sees the real state: it receives `observe(side)`, which hides
 the opponent's Pokémon that have not entered the field and the remaining
@@ -164,6 +166,57 @@ served for nothing else. Like the decisions, the file is not stored: the
 command rebuilds it identically from the same code. Two different bots are
 needed: a deterministic bot against itself plays every battle of a pair
 twice, mirrored, so every row would come twice.
+
+## The win probability model
+
+```bash
+trainerlab train calculator-vs-survivor-40000-41999.npz                    # logistic regression
+trainerlab train calculator-vs-survivor-40000-41999.npz --model network    # one hidden layer
+```
+
+The model reads the features of a position and gives the probability that
+the side to play wins. It is written with numpy alone: layers of ReLU units,
+then a sigmoid; with no hidden layer it is exactly a logistic regression.
+Training minimises the cross-entropy against the label (1, 0.5, 0) by
+minibatch gradient descent (Adam), from a fixed seed: the same dataset
+always gives the same model.
+
+**Method.** The battles whose seed is a multiple of 5 are held out: 20 % of
+the battles, never seen in training, and no battle is split between the two
+sets. Both models were fixed before any measurement and measured once: a
+logistic regression, and a network with one hidden layer of 64 units, both
+10 passes over the data, batches of 1024, learning rate 0.001, L2 decay
+0.0001. The reference is a constant, the share of wins in training.
+
+On the dataset above (147 356 rows from 1600 pairs, 3200 battles, to train;
+38 046 rows from 400 pairs to test):
+
+| Model | Log loss (test) | Brier (test) | Accuracy (test) | Log loss (train) |
+|---|---|---|---|---|
+| constant | 0.693 | 0.248 | 0.513 | |
+| logistic regression | **0.532** | **0.178** | **0.723** | 0.507 |
+| network, 64 hidden units | 0.632 | 0.206 | 0.699 | 0.351 |
+
+Log loss and Brier score: lower is better, 0.693 and 0.25 for a coin toss.
+Accuracy: rows won or lost on the right side of 0.5, draws left out.
+
+**What the table says.**
+
+- **The logistic regression predicts the winner of an unseen position
+  72 % of the time**, against 51 % for the constant, and its scores in
+  training and in test are close: it generalises.
+- **The network overfits.** It does much better than the logistic
+  regression on the battles it was trained on (0.351) and worse on the
+  others (0.632). Rows of one battle look alike and share their label, and
+  the species features let it recognise a battle rather than a position:
+  3200 battles are few for 16 000 weights. It was measured as fixed in
+  advance; making it generalise (stopping early, on a validation set taken
+  from the training seeds) would be a new variant, to choose without the
+  test seeds and confirm on them.
+- **The weights of the logistic regression make sense.** The largest, on
+  standardised features: Pokémon alive and total HP of each side (the foe's
+  with a minus sign), then the best damage each active can expect, then the
+  HP of a few species (Dragapult, Azumarill, Mega Gengar).
 
 ## Watching a battle between bots
 
