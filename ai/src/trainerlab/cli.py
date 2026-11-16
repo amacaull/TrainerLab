@@ -12,9 +12,10 @@ import argparse
 import shlex
 import sys
 from collections.abc import Callable
+from pathlib import Path
 from typing import NamedTuple
 
-from trainerlab import audit, dataset, duel, play, watch
+from trainerlab import audit, dataset, duel, play, train, watch
 from trainerlab.human import Ask
 from trainerlab.options import count, seed
 from trainerlab.roster import BOTS, DEFAULT_OPPONENT, DESCRIPTIONS
@@ -41,6 +42,7 @@ COMMANDS: dict[str, Command] = {
     "watch": Command("replay a battle between two bots", lambda a, _: watch.main(a)),
     "audit": Command("count the mistakes a program can spot in a bot", lambda a, _: audit.main(a)),
     "dataset": Command("turn battles into a dataset to learn from", lambda a, _: dataset.main(a)),
+    "train": Command("fit a win probability model on a dataset", lambda a, _: train.main(a)),
     "bots": Command("list the bots and what each one does", _list_bots),
 }
 
@@ -123,12 +125,28 @@ def _dataset(ask: Ask, write: Write) -> list[str]:
     return [*bots, *_pair_args(pairs, first, 500), *([] if out == default else ["--out", out])]
 
 
+def _train(ask: Ask, write: Write) -> list[str]:
+    path = _text(ask, write, "Dataset (.npz)", None, lambda text: Path(text).is_file())
+    model = _choose(
+        ask,
+        write,
+        "Model",
+        [(m, f"hidden layers {h or 'none'}") for m, h in train.MODELS.items()],
+        "logistic",
+    )
+    default = str(train.default_name(Path(path), model))
+    out = _text(ask, write, "File to write", default, None)
+    args = [path] + ([] if model == "logistic" else ["--model", model])
+    return args + ([] if out == default else ["--out", out])
+
+
 QUESTIONS: dict[str, Callable[[Ask, Write], list[str]]] = {
     "play": _play,
     "duel": _duel,
     "watch": _watch,
     "audit": _audit,
     "dataset": _dataset,
+    "train": _train,
 }
 
 

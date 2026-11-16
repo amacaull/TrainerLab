@@ -65,8 +65,8 @@ def test_a_wrong_answer_is_asked_again() -> None:
     command, shown = _menu(answers)
 
     assert command == ["duel", "hitter", "random", "--pairs", "2", "--from", "7"]
-    assert shown.count("Type a number from 1 to 5.") == 2
-    assert "Type a number from 1 to 6." in shown  # empty: bot A has no default
+    # Twice for the mode (0, 9), twice for bot A (empty: it has no default; genius): six choices.
+    assert shown.count("Type a number from 1 to 6.") == 4
     assert shown.count("Invalid answer, try again.") == 3
 
 
@@ -114,6 +114,17 @@ def test_the_dataset_file_is_named_after_its_bots_and_seeds_unless_told_otherwis
     ]
 
 
+def test_train_asks_for_a_dataset_that_exists_and_a_model(tmp_path: Path) -> None:
+    data = tmp_path / "d.npz"
+    data.write_bytes(b"")
+
+    command, shown = _menu(["6", "missing.npz", str(data), "2", "mine.npz"])
+
+    assert command == ["train", str(data), "--model", "network", "--out", "mine.npz"]
+    assert "Invalid answer, try again." in shown
+    assert _menu(["6", str(data), "", ""])[0] == ["train", str(data)]
+
+
 def test_the_menu_prints_the_command_then_runs_it(capsys: pytest.CaptureFixture[str]) -> None:
     shown: list[str] = []
 
@@ -135,6 +146,7 @@ def test_each_command_runs_directly(tmp_path: Path, capsys: pytest.CaptureFixtur
     assert main(["audit", "hitter", "random", "--pairs", "1"]) == 0
     out = str(tmp_path / "d.npz")
     assert main(["dataset", "hitter", "random", "--pairs", "1", "--out", out]) == 0
+    assert main(["train", "nowhere.npz"]) == 2
     printed = capsys.readouterr().out
     assert "hitter vs random: " in printed
     assert "hitter lost 0 of 2 battles against random." in printed
