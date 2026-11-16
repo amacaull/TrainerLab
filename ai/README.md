@@ -73,6 +73,7 @@ again.
 | `play.py` | **The command** `trainerlab-play`. |
 | `watch.py` | **The command** `trainerlab-watch`: replays a battle between two bots, with what each one saw and estimated. |
 | `audit.py` | **The command** `trainerlab-audit`: counts the mistakes of a bot that a program can spot on its own. |
+| `dataset.py` | **The command** `trainerlab-dataset`: turns the decisions of a series of battles into features and labels, in a `.npz` file. |
 
 A bot never sees the real state: it receives `observe(side)`, which hides
 the opponent's Pokémon that have not entered the field and the remaining
@@ -100,6 +101,43 @@ measures: both run through one function that sets up a pair from its seed.
 Decisions come battle by battle, so a long series streams instead of filling
 the memory. A dataset is named by its bots, its seeds and the commit of the
 code: if a bot changes, its battles change.
+
+## Building a dataset
+
+```bash
+trainerlab-dataset outlook survival --pairs 2000 --first-seed 40000 --out outlook-survival-40000.npz
+```
+
+Every decision of both bots becomes one row. **The features** describe what
+the deciding side saw, from its point of view (`my_…` against `foe_…`), 249
+numbers between 0 and 1 (stat stages between −1 and 1):
+
+| Group | Features |
+|---|---|
+| Each active | HP share, status, the seven stat stages, its species (one-hot) |
+| Each team | Pokémon alive, total HP, Pokémon not yet seen, the HP share of each species seen |
+| Each side of the field | Stealth Rock, Spikes, Toxic Spikes, Aurora Veil |
+| The field | weather, terrain, turn |
+| The engine | the highest damage each active can expect against the other (`expected_damage`), as a share of the target's HP; who is faster |
+| The decision | a replacement or a turn's action |
+
+A foe Pokémon not yet seen is counted as alive at full HP, which it is,
+without its species. **The label** `y` is the score of the battle for the
+side that decided: 1 for a win, 0.5 for a draw, 0 for a loss.
+
+The file also holds, for each row, its `seed`, `side`, `a_side` and `turn`,
+then `feature_names`, the two `bots` and the `catalog_fingerprint`. The rows
+of one battle share their label and follow each other closely: **a split
+between training and test goes by seed, never by row**, or the test measures
+battles already seen.
+
+The command above gives 185 402 rows from 4000 battles in three minutes,
+5.6 MB compressed (48.4 % won rows, 0.5 % drawn: the loser of a battle makes
+a few more decisions, one replacement per Pokémon lost). Seeds 40000 and up
+served for nothing else. Like the decisions, the file is not stored: the
+command rebuilds it identically from the same code. Two different bots are
+needed: a deterministic bot against itself plays every battle of a pair
+twice, mirrored, so every row would come twice.
 
 ## Watching a battle between bots
 
