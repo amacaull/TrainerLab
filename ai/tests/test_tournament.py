@@ -2,7 +2,14 @@ import re
 
 import pytest
 
-from trainerlab.bots import HeuristicBot, MatchupBot, RandomBot, SurvivalBot, SwitchingBot
+from trainerlab.bots import (
+    HeuristicBot,
+    MatchupBot,
+    OutlookBot,
+    RandomBot,
+    SurvivalBot,
+    SwitchingBot,
+)
 from trainerlab.harness import run_tournament
 from trainerlab.tournament import BOTS, main
 
@@ -57,6 +64,7 @@ def test_the_command_plays_the_requested_seeds(capsys: pytest.CaptureFixture[str
         ("switching", SwitchingBot),
         ("matchup", MatchupBot),
         ("survival", SurvivalBot),
+        ("outlook", OutlookBot),
     ],
 )
 def test_each_name_builds_its_bot(name: str, bot_class: type) -> None:

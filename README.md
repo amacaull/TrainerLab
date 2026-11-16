@@ -20,9 +20,10 @@ command.
 | Rule 1: plays its highest expected damage | random bot | **0.973** | [0.970, 0.976] |
 | Rule 3: + replaces with the best matchup | rule 1 | **0.586** | [0.576, 0.596] |
 | Rule 4: + saves a healthy Pokémon about to fall first | rule 3 | **0.517** | [0.507, 0.527] |
+| Rule 5: rule 4, with the damage expected by the engine itself | rule 4 | **0.631** | [0.621, 0.640] |
 
-Rule 4 is the best bot: it beats every other one. Two attempts did not pay
-off, and the traps found on the way are documented: see
+Rule 4 beats every earlier bot; rule 5 beats rule 4, on seeds no rule was
+chosen on (30000–34999). Two attempts did not pay off, and the traps found on the way are documented: see
 [`ai/README.md`](ai/README.md) for the method, every bot against every other,
 and what went wrong.
 
@@ -30,7 +31,7 @@ and what went wrong.
 
 | Directory | Content |
 |---|---|
-| [`engine/`](engine/) | The battle engine: stateless, deterministic, 293 tests. See its [README](engine/README.md). |
+| [`engine/`](engine/) | The battle engine: stateless, deterministic, 308 tests. See its [README](engine/README.md). |
 | [`ai/`](ai/) | Python: the engine binding, a referee, bots, a statistical tournament harness. See its [README](ai/README.md). |
 
 ## Origin

@@ -1,6 +1,7 @@
 #include "engine/core/engine.hpp"
 
 #include "engine/abilities/ability.hpp"
+#include "engine/core/outcome_walker.hpp"
 #include "engine/core/struggle.hpp"
 #include "engine/core/switching.hpp"
 #include "engine/effects/effect.hpp"
@@ -12,6 +13,8 @@
 
 #include <algorithm>
 #include <array>
+#include <climits>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <variant>
@@ -183,6 +186,24 @@ void applyItemHook(BattleState &state, const DataLoader &data, int side, EventLo
     (item->*hook)(ctx);
   }
 }
+
+// Sucker Punch needs a foe that attacks: the outlook lends the foe its first damaging move.
+std::optional<Action> anAttack(const BattleState &state, const DataLoader &data, int side) {
+  const BattlePokemon &p = state.active(side);
+  for (int i = 0; i < kMaxMovesPerPokemon; ++i) {
+    const int moveId = p.move_ids[static_cast<size_t>(i)];
+    if (moveId != kNoMove && p.pp[static_cast<size_t>(i)] > 0 &&
+        data.moveByIndex(moveId).category != MoveCategory::Status)
+      return UseMove{i};
+  }
+  return std::nullopt;
+}
+
+// Beyond this many sequences of draws, the outlook samples instead of walking them all: a volley
+// of 2-5 hits, each with a critical hit and a damage roll, has millions.
+constexpr int kMaxWalkedOutcomes = 2048;
+constexpr int kOutlookSamples = 1024;
+constexpr uint64_t kOutlookSampleSeed = 0x5EED;
 } // namespace
 
 std::array<int, 2> BattleEngine::computeOrder(const BattleState &state, const Action &a0,
@@ -454,8 +475,8 @@ void BattleEngine::resolveHit(BattleState &state, int side, const Move &move, in
 
   // The move called by SleepTalk goes through the same pipeline (canon).
   if (ctx.calledMoveId >= 0 && !state.active(side).isFainted() && !state.isOver()) {
-    resolveHit(state, side, data_.moveByIndex(ctx.calledMoveId), -1, targetAlreadyActed, false,
-               rng, events);
+    resolveHit(state, side, data_.moveByIndex(ctx.calledMoveId), -1, targetAlreadyActed, false, rng,
+               events);
   }
 }
 
@@ -537,6 +558,58 @@ std::vector<Action> BattleEngine::legalActions(const BattleState &state, int sid
   return actions;
 }
 
+DamageOutlook BattleEngine::expectedDamage(const BattleState &state, int side,
+                                           int moveIndex) const {
+  const int foeSide = 1 - side;
+  if (state.active(side).isFainted() || state.active(foeSide).isFainted())
+    return {};
+  const int foeIndex = state.activeIndex[static_cast<size_t>(foeSide)];
+  const int hpBefore = state.active(foeSide).currentHp;
+  const Action action = UseMove{moveIndex};
+  const std::optional<Action> foeAction = anAttack(state, data_, foeSide);
+
+  // The HP the foe has lost once the move is over, on one sequence of draws.
+  auto lost = [&](RNG &rng) {
+    BattleState scratch = state;
+    BattlePokemon &user = scratch.active(side);
+    const int moveId = user.move_ids[static_cast<size_t>(moveIndex)];
+    if (user.charging_move_id == kNoMove && canUseAnyMove(user) && moveId != kNoMove &&
+        data_.moveByIndex(moveId).twoTurn != TwoTurn::None)
+      user.charging_move_id = moveId; // straight to the release
+    EventLog events;
+    executeAction(scratch, side, action, foeAction ? &*foeAction : nullptr, false, rng, events);
+    const int hpAfter =
+        scratch.teams[static_cast<size_t>(foeSide)][static_cast<size_t>(foeIndex)].currentHp;
+    return std::max(0, hpBefore - hpAfter); // Water Absorb heals: no negative damage
+  };
+
+  DamageOutlook outlook{INT_MAX, 0, 0.0, true};
+  OutcomeWalker walker;
+  int walked = 0;
+  do {
+    if (++walked > kMaxWalkedOutcomes) {
+      outlook = {INT_MAX, 0, 0.0, false};
+      break;
+    }
+    const int damage = lost(walker);
+    outlook.min = std::min(outlook.min, damage);
+    outlook.max = std::max(outlook.max, damage);
+    outlook.mean += walker.weight() * damage;
+  } while (walker.next());
+
+  if (!outlook.exact) {
+    MersenneRNG rng(kOutlookSampleSeed);
+    for (int i = 0; i < kOutlookSamples; ++i) {
+      const int damage = lost(rng);
+      outlook.min = std::min(outlook.min, damage);
+      outlook.max = std::max(outlook.max, damage);
+      outlook.mean += damage;
+    }
+    outlook.mean /= kOutlookSamples;
+  }
+  return outlook;
+}
+
 EventLog BattleEngine::startBattle(BattleState &state, RNG &rng) const {
   EventLog events;
   for (int side = 0; side < kSideCount; ++side)
@@ -598,8 +671,7 @@ EventLog BattleEngine::resolveTurn(BattleState &state, const Action &a0, const A
   }
 
   // On its last turn the weather ends without dealing chip damage (canon).
-  if (!state.isOver() && state.weather != Weather::None &&
-      state.weather != Weather::StrongWinds) {
+  if (!state.isOver() && state.weather != Weather::None && state.weather != Weather::StrongWinds) {
     state.weather_turns_left -= 1;
     if (state.weather_turns_left <= 0) {
       events.emplace_back(WeatherEndedEvent{state.weather});

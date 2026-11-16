@@ -44,8 +44,7 @@ void MultiHitEffect::apply(EffectContext &ctx) const {
     if (dice) {
       hits = 4 + (ctx.rng.chance(0.5f) ? 1 : 0);
     } else {
-      int roll = ctx.rng.rangeInt(1, 100);
-      hits = roll <= 35 ? 2 : roll <= 70 ? 3 : roll <= 85 ? 4 : 5;
+      hits = 2 + ctx.rng.bucket(1, 100, {35, 70, 85});
     }
   }
 

@@ -7,7 +7,14 @@ This is the composition root of the measurements: the only place that knows ever
 
 import argparse
 
-from trainerlab.bots import HeuristicBot, MatchupBot, RandomBot, SurvivalBot, SwitchingBot
+from trainerlab.bots import (
+    HeuristicBot,
+    MatchupBot,
+    OutlookBot,
+    RandomBot,
+    SurvivalBot,
+    SwitchingBot,
+)
 from trainerlab.harness import BotFactory, run_tournament
 
 BOTS: dict[str, BotFactory] = {
@@ -16,6 +23,7 @@ BOTS: dict[str, BotFactory] = {
     "switching": lambda seed: SwitchingBot(),  # rule 2
     "matchup": lambda seed: MatchupBot(),  # rule 3
     "survival": lambda seed: SurvivalBot(),  # rule 4
+    "outlook": lambda seed: OutlookBot(),  # rule 5
 }
 
 

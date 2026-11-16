@@ -190,9 +190,9 @@ MoveEntry move_entry(int id) {
   e.priority = m.priority;
   e.power_from_target_weight = m.powerFromTargetWeight;
   for (const EffectInfo &info : m.effectInfo)
-    e.effects.push_back(EffectEntry{info.kind, info.chance, info.stat, info.delta,
-                                    info.affectsUser, info.status, info.denominator, info.hazard,
-                                    info.weather, info.bothSides, info.damageEqualsLevel});
+    e.effects.push_back(EffectEntry{info.kind, info.chance, info.stat, info.delta, info.affectsUser,
+                                    info.status, info.denominator, info.hazard, info.weather,
+                                    info.bothSides, info.damageEqualsLevel});
   return e;
 }
 
@@ -290,6 +290,19 @@ std::vector<int> legal_replacements(const BattleState &state, int side) {
   if (!state.active(side).isFainted())
     return {};
   return validSwitchTargets(state, side);
+}
+
+FfiDamage expected_damage(const BattleState &state, int side, int move_slot) {
+  requireSide(side);
+  const DataLoader &d = loader();
+  rethrowAs("E_STATE", [&] { validateView(state, d); });
+  if (move_slot < 0 || move_slot >= kMaxMovesPerPokemon)
+    throw std::out_of_range("E_ARG: move slot " + std::to_string(move_slot) + " out of range [0, " +
+                            std::to_string(kMaxMovesPerPokemon) + ")");
+  if (state.active(side).move_ids[static_cast<size_t>(move_slot)] == kNoMove)
+    throw std::out_of_range("E_ARG: move slot " + std::to_string(move_slot) + " is empty");
+  const DamageOutlook o = engine().expectedDamage(state, side, move_slot);
+  return FfiDamage{o.min, o.max, o.mean, o.exact};
 }
 
 BattleState observe(const BattleState &state, int side) {

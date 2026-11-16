@@ -58,6 +58,7 @@ add_library(battle_engine_lib STATIC
     src/core/battle_state.cpp
     src/core/validate.cpp
     src/core/rng.cpp
+    src/core/outcome_walker.cpp
     src/core/data_loader.cpp
     src/core/switching.cpp
     src/core/engine.cpp

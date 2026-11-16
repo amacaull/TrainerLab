@@ -17,7 +17,7 @@ agents.
 | Abilities | 45 |
 | Held items | 13 |
 | Types | 18, gen 6+ chart |
-| Tests | 288 (Catch2), including a randomised battle fuzzer |
+| Tests | 308 (Catch2), including a randomised battle fuzzer |
 
 ---
 
@@ -449,6 +449,7 @@ is_over(state) / side_has_lost(state, side)
 legal_actions(state, side) -> FfiAction list  // what resolve_turn accepts (below)
 legal_replacements(state, side) -> int list   // what resolve_replacement accepts
 observe(state, side) -> BattleState           // what this player can see (below)
+expected_damage(state, side, move_slot) -> FfiDamage   // min, max, mean (below); takes a view
 ```
 
 ### Legal actions
@@ -485,8 +486,52 @@ Everything else stays exact, opponent HP included: the events show exact
 damage, and sets are fixed per species in a public catalog.
 
 The view is not a playable state: `validate_state` rejects its empty slots,
-so it never goes back into the engine. The caller computes the legal actions
+so it never goes back into the engine, `expected_damage` excepted. The caller computes the legal actions
 from the real state and hands both to the player.
+
+### Expected damage
+
+`expected_damage(state, side, move_slot)` gives the HP the move would take
+from the opposing active if this side used it now: `min`, `max` and `mean`
+over every outcome of its random draws (accuracy, critical hit, damage roll,
+number of hits, full paralysis, thaw).
+
+```cpp
+struct FfiDamage {
+  int32_t min;
+  int32_t max;
+  double  mean;
+  bool    exact;   // false: too many outcomes, the figures come from a sample
+};
+```
+
+**The engine plays the move, it does not model it.** Each outcome runs the
+move through the same code as a turn, on a copy of the state, with an RNG
+(`OutcomeWalker`) that walks every sequence of draws once, with its
+probability. Abilities, items, stat stages, weather, fixed damage, multi-hit
+moves and moves that fail (Fake Out after the first turn, Poltergeist on a
+foe with no item, a move into Levitate) are counted because they are played.
+The damage is the HP the foe has lost once the move is over, so it never
+exceeds its current HP, and a move it absorbs (Volt Absorb) is 0.
+
+| Choice | Why |
+|---|---|
+| **The foe's action is not played** | The question is what this move does, not what the turn does |
+| **A two-turn move counts its release** | Otherwise Phantom Force would be worth 0 on its charge turn |
+| **Sucker Punch assumes the foe attacks**, if it has a damaging move | Otherwise it would always be 0 |
+| **A miss counts as 0**: `min` is 0 for any move that can miss | `min` is a guarantee: a knock-out is certain only if `min` reaches the foe's HP |
+| **Beyond 2048 sequences, a fixed sample of 1024 draws**, `exact = false` | A volley of 2–5 hits, each with a crit and a roll, has millions of sequences. Only Bullet Seed, Triple Axel and Population Bomb get there; the same state still always gives the same figures |
+
+**It accepts a player's view**, the one exception to the rule below: a bot
+gets only `observe`, and must be able to ask. On a view, only what the
+player can see goes in: a forced switch draws among the foe's revealed
+Pokémon, and a sleeping Pokémon whose counter is hidden is counted as waking
+up.
+
+The RNG gained two virtual draws for this, `bucket` (the hit count of a
+2–5 volley, accuracy) and `damageRoll`; their default implementations make
+exactly the draws of before, so a seed still replays the same battle (the
+golden test is unchanged).
 
 ### Python binding
 

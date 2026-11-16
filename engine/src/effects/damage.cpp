@@ -178,7 +178,7 @@ void DamageEffect::apply(EffectContext &ctx) const {
     }
   }
 
-  float randMul = static_cast<float>(ctx.rng.rangeInt(85, 100)) / 100.0f;
+  float randMul = static_cast<float>(ctx.rng.damageRoll()) / 100.0f;
 
   const Ability *atkAbility = atkAbilityEarly;
 
