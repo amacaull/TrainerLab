@@ -11,6 +11,7 @@ from trainerlab.bots import (
     SwitchingBot,
 )
 from trainerlab.duel import main
+from trainerlab.forecaster import ForecastBot
 from trainerlab.harness import run_tournament
 from trainerlab.roster import BOTS
 
@@ -66,6 +67,7 @@ def test_the_command_plays_the_requested_seeds(capsys: pytest.CaptureFixture[str
         ("matcher", MatchupBot),
         ("survivor", SurvivalBot),
         ("calculator", OutlookBot),
+        ("forecaster", ForecastBot),
     ],
 )
 def test_each_name_builds_its_bot(name: str, bot_class: type) -> None:
