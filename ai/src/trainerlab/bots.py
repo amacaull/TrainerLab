@@ -168,3 +168,22 @@ def _escape(
     if not survivors:
         return None
     return max(survivors, key=lambda switch: _matchup(view.pokemon(side, switch.index), opponent))
+
+
+class OutlookBot(SurvivalBot):
+    """Rule 5: rule 4, but plays the move the engine expects to take the most HP from the opposing
+    active (`expected_damage`, its mean), instead of power x STAB x type effectiveness x accuracy.
+
+    The engine plays the move through its own rules, so it counts what the formula leaves out:
+    abilities, items, stats, fixed damage, every hit of a multi-hit move, moves that fail. Escapes
+    and replacements are rule 4's.
+    """
+
+    def choose_action(
+        self, side: int, view: _engine.BattleState, legal: list[_engine.Action]
+    ) -> _engine.Action:
+        escape = _escape(side, view, legal)
+        if escape is not None:
+            return escape
+        moves = [action for action in legal if action.kind == _engine.ACTION_MOVE]
+        return max(moves, key=lambda move: _engine.expected_damage(view, side, move.index).mean)

@@ -375,6 +375,18 @@ void bindActionsAndEvents(py::module_ &m) {
                ", i0=" + std::to_string(e.i0) + ", i1=" + std::to_string(e.i1) + ")";
       });
 
+  py::class_<FfiDamage>(m, "Damage",
+                        "The HP a move would take, over the outcomes of its random draws. exact is "
+                        "False when they were too many to walk: the figures come from a sample.")
+      .def_readonly("min", &FfiDamage::min)
+      .def_readonly("max", &FfiDamage::max)
+      .def_readonly("mean", &FfiDamage::mean)
+      .def_readonly("exact", &FfiDamage::exact)
+      .def("__repr__", [](const FfiDamage &d) {
+        return "Damage(min=" + std::to_string(d.min) + ", max=" + std::to_string(d.max) +
+               ", mean=" + std::to_string(d.mean) + (d.exact ? "" : ", sampled") + ")";
+      });
+
   py::class_<SpeciesEntry>(m, "SpeciesEntry")
       .def_readonly("id_string", &SpeciesEntry::id_string)
       .def_readonly("display_name", &SpeciesEntry::display_name)
@@ -468,6 +480,10 @@ void bindFunctions(py::module_ &m) {
         "active is fainted.");
   m.def("legal_replacements", &legal_replacements, py::arg("state"), py::arg("side"),
         "Team indices resolve_replacement accepts. Empty unless the active is fainted.");
+  m.def("expected_damage", &expected_damage, py::arg("state"), py::arg("side"),
+        py::arg("move_slot"),
+        "The HP the move in move_slot of this side's active would take from the opposing active "
+        "if used now, computed by the engine itself. Accepts the real state or a player's view.");
   m.def("observe", &observe, py::arg("state"), py::arg("side"),
         "What the player on this side can see. A view: never pass it back to the engine, "
         "legal_actions included. Compute legal actions from the real state.");
