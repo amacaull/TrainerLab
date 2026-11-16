@@ -24,6 +24,7 @@ add_executable(battle_engine_tests
     test_fuzz.cpp
     test_canon_edge_cases.cpp
     test_legal_observe.cpp
+    test_expected_damage.cpp
 )
 
 target_link_libraries(battle_engine_tests PRIVATE battle_engine_lib Catch2::Catch2WithMain)

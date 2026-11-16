@@ -12,6 +12,10 @@ class DataLoader;
 // Called at the start of every FFI function.
 void validateState(const BattleState &state, const DataLoader &data);
 
+// The same invariants on a player's view (observe): a Pokemon it has not seen may be an empty slot,
+// on the bench only.
+void validateView(const BattleState &view, const DataLoader &data);
+
 // Not called by validateState: these are build rules checked once at submission, not state
 // invariants.
 void validateTeam(const std::array<BattlePokemon, kTeamSize> &team, int teamSize,

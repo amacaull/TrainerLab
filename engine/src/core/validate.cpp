@@ -192,7 +192,8 @@ void validateTeam(const std::array<BattlePokemon, kTeamSize> &team, int teamSize
     teamFail("at most one legendary per team, got " + std::to_string(legendaries));
 }
 
-void validateState(const BattleState &state, const DataLoader &data) {
+namespace {
+void validateFieldAndTeams(const BattleState &state, const DataLoader &data, bool view) {
   if (state.weather < Weather::None || state.weather >= Weather::Count)
     fail("weather has an invalid enum value");
   if (state.weather_turns_left < 0)
@@ -249,13 +250,24 @@ void validateState(const BattleState &state, const DataLoader &data) {
     }
 
     for (int slot = 0; slot < size; ++slot) {
-      validatePokemon(state.teams[static_cast<size_t>(side)][static_cast<size_t>(slot)], data, side,
-                      slot);
+      const BattlePokemon &p = state.teams[static_cast<size_t>(side)][static_cast<size_t>(slot)];
+      if (view && slot != active && p.isEmpty())
+        continue;
+      validatePokemon(p, data, side, slot);
     }
   }
 
   if (state.turn < 0) {
     fail("turn negative (" + std::to_string(state.turn) + ")");
   }
+}
+} // namespace
+
+void validateState(const BattleState &state, const DataLoader &data) {
+  validateFieldAndTeams(state, data, false);
+}
+
+void validateView(const BattleState &view, const DataLoader &data) {
+  validateFieldAndTeams(view, data, true);
 }
 } // namespace engine

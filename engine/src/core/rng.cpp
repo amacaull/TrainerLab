@@ -3,6 +3,17 @@
 #include <cstdint>
 
 namespace engine {
+int RNG::bucket(int min, int max, std::initializer_list<int> upperBounds) {
+  const int draw = rangeInt(min, max);
+  int index = 0;
+  for (int bound : upperBounds) {
+    if (draw <= bound)
+      return index;
+    ++index;
+  }
+  return index;
+}
+
 MersenneRNG::MersenneRNG(uint64_t seed) : gen_(seed) {}
 
 // Hand-written on top of mt19937_64, whose output the standard fixes

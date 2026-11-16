@@ -8,6 +8,15 @@
 #include <vector>
 
 namespace engine {
+// The HP a move would take from the opposing active, over the outcomes of its random draws.
+struct DamageOutlook {
+  int min = 0;
+  int max = 0;
+  double mean = 0.0;
+  // False when the outcomes were too many to walk: min, max and mean then come from a fixed sample.
+  bool exact = true;
+};
+
 class BattleEngine {
 public:
   explicit BattleEngine(const DataLoader &data) : data_(data) {}
@@ -31,6 +40,13 @@ public:
   // active is fainted. pivotTarget stays -1 (automatic).
   std::vector<Action> legalActions(const BattleState &state, int side) const;
 
+  // What the move in moveIndex would take from the opposing active if this side used it now,
+  // through the same pipeline as a turn: pre-move checks, accuracy, immunities, abilities, items,
+  // every hit. The foe's own action is not played. Two exceptions: a two-turn move counts the
+  // damage of its release, and a move that needs an attacking foe (Sucker Punch) assumes the foe
+  // attacks, if it has a damaging move. Works on a player's view as well as on the real state.
+  DamageOutlook expectedDamage(const BattleState &state, int side, int moveIndex) const;
+
 private:
   // Throws on any illegal action, before any mutation.
   void checkAction(const BattleState &state, int side, const Action &action) const;
@@ -42,8 +58,7 @@ private:
                      bool targetAlreadyActed, RNG &rng, EventLog &events) const;
 
   void resolveHit(BattleState &state, int side, const Move &move, int pivotTarget,
-                  bool targetAlreadyActed, bool pranksterBoosted, RNG &rng,
-                  EventLog &events) const;
+                  bool targetAlreadyActed, bool pranksterBoosted, RNG &rng, EventLog &events) const;
 
   const DataLoader &data_;
 };

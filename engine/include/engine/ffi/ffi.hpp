@@ -62,8 +62,8 @@ struct FfiEvent {
   int32_t name_id = kFfiNoName; // move_id | item_id | ability_id, per kind
   int32_t i0 = 0;
   int32_t i1 = 0;
-  float f0 = 0.0f;    // type effectiveness only
-  uint8_t flags = 0;  // bit 0 = STAB, bit 1 = crit
+  float f0 = 0.0f;   // type effectiveness only
+  uint8_t flags = 0; // bit 0 = STAB, bit 1 = crit
 };
 
 constexpr uint8_t kFfiFlagStab = 1u << 0;
@@ -139,6 +139,21 @@ std::vector<FfiAction> legal_actions(const BattleState &state, int side);
 
 // The team indices resolve_replacement accepts. Empty unless the active is fainted.
 std::vector<int> legal_replacements(const BattleState &state, int side);
+
+// The HP the move in `move_slot` of this side's active would take from the opposing active if used
+// now, over every outcome of its random draws: accuracy, critical hits, damage rolls, number of
+// hits, full paralysis. Computed by playing the move through the engine itself, so abilities,
+// items, fixed damage, multi-hit moves and moves that fail all count; the foe's own action is not
+// played. 0 everywhere if either active is fainted. Accepts the real state or a player's view (the
+// one exception to the rule below): on a view, only what that player can see goes in.
+struct FfiDamage {
+  int32_t min = 0;
+  int32_t max = 0;
+  double mean = 0.0;
+  bool exact = true; // false: too many outcomes to walk, the figures come from a fixed sample
+};
+
+FfiDamage expected_damage(const BattleState &state, int side, int move_slot);
 
 // The state as the player on `side` sees it (engine/core/observation.hpp). A view for decisions:
 // never pass it back to any function here, legal_actions included (validate_state rejects it).
