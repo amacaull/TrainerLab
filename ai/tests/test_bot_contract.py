@@ -17,6 +17,7 @@ from trainerlab.bots import (
     SwitchingBot,
 )
 from trainerlab.environment import BattleEnvironment
+from trainerlab.forecaster import ForecastBot
 
 # Every new bot is added here and inherits the whole contract.
 BOT_FACTORIES: list[Callable[[int], Bot]] = [
@@ -26,6 +27,7 @@ BOT_FACTORIES: list[Callable[[int], Bot]] = [
     lambda seed: MatchupBot(),
     lambda seed: SurvivalBot(),
     lambda seed: OutlookBot(),
+    lambda seed: ForecastBot(),
 ]
 
 

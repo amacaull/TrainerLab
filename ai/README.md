@@ -100,6 +100,8 @@ again.
 | `watch.py` | **`trainerlab watch`**: replays a battle between two bots, with what each one saw and estimated. |
 | `audit.py` | **`trainerlab audit`**: counts the mistakes of a bot that a program can spot on its own. |
 | `dataset.py` | **`trainerlab dataset`**: turns the decisions of a series of battles into features and labels, in a `.npz` file. |
+| `features.py` | **What a side sees, as numbers**: the features of a position, for the dataset and for rule 6. |
+| `forecaster.py` | **Rule 6**: plays each option a turn ahead and keeps what the model rates best. Ships with its model, `models/win-logistic.npz`. |
 | `model.py` | **The win probability model**: a logistic regression or a small neural network, in numpy, with its training and its scores. |
 | `train.py` | **`trainerlab train`**: fits a model on a dataset and measures it on battles it has never seen. |
 
@@ -218,6 +220,44 @@ Accuracy: rows won or lost on the right side of 0.5, draws left out.
   with a minus sign), then the best damage each active can expect, then the
   HP of a few species (Dragapult, Azumarill, Mega Gengar).
 
+## Rule 6: a turn ahead, rated by the model
+
+Rule 6 is the first bot that learned something. At each decision, for each
+of its options, it plays the turn on a copy of what it sees and asks the win
+probability model how likely it is to win from the position reached, then
+keeps the best option:
+
+- **The foe is assumed to play as rule 5** (`calculator`), worked out from
+  the foe's own view of the copy.
+- **Two turns per option**, on the same two seeds for every option, so that
+  options are compared under the same luck.
+- **A foe Pokémon not yet seen** has to be somewhere for the engine to play
+  the turn: it is filled with a copy of the foe's active, still unseen, and
+  the view the model reads hides it again.
+- **The model** is the logistic regression measured above, shipped with the
+  package (`ai/src/trainerlab/models/win-logistic.npz`). It is rebuilt with
+  the two commands of the previous section (`--out` to put it there).
+
+Fixed before measuring, measured once on seeds that served for nothing else:
+
+```bash
+trainerlab duel forecaster calculator --pairs 5000 --from 50000
+```
+
+| Duel | Score | 95 % interval | Record (W / D / L) |
+|---|---|---|---|
+| forecaster (rule 6) vs calculator (rule 5) | **0.844** | [0.837, 0.851] | 8430 / 17 / 1553 |
+
+**Rule 6 beats rule 5 by 34 points**, the largest step so far. 5000 pairs
+take 37 minutes, against a minute and a half for rule 5.
+
+**But this duel flatters it.** Rule 6 assumes the foe plays as rule 5, and
+rule 5 is deterministic: against `calculator`, rule 6 knows the foe's move
+before choosing its own, every turn. Part of the gain is that knowledge, not
+the model. Against a bot that plays otherwise, the assumption is wrong; that
+duel, not measured yet, is what tells how much of the 34 points the model
+earns on its own.
+
 ## Watching a battle between bots
 
 ```bash
@@ -262,6 +302,7 @@ possible, the variant is fixed before measuring at all.
 | `SwitchingBot` | `dodger` | **Rule 2.** Rule 1, but leaves a super effective threat for a Pokémon that resists it. |
 | `MatchupBot` | `matcher` | **Rule 3.** Rule 1, but replaces a fainted Pokémon with the best matchup: damage it can deal minus damage it can take. |
 | `SurvivalBot` | `survivor` | **Rule 4.** Rule 3, but leaves a Pokémon the opponent would knock out before it acts, if it still has half its HP and a bench Pokémon loses at most a third of its HP to the hit. |
+| `ForecastBot` | `forecaster` | **Rule 6.** For each option, plays the turn on a copy of what it sees, the foe playing what rule 5 would, then keeps the option whose position the win probability model rates best (the logistic regression below). A replacement is chosen the same way, without a turn. |
 | `OutlookBot` | `calculator` | **Rule 5.** Rule 4, but plays the move with the highest damage expected by the engine itself (`expected_damage`, its mean), instead of power × STAB × type effectiveness × accuracy. Escapes and replacements are rule 4's. |
 
 ## Results

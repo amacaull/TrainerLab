@@ -4,9 +4,10 @@ import numpy as np
 import pytest
 
 from trainerlab import _engine
-from trainerlab.dataset import build, feature_names, features, main
+from trainerlab.dataset import build, main
 from trainerlab.decisions import decisions
 from trainerlab.environment import BattleEnvironment
+from trainerlab.features import feature_names, features
 from trainerlab.roster import BOTS
 
 PARALYSIS, SAND = 4, 3

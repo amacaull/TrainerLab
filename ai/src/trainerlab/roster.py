@@ -8,6 +8,7 @@ from trainerlab.bots import (
     SurvivalBot,
     SwitchingBot,
 )
+from trainerlab.forecaster import ForecastBot
 from trainerlab.harness import BotFactory
 
 BOTS: dict[str, BotFactory] = {
@@ -17,6 +18,7 @@ BOTS: dict[str, BotFactory] = {
     "matcher": lambda seed: MatchupBot(),  # rule 3
     "survivor": lambda seed: SurvivalBot(),  # rule 4
     "calculator": lambda seed: OutlookBot(),  # rule 5
+    "forecaster": lambda seed: ForecastBot(),  # rule 6
 }
 
 # One line each, shown by the menu and by `trainerlab bots`.
@@ -27,6 +29,7 @@ DESCRIPTIONS: dict[str, str] = {
     "matcher": "rule 3: hitter, but sends in the best matchup after a knock-out",
     "survivor": "rule 4: matcher, but saves a healthy Pokemon about to fall first",
     "calculator": "rule 5: survivor, but plays the damage the engine expects",
+    "forecaster": "rule 6: plays each option a turn ahead, keeps what the win model rates best",
 }
 
 DEFAULT_OPPONENT = "survivor"

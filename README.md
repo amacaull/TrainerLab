@@ -21,9 +21,12 @@ command.
 | Rule 3: + replaces with the best matchup | rule 1 | **0.586** | [0.576, 0.596] |
 | Rule 4: + saves a healthy Pokémon about to fall first | rule 3 | **0.517** | [0.507, 0.527] |
 | Rule 5: rule 4, with the damage expected by the engine itself | rule 4 | **0.631** | [0.621, 0.640] |
+| Rule 6: plays each option a turn ahead, rated by a learned win model | rule 5 | **0.844** | [0.837, 0.851] |
 
 Rule 4 beats every earlier bot; rule 5 beats rule 4, on seeds no rule was
-chosen on (30000–34999). Two attempts did not pay off, and the traps found on the way are documented: see
+chosen on (30000–34999); rule 6 beats rule 5 (seeds 50000–54999), but it
+assumes the foe plays as rule 5, which is exactly true there (see
+[`ai/README.md`](ai/README.md)). Two attempts did not pay off, and the traps found on the way are documented: see
 [`ai/README.md`](ai/README.md) for the method, every bot against every other,
 and what went wrong.
 
