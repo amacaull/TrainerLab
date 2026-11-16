@@ -7,7 +7,7 @@ from trainerlab.decisions import decisions
 from trainerlab.environment import random_team_pair
 from trainerlab.harness import play_pair
 from trainerlab.render import describe_move, describe_switch
-from trainerlab.tournament import BOTS
+from trainerlab.roster import BOTS
 from trainerlab.watch import CHOSEN, main
 
 
@@ -18,24 +18,24 @@ def _run(argv: list[str]) -> list[str]:
 
 
 def _losses(first_seed: int, pairs: int) -> list[tuple[int, int]]:
-    """(seed, A's side) of every battle survival loses to matchup, measured by the harness."""
+    """(seed, A's side) of every battle survivor loses to matcher, measured by the harness."""
     lost = []
     for seed in range(first_seed, first_seed + pairs):
         team0, team1 = random_team_pair(seed)
-        outcomes = play_pair(BOTS["survival"], BOTS["matchup"], seed=seed, team0=team0, team1=team1)
+        outcomes = play_pair(BOTS["survivor"], BOTS["matcher"], seed=seed, team0=team0, team1=team1)
         lost += [(seed, a_side) for a_side in (0, 1) if outcomes[a_side] == "loss"]
     return lost
 
 
 def test_losses_lists_a_command_to_watch_each_battle_bot_a_lost() -> None:
-    lines = _run(["survival", "matchup", "--losses", "--pairs", "6", "--first-seed", "20000"])
+    lines = _run(["survivor", "matcher", "--losses", "--pairs", "6", "--from", "20000"])
     expected = [
-        f"trainerlab-watch survival matchup --seed {seed} --a-side {a_side}"
+        f"trainerlab watch survivor matcher --seed {seed} --side {a_side}"
         for seed, a_side in _losses(20000, 6)
     ]
     assert expected  # the test needs at least one loss to mean anything
     assert lines[: len(expected)] == expected
-    assert lines[-1] == f"survival lost {len(expected)} of 12 battles against matchup."
+    assert lines[-1] == f"survivor lost {len(expected)} of 12 battles against matcher."
 
 
 def test_a_watched_loss_ends_on_bot_a_losing() -> None:
@@ -43,16 +43,16 @@ def test_a_watched_loss_ends_on_bot_a_losing() -> None:
     # of the pair would not end the same way.
     lost = _losses(20000, 6)
     seed, a_side = next((s, a) for s, a in lost if a == 1 and (s, 0) not in lost)
-    lines = _run(["survival", "matchup", "--seed", str(seed), "--a-side", str(a_side)])
-    assert lines[-1].startswith("Bot A (survival) lost")
+    lines = _run(["survivor", "matcher", "--seed", str(seed), "--side", str(a_side)])
+    assert lines[-1].startswith("Bot A (survivor) lost")
 
 
 def test_every_decision_is_shown_once_with_the_option_chosen() -> None:
     seed, a_side = 20001, 1
-    lines = _run(["survival", "matchup", "--seed", str(seed), "--a-side", str(a_side)])
+    lines = _run(["survivor", "matcher", "--seed", str(seed), "--side", str(a_side)])
     chosen = [line for line in lines if line.lstrip().startswith(CHOSEN)]
     played = [
-        d for d in decisions(BOTS["survival"], BOTS["matchup"], seeds=[seed]) if d.a_side == a_side
+        d for d in decisions(BOTS["survivor"], BOTS["matcher"], seeds=[seed]) if d.a_side == a_side
     ]
     assert len(chosen) == len(played)
     for line, d in zip(chosen, played, strict=True):
@@ -65,8 +65,8 @@ def test_every_decision_is_shown_once_with_the_option_chosen() -> None:
 
 
 def test_each_decision_shows_the_bot_its_estimates_and_the_threat() -> None:
-    lines = _run(["damage", "random", "--seed", "3"])
-    assert any(line.startswith("A, damage: ") for line in lines)
+    lines = _run(["hitter", "random", "--seed", "3"])
+    assert any(line.startswith("A, hitter: ") for line in lines)
     assert any(line.startswith("B, random: ") for line in lines)
     assert any("HP of its" in line for line in lines)  # the damage estimate of a move
     assert any("takes ~" in line for line in lines)  # what a switch-in would take
@@ -74,8 +74,8 @@ def test_each_decision_shows_the_bot_its_estimates_and_the_threat() -> None:
 
 
 def test_the_header_says_who_plays_which_side() -> None:
-    lines = _run(["damage", "random", "--seed", "3", "--a-side", "1"])
-    assert lines[0] == "Seed 3. Bot A = damage, side 1. Bot B = random, side 0."
+    lines = _run(["hitter", "random", "--seed", "3", "--side", "1"])
+    assert lines[0] == "Seed 3. Bot A = hitter, side 1. Bot B = random, side 0."
     first_to_decide = next(line for line in lines if line.startswith(("A, ", "B, ")))
     assert first_to_decide.startswith("B, random: ")  # side 0 decides first
     team0, team1 = random_team_pair(3)
@@ -86,7 +86,7 @@ def test_the_header_says_who_plays_which_side() -> None:
 def test_each_bot_is_watched_on_its_own_side() -> None:
     # Rule 1 never switches while it can attack; the random bot often does. On the wrong side,
     # A's blocks would show the random bot's switches.
-    lines = _run(["damage", "random", "--seed", "3", "--a-side", "1"])
+    lines = _run(["hitter", "random", "--seed", "3", "--side", "1"])
     choices: dict[str, list[str]] = {"A": [], "B": []}
     block = ""
     for line in lines:
@@ -100,22 +100,22 @@ def test_each_bot_is_watched_on_its_own_side() -> None:
 
 
 def test_what_happens_as_the_leads_enter_is_told() -> None:
-    lines = _run(["damage", "random", "--seed", "7"])  # a lead with an entry ability
+    lines = _run(["hitter", "random", "--seed", "7"])  # a lead with an entry ability
     assert "-- Battle start --" in lines
 
 
 def test_the_same_battle_is_told_the_same_way() -> None:
-    argv = ["survival", "matchup", "--seed", "20002"]
+    argv = ["survivor", "matcher", "--seed", "20002"]
     assert _run(argv) == _run(argv)
 
 
 @pytest.mark.parametrize(
     "argv",
     [
-        ["survival", "matchup"],  # neither a seed nor --losses
-        ["survival", "matchup", "--seed", "1", "--losses"],  # both
-        ["survival", "nobody", "--seed", "1"],  # unknown bot
-        ["survival", "matchup", "--seed", "1", "--a-side", "2"],
+        ["survivor", "matcher"],  # neither a seed nor --losses
+        ["survivor", "matcher", "--seed", "1", "--losses"],  # both
+        ["survivor", "nobody", "--seed", "1"],  # unknown bot
+        ["survivor", "matcher", "--seed", "1", "--side", "2"],
     ],
 )
 def test_bad_arguments_are_refused(argv: list[str]) -> None:
@@ -129,7 +129,7 @@ def test_by_default_the_output_goes_to_the_terminal(
 ) -> None:
     handlers: list[tuple[int, object]] = []
     monkeypatch.setattr(signal, "signal", lambda sig, handler: handlers.append((sig, handler)))
-    assert main(["damage", "random", "--losses", "--pairs", "1"]) == 0
+    assert main(["hitter", "random", "--losses", "--pairs", "1"]) == 0
     assert capsys.readouterr().out.endswith("of 2 battles against random.\n")
     # Piped into head, the command stops quietly instead of raising BrokenPipeError.
     assert handlers == [(signal.SIGPIPE, signal.SIG_DFL)]

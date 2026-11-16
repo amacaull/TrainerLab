@@ -7,7 +7,7 @@ from trainerlab._engine import Action
 from trainerlab.audit import CHECKS, audit, main
 from trainerlab.decisions import Decision, decisions
 from trainerlab.environment import BattleEnvironment
-from trainerlab.tournament import BOTS
+from trainerlab.roster import BOTS
 
 SOFT_BOILED, SEISMIC_TOSS = Action.move(0), Action.move(3)  # Blissey's set
 
@@ -42,7 +42,7 @@ def _decision(
 
 
 def _flagged(
-    seed: int, a_side: int, bot_a: str = "survival", bot_b: str = "matchup"
+    seed: int, a_side: int, bot_a: str = "survivor", bot_b: str = "matcher"
 ) -> dict[str, set[int]]:
     """For each check, the turns at which bot A made that mistake in this battle."""
     flagged: dict[str, set[int]] = {name: set() for name in CHECKS}
@@ -90,7 +90,7 @@ def test_a_choice_is_blind_only_if_no_move_is_estimated_to_deal_damage() -> None
 
 def test_switching_out_instead_of_a_fixed_damage_knock_out_is_found() -> None:
     # Rule 2 sends Blissey away from a Luxray at 97 HP that Seismic Toss would finish.
-    assert 14 in _flagged(27, 0, "switching", "random")["fixed-damage-ko-missed"]
+    assert 14 in _flagged(27, 0, "dodger", "random")["fixed-damage-ko-missed"]
 
 
 def test_a_move_that_fails_is_found() -> None:
@@ -114,16 +114,16 @@ def test_a_choice_made_with_every_move_at_zero_is_found() -> None:
 
 
 def test_no_seed_gives_an_empty_audit() -> None:
-    result = audit(BOTS["survival"], BOTS["matchup"], seeds=[])
+    result = audit(BOTS["survivor"], BOTS["matcher"], seeds=[])
     assert result.decisions == 0
     assert result.battles == {"win": 0, "draw": 0, "loss": 0}
 
 
 def test_audit_counts_each_check_by_outcome() -> None:
     seeds = range(20042, 20044)
-    result = audit(BOTS["survival"], BOTS["matchup"], seeds=seeds)
+    result = audit(BOTS["survivor"], BOTS["matcher"], seeds=seeds)
     assert result.battles == {"win": 2, "draw": 0, "loss": 2}
-    mine = [d for d in decisions(BOTS["survival"], BOTS["matchup"], seeds=seeds) if d.by_a]
+    mine = [d for d in decisions(BOTS["survivor"], BOTS["matcher"], seeds=seeds) if d.by_a]
     assert result.decisions == len(mine)  # bot A's decisions only
     fixed = result.checks["fixed-damage-ko-missed"]
     assert fixed.occurrences >= 1
@@ -133,17 +133,17 @@ def test_audit_counts_each_check_by_outcome() -> None:
 
 def test_the_report_gives_a_rate_and_the_share_of_won_and_lost_battles() -> None:
     out: list[str] = []
-    argv = ["survival", "matchup", "--pairs", "2", "--first-seed", "20042"]
+    argv = ["survivor", "matcher", "--pairs", "2", "--from", "20042"]
     assert main(argv, write=out.append) == 0
     lines = "".join(out).splitlines()
     assert lines[0] == (
-        "survival against matchup, seeds 20042-20043: 4 battles (2 won, 0 drawn, 2 lost), "
-        f"{audit(BOTS['survival'], BOTS['matchup'], seeds=range(20042, 20044)).decisions} "
-        "decisions by survival."
+        "survivor against matcher, seeds 20042-20043: 4 battles (2 won, 0 drawn, 2 lost), "
+        f"{audit(BOTS['survivor'], BOTS['matcher'], seeds=range(20042, 20044)).decisions} "
+        "decisions by survivor."
     )
     assert lines[2].split() == ["check", "per", "1000", "decisions", "in", "lost", "in", "won"]
     assert {line.split()[0] for line in lines[3:]} == set(CHECKS)
-    result = audit(BOTS["survival"], BOTS["matchup"], seeds=range(20042, 20044))
+    result = audit(BOTS["survivor"], BOTS["matcher"], seeds=range(20042, 20044))
     fixed = next(line for line in lines if line.startswith("fixed-damage-ko-missed"))
     rate = 1000 * result.checks["fixed-damage-ko-missed"].occurrences / result.decisions
     assert fixed.split()[1] == f"{rate:.1f}"
@@ -151,11 +151,11 @@ def test_the_report_gives_a_rate_and_the_share_of_won_and_lost_battles() -> None
 
 def test_a_share_is_left_blank_when_there_is_no_battle_to_divide_by() -> None:
     out: list[str] = []
-    assert main(["damage", "random", "--pairs", "1"], write=out.append) == 0
+    assert main(["hitter", "random", "--pairs", "1"], write=out.append) == 0
     # Rule 1 never loses these two battles: the "in lost" column has nothing to divide by.
     assert all(line.split()[-2] == "-" for line in "".join(out).splitlines()[3:])
 
 
 def test_by_default_the_report_goes_to_the_terminal(capsys: pytest.CaptureFixture[str]) -> None:
-    assert main(["damage", "random", "--pairs", "1"]) == 0
-    assert capsys.readouterr().out.startswith("damage against random, seeds 0-0")
+    assert main(["hitter", "random", "--pairs", "1"]) == 0
+    assert capsys.readouterr().out.startswith("hitter against random, seeds 0-0")

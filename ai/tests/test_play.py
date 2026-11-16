@@ -10,7 +10,7 @@ from trainerlab.environment import DATA_DIR
 from trainerlab.play import main
 from trainerlab.screen import CLEAR
 
-SEED_LINE = re.compile(r"Seed \d+ \(replay this battle with --seed \d+\)\. Opponent: survival\.")
+SEED_LINE = re.compile(r"Seed \d+ \(replay this battle with --seed \d+\)\. Opponent: survivor\.")
 COLOUR = re.compile(r"\x1b\[3\dm")
 
 
@@ -34,28 +34,28 @@ def _contains(lines: list[str], text: str) -> int:
 
 
 def test_a_whole_battle_can_be_played_to_its_end() -> None:
-    code, shown = _play(["--seed", "3", "--opponent", "damage"])
+    code, shown = _play(["--seed", "3", "--against", "hitter"])
 
     assert code == 0
-    assert shown[0] == "Seed 3 (replay this battle with --seed 3). Opponent: damage."
+    assert shown[0] == "Seed 3 (replay this battle with --seed 3). Opponent: hitter."
     assert shown[-1] in ("You won!", "You lost.", "It's a draw.")
     assert _contains(shown, "─ Turn 1 ─") < _contains(shown, "─ What will you do? ─")
     assert _contains(shown, "Pokemon knocked out:") > _contains(shown, "─ Final board ─")
 
 
 def test_the_result_line_names_the_real_winner() -> None:
-    # Seed 3 against the damage bot, always taking option 1: the player wins this one.
-    assert _play(["--seed", "3", "--opponent", "damage"])[1][-1] == "You won!"
-    assert _play(["--seed", "5", "--opponent", "damage"])[1][-1] == "You lost."
+    # Seed 3 against the hitter bot, always taking option 1: the player wins this one.
+    assert _play(["--seed", "3", "--against", "hitter"])[1][-1] == "You won!"
+    assert _play(["--seed", "5", "--against", "hitter"])[1][-1] == "You lost."
 
 
 def test_the_battle_is_logged_without_colours(tmp_path: Path) -> None:
     log = tmp_path / "battle.txt"
 
-    _play(["--seed", "3", "--opponent", "damage", "--log", str(log)])
+    _play(["--seed", "3", "--against", "hitter", "--log", str(log)])
 
     lines = log.read_text().splitlines()
-    assert lines[0] == "Seed 3 (replay this battle with --seed 3). Opponent: damage."
+    assert lines[0] == "Seed 3 (replay this battle with --seed 3). Opponent: hitter."
     assert "== Turn 1 ==" in lines
     assert "> Psyshock (Psychic, 80 power, 10/10 PP)" in lines
     assert lines[-1] == "You won!"
@@ -72,7 +72,7 @@ def test_hp_lost_over_a_battle_never_exceeds_a_pokemon_max_hp(tmp_path: Path) ->
         for i in range(_engine.species_count())
     }
     log = tmp_path / "battle.txt"
-    _play(["--seed", "3", "--opponent", "damage", "--log", str(log)])
+    _play(["--seed", "3", "--against", "hitter", "--log", str(log)])
     hp_line = re.compile(
         r"^(Your|The foe's) (.+?) (?:lost (\d+) HP|restored (\d+) HP|is .*\((\d+) HP\))"
     )
@@ -99,7 +99,7 @@ def test_the_leads_entry_effects_are_shown_before_the_first_turn() -> None:
 
 def test_leads_without_an_entry_effect_draw_no_empty_panel() -> None:
     # Seed 3: Hoopa Unbound against Mega Sceptile, neither has an entry ability.
-    _, shown = _play(["--seed", "3", "--opponent", "damage"])
+    _, shown = _play(["--seed", "3", "--against", "hitter"])
 
     assert not any("─ Battle start ─" in line for line in shown)
 

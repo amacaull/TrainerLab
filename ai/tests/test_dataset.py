@@ -7,7 +7,7 @@ from trainerlab import _engine
 from trainerlab.dataset import build, feature_names, features, main
 from trainerlab.decisions import decisions
 from trainerlab.environment import BattleEnvironment
-from trainerlab.tournament import BOTS
+from trainerlab.roster import BOTS
 
 PARALYSIS, SAND = 4, 3
 
@@ -106,7 +106,7 @@ def test_my_faster_is_one_zero_or_one_half_on_a_tie() -> None:
 
 
 def test_each_row_is_a_decision_labelled_with_the_score_of_its_battle() -> None:
-    series = list(decisions(BOTS["outlook"], BOTS["survival"], seeds=[40000, 40001]))
+    series = list(decisions(BOTS["calculator"], BOTS["survivor"], seeds=[40000, 40001]))
     data = build(series)
 
     assert data["x"].shape == (len(series), len(feature_names()))
@@ -128,24 +128,24 @@ def test_the_command_writes_the_dataset_and_its_origin(tmp_path: Path) -> None:
     lines: list[str] = []
 
     main(
-        ["outlook", "survival", "--pairs", "2", "--first-seed", "40000", "--out", str(out)],
+        ["calculator", "survivor", "--pairs", "2", "--from", "40000", "--out", str(out)],
         lines.append,
     )
 
     saved = np.load(out)
-    expected = build(decisions(BOTS["outlook"], BOTS["survival"], seeds=[40000, 40001]))
+    expected = build(decisions(BOTS["calculator"], BOTS["survivor"], seeds=[40000, 40001]))
     assert np.array_equal(saved["x"], expected["x"])
     assert np.array_equal(saved["y"], expected["y"])
     assert list(saved["feature_names"]) == list(feature_names())
-    assert list(saved["bots"]) == ["outlook", "survival"]
+    assert list(saved["bots"]) == ["calculator", "survivor"]
     assert int(saved["catalog_fingerprint"]) == _engine.catalog_fingerprint()
-    assert lines[0].startswith("outlook against survival, seeds 40000-40001: ")
+    assert lines[0].startswith("calculator against survivor, seeds 40000-40001: ")
     assert f"x {len(feature_names())} features" in lines[0]
 
 
 def test_the_command_prints_to_stdout_by_default(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    main(["damage", "random", "--pairs", "1", "--out", str(tmp_path / "d.npz")])
+    main(["hitter", "random", "--pairs", "1", "--out", str(tmp_path / "d.npz")])
 
-    assert capsys.readouterr().out.startswith("damage against random, seeds 0-0: ")
+    assert capsys.readouterr().out.startswith("hitter against random, seeds 0-0: ")

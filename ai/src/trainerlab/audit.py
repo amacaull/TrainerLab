@@ -1,6 +1,6 @@
-"""Command line entry point: counts the mistakes of a bot that a program can spot on its own.
+"""`trainerlab audit`: counts the mistakes of a bot that a program can spot on its own.
 
-    trainerlab-audit survival matchup --pairs 1000 --first-seed 20000
+    trainerlab audit survivor matcher --pairs 1000 --from 20000
 
 The error analysis classified losses by hand (ai/analysis/). Some of its mistakes leave a trace
 that needs no judgement: a move that fails, a move into an immunity, a fixed-damage knock-out
@@ -18,7 +18,8 @@ from dataclasses import dataclass, field
 from trainerlab import _engine, estimate
 from trainerlab.decisions import Decision, decisions
 from trainerlab.harness import BotFactory, Outcome, outcome_of
-from trainerlab.tournament import BOTS
+from trainerlab.options import add_bots, add_pairs, seeds_of, show
+from trainerlab.roster import BOTS
 
 Write = Callable[[str], None]
 
@@ -147,20 +148,20 @@ def _stdout(text: str) -> None:
 
 
 def main(argv: list[str] | None = None, write: Write = _stdout) -> int:
-    parser = argparse.ArgumentParser(description="Count a bot's mistakes a program can spot.")
-    parser.add_argument("bot_a", choices=sorted(BOTS))
-    parser.add_argument("bot_b", choices=sorted(BOTS))
-    parser.add_argument("--pairs", type=int, default=500)
-    parser.add_argument("--first-seed", type=int, default=0)
+    parser = argparse.ArgumentParser(
+        prog="trainerlab audit", description="Count a bot's mistakes a program can spot."
+    )
+    add_bots(parser)
+    add_pairs(parser, 500)
     args = parser.parse_args(argv)
     if write is _stdout:
         signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
-    seeds = range(args.first_seed, args.first_seed + args.pairs)
+    seeds = seeds_of(args)
     result = audit(BOTS[args.bot_a], BOTS[args.bot_b], seeds=seeds)
     won, drawn, lost = (result.battles[o] for o in ("win", "draw", "loss"))
     write(
-        f"{args.bot_a} against {args.bot_b}, seeds {seeds[0]}-{seeds[-1]}: "
+        f"{args.bot_a} against {args.bot_b}, seeds {show(seeds)}: "
         f"{won + drawn + lost} battles ({won} won, {drawn} drawn, {lost} lost), "
         f"{result.decisions} decisions by {args.bot_a}.\n\n"
     )
