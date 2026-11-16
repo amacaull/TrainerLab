@@ -12,7 +12,7 @@ from typing import Literal, NamedTuple
 from trainerlab import _engine
 from trainerlab.battle import play_battle
 from trainerlab.bots import Bot
-from trainerlab.environment import random_team_pair
+from trainerlab.environment import BattleEnvironment, random_team_pair
 from trainerlab.harness import BotFactory, Outcome, TeamSource, outcome_of, pair_battles
 
 Kind = Literal["action", "replacement"]
@@ -30,6 +30,9 @@ class Decision:
     view: _engine.BattleState  # what the deciding side saw: observe(side)
     legal: tuple[_engine.Action, ...] | tuple[int, ...]  # actions, or team indices to send in
     choice: _engine.Action | int
+    # What followed: the events of the turn, or of the replacement, the choice took part in. Both
+    # choices of a turn share that turn's events.
+    events: tuple[_engine.Event, ...]
     winner: int | None  # None for a draw
 
     @property
@@ -59,9 +62,8 @@ def decisions(
         for a_side, env, bot0, bot1 in pair_battles(
             make_a, make_b, seed=seed, team0=team0, team1=team1
         ):
-            log: list[_Entry] = []
-            winner = play_battle(env, _Recorder(bot0, log), _Recorder(bot1, log))
-            for entry in log:
+            log, followed, winner = _replay(env, bot0, bot1)
+            for entry, events in zip(log, followed, strict=True):
                 yield Decision(
                     seed=seed,
                     a_side=a_side,
@@ -71,8 +73,24 @@ def decisions(
                     view=entry.view,
                     legal=entry.legal,
                     choice=entry.choice,
+                    events=events,
                     winner=winner,
                 )
+
+
+def _replay(
+    env: BattleEnvironment, bot0: Bot, bot1: Bot
+) -> tuple[list["_Entry"], list[tuple[_engine.Event, ...]], int | None]:
+    """Plays the battle: every choice, the events each one led to, and the winner."""
+    log: list[_Entry] = []
+    followed: list[tuple[_engine.Event, ...]] = []
+
+    def report(events: list[_engine.Event]) -> None:
+        # Every choice made since the last report led to these events.
+        followed.extend([tuple(events)] * (len(log) - len(followed)))
+
+    winner = play_battle(env, _Recorder(bot0, log), _Recorder(bot1, log), report)
+    return log, followed, winner
 
 
 class _Entry(NamedTuple):

@@ -1,4 +1,5 @@
 import itertools
+from collections.abc import Sequence
 
 from teams import TEAM0, TEAM1
 
@@ -20,6 +21,10 @@ def _random(seed: int) -> RandomBot:
 def _battle(seed: int, a_side: int) -> list[Decision]:
     pair = decisions(_random, _random, seeds=[seed], teams=_fixed)
     return [d for d in pair if d.a_side == a_side]
+
+
+def _kinds(events: Sequence[_engine.Event]) -> list[tuple[int, int, int, int]]:
+    return [(e.kind, e.side, e.slot, e.i0) for e in events]
 
 
 class CountingBot(RandomBot):
@@ -63,18 +68,22 @@ def test_replaying_the_choices_rebuilds_the_battle() -> None:
     assert any(d.kind == "replacement" for d in battle)  # the test covers both kinds
     env = BattleEnvironment(TEAM0, TEAM1, seed=1)
     chosen: dict[int, _engine.Action] = {}
+    pending = battle[0]
     for d in battle:
         assert d.view == env.observe(d.side)  # what the bot saw is its side's view, at that time
         assert d.turn == env.turn
         if d.kind == "replacement":
             assert isinstance(d.choice, int)
-            env.replace(d.side, team_index=d.choice)
+            assert _kinds(env.replace(d.side, team_index=d.choice)) == _kinds(d.events)
             continue
         assert isinstance(d.choice, _engine.Action)
         chosen[d.side] = d.choice
         if len(chosen) == 2:
-            env.play_turn(chosen[0], chosen[1])
+            happened = env.play_turn(chosen[0], chosen[1])
+            # Both choices of a turn carry the events of that turn.
+            assert _kinds(happened) == _kinds(d.events) == _kinds(pending.events)
             chosen.clear()
+        pending = d
     assert env.is_over()
     assert {d.winner for d in battle} == {env.winner()}
 
