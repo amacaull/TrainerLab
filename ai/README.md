@@ -14,18 +14,42 @@ cd ai
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 
-pytest --cov                                  # every test, 100 % line and branch coverage required
-trainerlab-play                               # play a battle against the best bot
-trainerlab-tournament matchup damage          # rule 3 against rule 1, 500 pairs
+pytest --cov                        # every test, 100 % line and branch coverage required
+trainerlab                          # a menu: choose what to do, then each option
+trainerlab play                     # play a battle against the best bot
+trainerlab duel matcher hitter      # rule 3 against rule 1, 500 pairs
+trainerlab bots                     # every bot and what it does
 ```
+
+## One command
+
+Everything goes through `trainerlab`. With no argument it opens a menu: the
+mode (play, duel, watch, audit, dataset), then its options one at a time,
+each with a default that Enter keeps. Before running, it prints the same
+command in one line:
+
+```
+How many pairs of battles (two battles each, sides swapped) [500] > 5000
+
+Seed of the first pair [0] > 30000
+
+trainerlab duel calculator survivor --pairs 5000 --from 30000
+```
+
+That line runs directly, with no question: it is the form used in scripts
+and throughout this README. `trainerlab --help` lists the commands,
+`trainerlab duel --help` the options of one. Every command that plays
+several battles takes `--pairs N`, the number of pairs (two battles each),
+and `--from SEED`, the seed of the first pair: the pairs use the seeds that
+follow, one each, so `--pairs 5000 --from 30000` plays seeds 30000 to 34999.
 
 ## Playing in the terminal
 
 ```bash
-trainerlab-play                                # random teams, against the best bot (rule 4)
-trainerlab-play --opponent damage --seed 42    # choose the bot, replay a battle with its seed
-trainerlab-play --team Dragapult,Snorlax,Toxapex,Excadrill,Blissey,Corviknight
-trainerlab-play --speed fast --log battle.txt
+trainerlab play                               # random teams, against survivor (rule 4)
+trainerlab play --against hitter --seed 42    # choose the bot, replay a battle with its seed
+trainerlab play --team Dragapult,Snorlax,Toxapex,Excadrill,Blissey,Corviknight
+trainerlab play --speed fast --log battle.txt
 ```
 
 Each turn clears the screen and draws framed panels: the board (both active
@@ -65,15 +89,17 @@ again.
 | `harness.py` | **The measurement.** Plays paired battles and computes a score with its confidence interval. |
 | `decisions.py` | **The data.** Replays the battles of a tournament and gives every decision: what the bot saw, its options, its choice, and how the battle ended. |
 | `estimate.py` | **The bots' mental model of damage**, built only from what a player can see. |
-| `tournament.py` | **The command** `trainerlab-tournament`: the only place that knows every bot by name. |
+| `roster.py` | **Every bot by name**: the only place that knows them all. |
+| `cli.py` | **The command** `trainerlab`: the menu, and the dispatch to each mode below. |
+| `duel.py` | **`trainerlab duel`**: one bot against another, over paired battles. |
 | `human.py` | **You, as a bot.** The game loop asks you exactly what it asks any bot; a wrong key is asked again. |
 | `render.py` | **The text.** Views, options and events turned into sentences, with colours in a terminal. |
 | `screen.py` | **The terminal.** Framed panels, cleared screens and the typed-out history, with the log file. |
 | `stats.py` | **The end-of-battle summary.** Knock-outs and damage dealt, credited to the Pokémon that attacked. |
-| `play.py` | **The command** `trainerlab-play`. |
-| `watch.py` | **The command** `trainerlab-watch`: replays a battle between two bots, with what each one saw and estimated. |
-| `audit.py` | **The command** `trainerlab-audit`: counts the mistakes of a bot that a program can spot on its own. |
-| `dataset.py` | **The command** `trainerlab-dataset`: turns the decisions of a series of battles into features and labels, in a `.npz` file. |
+| `play.py` | **`trainerlab play`**. |
+| `watch.py` | **`trainerlab watch`**: replays a battle between two bots, with what each one saw and estimated. |
+| `audit.py` | **`trainerlab audit`**: counts the mistakes of a bot that a program can spot on its own. |
+| `dataset.py` | **`trainerlab dataset`**: turns the decisions of a series of battles into features and labels, in a `.npz` file. |
 
 A bot never sees the real state: it receives `observe(side)`, which hides
 the opponent's Pokémon that have not entered the field and the remaining
@@ -88,9 +114,9 @@ the same call always gives the same decisions.
 
 ```python
 from trainerlab.decisions import decisions
-from trainerlab.tournament import BOTS
+from trainerlab.roster import BOTS
 
-for d in decisions(BOTS["survival"], BOTS["matchup"], seeds=range(20000, 21000)):
+for d in decisions(BOTS["survivor"], BOTS["matcher"], seeds=range(20000, 21000)):
     d.view, d.legal, d.choice  # what the deciding side saw, its options, its choice
     d.side, d.by_a, d.turn  # who decided (bot A or bot B), and when
     d.outcome  # "win", "draw" or "loss", for the side that decided
@@ -105,7 +131,7 @@ code: if a bot changes, its battles change.
 ## Building a dataset
 
 ```bash
-trainerlab-dataset outlook survival --pairs 2000 --first-seed 40000 --out outlook-survival-40000.npz
+trainerlab dataset calculator survivor --pairs 2000 --from 40000   # -> calculator-vs-survivor-40000-41999.npz
 ```
 
 Every decision of both bots becomes one row. **The features** describe what
@@ -142,8 +168,8 @@ twice, mirrored, so every row would come twice.
 ## Watching a battle between bots
 
 ```bash
-trainerlab-watch survival matchup --losses --pairs 50 --first-seed 20000
-trainerlab-watch survival matchup --seed 20004 --a-side 1 | less
+trainerlab watch survivor matcher --losses --pairs 50 --from 20000
+trainerlab watch survivor matcher --seed 20004 --side 1 | less
 ```
 
 The first command lists the battles bot A lost, each as the command that
@@ -179,11 +205,11 @@ possible, the variant is fixed before measuring at all.
 | Bot | Command name | Rule |
 |---|---|---|
 | `RandomBot` | `random` | A uniformly random legal choice: the baseline. |
-| `HeuristicBot` | `damage` | **Rule 1.** Plays the move with the highest expected damage: power × STAB × type effectiveness × accuracy. |
-| `SwitchingBot` | `switching` | **Rule 2.** Rule 1, but leaves a super effective threat for a Pokémon that resists it. |
-| `MatchupBot` | `matchup` | **Rule 3.** Rule 1, but replaces a fainted Pokémon with the best matchup: damage it can deal minus damage it can take. |
-| `SurvivalBot` | `survival` | **Rule 4.** Rule 3, but leaves a Pokémon the opponent would knock out before it acts, if it still has half its HP and a bench Pokémon loses at most a third of its HP to the hit. |
-| `OutlookBot` | `outlook` | **Rule 5.** Rule 4, but plays the move with the highest damage expected by the engine itself (`expected_damage`, its mean), instead of power × STAB × type effectiveness × accuracy. Escapes and replacements are rule 4's. |
+| `HeuristicBot` | `hitter` | **Rule 1.** Plays the move with the highest expected damage: power × STAB × type effectiveness × accuracy. |
+| `SwitchingBot` | `dodger` | **Rule 2.** Rule 1, but leaves a super effective threat for a Pokémon that resists it. |
+| `MatchupBot` | `matcher` | **Rule 3.** Rule 1, but replaces a fainted Pokémon with the best matchup: damage it can deal minus damage it can take. |
+| `SurvivalBot` | `survivor` | **Rule 4.** Rule 3, but leaves a Pokémon the opponent would knock out before it acts, if it still has half its HP and a bench Pokémon loses at most a third of its HP to the hit. |
+| `OutlookBot` | `calculator` | **Rule 5.** Rule 4, but plays the move with the highest damage expected by the engine itself (`expected_damage`, its mean), instead of power × STAB × type effectiveness × accuracy. Escapes and replacements are rule 4's. |
 
 ## Results
 
@@ -191,21 +217,21 @@ Every bot against every other, on random teams, **5000 pairs (10 000 battles)
 per duel**, seeds 0–4999. Each cell is the score of the row's bot against the
 column's bot; the whole interval is above 0.5 when the row's bot is better.
 
-| Bot ↓ against → | random | damage (rule 1) | switching (rule 2) | matchup (rule 3) | survival (rule 4) |
+| Bot ↓ against → | random | hitter (rule 1) | dodger (rule 2) | matcher (rule 3) | survivor (rule 4) |
 |---|---|---|---|---|---|
 | **random** | 0.500 | *0.027* | *0.076* | *0.026* | *0.025* |
-| **damage** (rule 1) | 0.973 | 0.500 | *0.575* | *0.414* | *0.404* |
-| **switching** (rule 2) | 0.924 | 0.425 | 0.500 | *0.368* | *0.361* |
-| **matchup** (rule 3) | 0.974 | 0.586 | 0.632 | 0.500 | *0.483* |
-| **survival** (rule 4) | **0.975** | **0.596** | **0.639** | **0.517** | 0.500 |
+| **hitter** (rule 1) | 0.973 | 0.500 | *0.575* | *0.414* | *0.404* |
+| **dodger** (rule 2) | 0.924 | 0.425 | 0.500 | *0.368* | *0.361* |
+| **matcher** (rule 3) | 0.974 | 0.586 | 0.632 | 0.500 | *0.483* |
+| **survivor** (rule 4) | **0.975** | **0.596** | **0.639** | **0.517** | 0.500 |
 
 Cells in italics are not measured separately: each is one minus the measured
 duel the other way round.
 
 ```mermaid
 xychart-beta
-    title "Score against rule 1 (damage), 5000 pairs"
-    x-axis ["random", "switching", "matchup", "survival"]
+    title "Score against rule 1 (hitter), 5000 pairs"
+    x-axis ["random", "dodger", "matcher", "survivor"]
     y-axis "Score" 0 --> 1
     bar [0.027, 0.425, 0.586, 0.596]
     line [0.5, 0.5, 0.5, 0.5]
@@ -225,18 +251,18 @@ The measured duels, with their intervals:
 | Duel | Score | 95 % interval | Record (W / D / L) |
 |---|---|---|---|
 | random vs random | 0.500 | [0.490, 0.510] | 4969 / 58 / 4973 |
-| damage vs random | 0.973 | [0.970, 0.976] | 9732 / 5 / 263 |
-| switching vs random | 0.924 | [0.919, 0.929] | 9232 / 23 / 745 |
-| matchup vs random | 0.974 | [0.970, 0.977] | 9733 / 6 / 261 |
-| survival vs random | 0.975 | [0.971, 0.977] | 9742 / 7 / 251 |
-| switching vs damage | 0.425 | [0.415, 0.435] | 4228 / 44 / 5728 |
-| matchup vs damage | 0.586 | [0.576, 0.596] | 5837 / 49 / 4114 |
-| survival vs damage | 0.596 | [0.587, 0.606] | 5938 / 52 / 4010 |
-| matchup vs switching | 0.632 | [0.623, 0.642] | 6302 / 42 / 3656 |
-| survival vs switching | 0.639 | [0.629, 0.648] | 6364 / 44 / 3592 |
-| survival vs matchup | 0.517 | [0.507, 0.527] | 5148 / 43 / 4809 |
+| hitter vs random | 0.973 | [0.970, 0.976] | 9732 / 5 / 263 |
+| dodger vs random | 0.924 | [0.919, 0.929] | 9232 / 23 / 745 |
+| matcher vs random | 0.974 | [0.970, 0.977] | 9733 / 6 / 261 |
+| survivor vs random | 0.975 | [0.971, 0.977] | 9742 / 7 / 251 |
+| dodger vs hitter | 0.425 | [0.415, 0.435] | 4228 / 44 / 5728 |
+| matcher vs hitter | 0.586 | [0.576, 0.596] | 5837 / 49 / 4114 |
+| survivor vs hitter | 0.596 | [0.587, 0.606] | 5938 / 52 / 4010 |
+| matcher vs dodger | 0.632 | [0.623, 0.642] | 6302 / 42 / 3656 |
+| survivor vs dodger | 0.639 | [0.629, 0.648] | 6364 / 44 / 3592 |
+| survivor vs matcher | 0.517 | [0.507, 0.527] | 5148 / 43 / 4809 |
 
-Any line reproduces with `trainerlab-tournament <bot> <opponent> --pairs 5000`.
+Any line reproduces with `trainerlab duel <bot> <opponent> --pairs 5000`.
 
 **What the table says.**
 
@@ -294,8 +320,8 @@ Seeds 20000 and up: none of them served to choose or measure a rule.
 
 ### By hand: 15 losses
 
-`trainerlab-watch survival matchup --losses --first-seed 20000` lists the
-losses; each was replayed with `trainerlab-watch`, which shows at every
+`trainerlab watch survivor matcher --losses --pairs 50 --from 20000` lists the
+losses; each was replayed with `trainerlab watch`, which shows at every
 decision the bot's estimate of each option, then what really happened.
 
 **The convention.** A loss often holds several mistakes. Its category is the
@@ -336,10 +362,10 @@ every duel was measured again after the fix (the scores above).
 ### Automatically: 2000 battles
 
 Some of these mistakes leave a trace that needs no judgement.
-`trainerlab-audit` counts them over bot A's decisions:
+`trainerlab audit` counts them over bot A's decisions:
 
 ```bash
-trainerlab-audit survival matchup --pairs 1000 --first-seed 20000
+trainerlab audit survivor matcher --pairs 1000 --from 20000
 ```
 
 | Check | What it spots | Per 1000 decisions | In lost battles | In won battles |
@@ -382,12 +408,12 @@ The rule was fixed before measuring, and measured once, on seeds that served
 to choose nothing (30000–34999):
 
 ```bash
-trainerlab-tournament outlook survival --pairs 5000 --first-seed 30000
+trainerlab duel calculator survivor --pairs 5000 --from 30000
 ```
 
 | Duel | Score | 95 % interval | Record (W / D / L) |
 |---|---|---|---|
-| outlook (rule 5) vs survival (rule 4) | **0.631** | [0.621, 0.640] | 6289 / 37 / 3674 |
+| calculator (rule 5) vs survivor (rule 4) | **0.631** | [0.621, 0.640] | 6289 / 37 / 3674 |
 
 **Rule 5 beats rule 4 by thirteen points**, more than any step since rule 1
 against the random bot (rule 3 gained 8.6 points on rule 1, rule 4 1.7 on
