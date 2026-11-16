@@ -43,6 +43,14 @@ several battles takes `--pairs N`, the number of pairs (two battles each),
 and `--from SEED`, the seed of the first pair: the pairs use the seeds that
 follow, one each, so `--pairs 5000 --from 30000` plays seeds 30000 to 34999.
 
+`duel` and `dataset` spread the pairs over every core of the machine, each
+process playing a block of consecutive seeds. A pair depends on its seed
+alone, so the results are the same whatever the number of processes (a test
+checks it); `--jobs N` sets that number, `--jobs 1` plays on one core.
+In a terminal, a line shows the pairs played and the time left at the
+current pace (`1250/5000 pairs (25 %), about 4 min 10 s left`); it stays out
+of pipes and log files.
+
 ## Playing in the terminal
 
 ```bash

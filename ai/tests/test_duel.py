@@ -94,6 +94,7 @@ def test_a_single_seed_is_one_pair(capsys: pytest.CaptureFixture[str]) -> None:
         ("--pairs", "0", "number of pairs"),
         ("--pairs", "x", "number of pairs"),
         ("--from", "-3", "not a seed"),
+        ("--jobs", "0", "number of pairs"),
     ],
 )
 def test_a_bad_number_of_pairs_or_seed_is_refused(
@@ -103,3 +104,10 @@ def test_a_bad_number_of_pairs_or_seed_is_refused(
         main(["random", "random", option, value])
 
     assert error in capsys.readouterr().err
+
+
+def test_the_number_of_processes_changes_no_result(capsys: pytest.CaptureFixture[str]) -> None:
+    alone = _run(["hitter", "random", "--pairs", "4", "--jobs", "1"], capsys)[0]
+    spread = _run(["hitter", "random", "--pairs", "4", "--jobs", "2"], capsys)[0]
+
+    assert alone == spread

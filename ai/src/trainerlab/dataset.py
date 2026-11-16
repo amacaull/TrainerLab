@@ -17,10 +17,11 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from trainerlab import _engine
+from trainerlab import _engine, parallel
 from trainerlab.decisions import Decision, decisions
+from trainerlab.environment import DATA_DIR
 from trainerlab.features import Features, feature_names, features
-from trainerlab.options import add_bots, add_pairs, seeds_of, show
+from trainerlab.options import add_bots, add_jobs, add_pairs, seeds_of, show
 from trainerlab.roster import BOTS
 
 Write = Callable[[str], None]
@@ -51,6 +52,11 @@ def build(series: Iterable[Decision]) -> dict[str, npt.NDArray[np.generic]]:
     }
 
 
+def build_block(bot_a: str, bot_b: str, seeds: range) -> dict[str, npt.NDArray[np.generic]]:
+    """The rows of one block of pairs; a process of its own when they are spread over the cores."""
+    return build(decisions(BOTS[bot_a], BOTS[bot_b], seeds=seeds))
+
+
 def default_name(bot_a: str, bot_b: str, seeds: range) -> str:
     return f"{bot_a}-vs-{bot_b}-{show(seeds)}.npz"
 
@@ -65,6 +71,7 @@ def main(argv: list[str] | None = None, write: Write = _stdout) -> int:
     )
     add_bots(parser)
     add_pairs(parser, 500)
+    add_jobs(parser)
     parser.add_argument(
         "--out", type=Path, help="the .npz file to write (default: BOT_A-vs-BOT_B-SEEDS.npz)"
     )
@@ -72,7 +79,12 @@ def main(argv: list[str] | None = None, write: Write = _stdout) -> int:
 
     seeds = seeds_of(args)
     out = args.out or Path(default_name(args.bot_a, args.bot_b, seeds))
-    data = build(decisions(BOTS[args.bot_a], BOTS[args.bot_b], seeds=seeds))
+    progress = parallel.progress_on_terminal(len(seeds))
+    parts = parallel.run(build_block, args.bot_a, args.bot_b, seeds, args.jobs, progress)
+    data = {key: np.concatenate([p[key] for p in parts]) for key in parts[0]}
+    data["feature_names"] = parts[0]["feature_names"]
+    # The battles may all have been played in other processes: this one loads the catalog itself.
+    _engine.engine_init(str(DATA_DIR))
     origin = {
         "bots": np.array([args.bot_a, args.bot_b]),
         "catalog_fingerprint": np.uint64(_engine.catalog_fingerprint()),
