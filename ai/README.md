@@ -153,11 +153,11 @@ column's bot; the whole interval is above 0.5 when the row's bot is better.
 
 | Bot ↓ against → | random | damage (rule 1) | switching (rule 2) | matchup (rule 3) | survival (rule 4) |
 |---|---|---|---|---|---|
-| **random** | 0.499 | *0.027* | *0.075* | *0.027* | *0.025* |
-| **damage** (rule 1) | 0.973 | 0.500 | *0.574* | *0.416* | *0.406* |
-| **switching** (rule 2) | 0.925 | 0.426 | 0.500 | *0.370* | *0.363* |
-| **matchup** (rule 3) | 0.973 | 0.584 | 0.630 | 0.500 | *0.483* |
-| **survival** (rule 4) | **0.975** | **0.594** | **0.637** | **0.517** | 0.500 |
+| **random** | 0.500 | *0.027* | *0.076* | *0.026* | *0.025* |
+| **damage** (rule 1) | 0.973 | 0.500 | *0.575* | *0.414* | *0.404* |
+| **switching** (rule 2) | 0.924 | 0.425 | 0.500 | *0.368* | *0.361* |
+| **matchup** (rule 3) | 0.974 | 0.586 | 0.632 | 0.500 | *0.483* |
+| **survival** (rule 4) | **0.975** | **0.596** | **0.639** | **0.517** | 0.500 |
 
 Cells in italics are not measured separately: each is one minus the measured
 duel the other way round.
@@ -167,7 +167,7 @@ xychart-beta
     title "Score against rule 1 (damage), 5000 pairs"
     x-axis ["random", "switching", "matchup", "survival"]
     y-axis "Score" 0 --> 1
-    bar [0.027, 0.426, 0.584, 0.594]
+    bar [0.027, 0.425, 0.586, 0.596]
     line [0.5, 0.5, 0.5, 0.5]
 ```
 
@@ -176,7 +176,7 @@ xychart-beta
     title "Each rule against the one it builds on, 5000 pairs"
     x-axis ["rule 1 vs random", "rule 2 vs rule 1", "rule 3 vs rule 1", "rule 4 vs rule 3"]
     y-axis "Score" 0 --> 1
-    bar [0.973, 0.426, 0.584, 0.517]
+    bar [0.973, 0.425, 0.586, 0.517]
     line [0.5, 0.5, 0.5, 0.5]
 ```
 
@@ -184,17 +184,17 @@ The measured duels, with their intervals:
 
 | Duel | Score | 95 % interval | Record (W / D / L) |
 |---|---|---|---|
-| random vs random | 0.499 | [0.489, 0.509] | 4963 / 57 / 4980 |
-| damage vs random | 0.973 | [0.970, 0.976] | 9728 / 5 / 267 |
-| switching vs random | 0.925 | [0.919, 0.930] | 9236 / 23 / 741 |
-| matchup vs random | 0.973 | [0.970, 0.976] | 9731 / 5 / 264 |
-| survival vs random | 0.975 | [0.971, 0.978] | 9743 / 6 / 251 |
-| switching vs damage | 0.426 | [0.416, 0.435] | 4235 / 43 / 5722 |
-| matchup vs damage | 0.584 | [0.574, 0.593] | 5812 / 51 / 4137 |
-| survival vs damage | 0.594 | [0.584, 0.603] | 5912 / 52 / 4036 |
-| matchup vs switching | 0.630 | [0.621, 0.640] | 6281 / 43 / 3676 |
-| survival vs switching | 0.637 | [0.627, 0.646] | 6345 / 45 / 3610 |
-| survival vs matchup | 0.517 | [0.507, 0.527] | 5148 / 45 / 4807 |
+| random vs random | 0.500 | [0.490, 0.510] | 4969 / 58 / 4973 |
+| damage vs random | 0.973 | [0.970, 0.976] | 9732 / 5 / 263 |
+| switching vs random | 0.924 | [0.919, 0.929] | 9232 / 23 / 745 |
+| matchup vs random | 0.974 | [0.970, 0.977] | 9733 / 6 / 261 |
+| survival vs random | 0.975 | [0.971, 0.977] | 9742 / 7 / 251 |
+| switching vs damage | 0.425 | [0.415, 0.435] | 4228 / 44 / 5728 |
+| matchup vs damage | 0.586 | [0.576, 0.596] | 5837 / 49 / 4114 |
+| survival vs damage | 0.596 | [0.587, 0.606] | 5938 / 52 / 4010 |
+| matchup vs switching | 0.632 | [0.623, 0.642] | 6302 / 42 / 3656 |
+| survival vs switching | 0.639 | [0.629, 0.648] | 6364 / 44 / 3592 |
+| survival vs matchup | 0.517 | [0.507, 0.527] | 5148 / 43 / 4809 |
 
 Any line reproduces with `trainerlab-tournament <bot> <opponent> --pairs 5000`.
 
@@ -210,7 +210,7 @@ Any line reproduces with `trainerlab-tournament <bot> <opponent> --pairs 5000`.
   bot against itself plays the same battle twice in a pair, sides swapped, so
   every pair is one win and one loss, or two draws. They check that the
   harness is symmetric, not that the bots are balanced. Random against random,
-  whose two bots differ, is the real sanity check: 0.499.
+  whose two bots differ, is the real sanity check: 0.500.
 
 **How the rules were chosen.** Each decision was made earlier on 500 pairs
 (seeds 0–499), then confirmed on unseen seeds (10000–10499), before these
@@ -219,7 +219,7 @@ battles were already seen when the rules were chosen.
 
 ### Negative results
 
-**Rule 2 loses to rule 1** (0.426 [0.416, 0.435]). Switching out of a super
+**Rule 2 loses to rule 1** (0.425 [0.415, 0.435]). Switching out of a super
 effective threat costs a turn, and the incoming Pokémon takes the hit. It is
 kept in the code as a measured negative result.
 
