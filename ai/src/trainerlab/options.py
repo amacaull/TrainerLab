@@ -2,6 +2,7 @@
 
 import argparse
 
+from trainerlab.parallel import cores
 from trainerlab.roster import BOTS
 
 
@@ -33,6 +34,15 @@ def add_bots(parser: argparse.ArgumentParser) -> None:
         "bot_a", choices=list(BOTS), metavar="BOT_A", help=f"the bot measured: {names}"
     )
     parser.add_argument("bot_b", choices=list(BOTS), metavar="BOT_B", help="its opponent")
+
+
+def add_jobs(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--jobs",
+        type=count,
+        default=cores(),
+        help=f"processes playing the pairs; same results, faster (default: {cores()}, every core)",
+    )
 
 
 def add_pairs(parser: argparse.ArgumentParser, default: int, what: str = "to play") -> None:

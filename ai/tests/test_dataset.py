@@ -1,3 +1,5 @@
+import subprocess
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -150,3 +152,26 @@ def test_the_command_prints_to_stdout_by_default(
     main(["hitter", "random", "--pairs", "1", "--out", str(tmp_path / "d.npz")])
 
     assert capsys.readouterr().out.startswith("hitter against random, seeds 0-0: ")
+
+
+def test_the_number_of_processes_changes_no_row(tmp_path: Path) -> None:
+    base = ["hitter", "random", "--pairs", "3"]
+    main([*base, "--jobs", "1", "--out", str(tmp_path / "a.npz")], lambda text: None)
+    main([*base, "--jobs", "2", "--out", str(tmp_path / "b.npz")], lambda text: None)
+
+    alone, spread = np.load(tmp_path / "a.npz"), np.load(tmp_path / "b.npz")
+    for key in ("x", "y", "seed", "side", "a_side", "turn", "feature_names"):
+        assert np.array_equal(alone[key], spread[key])
+
+
+def test_a_fresh_process_writes_a_dataset_played_in_other_processes(tmp_path: Path) -> None:
+    # The battles are played in child processes: the parent never loads the catalog by itself.
+    out = tmp_path / "fresh.npz"
+    script = (
+        "from trainerlab.dataset import main\n"
+        f"main(['hitter', 'random', '--pairs', '2', '--jobs', '2', '--out', {str(out)!r}])\n"
+    )
+
+    subprocess.run([sys.executable, "-c", script], check=True, capture_output=True)
+
+    assert np.load(out)["x"].shape[0] > 0

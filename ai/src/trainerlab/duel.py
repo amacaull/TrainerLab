@@ -5,9 +5,15 @@ trainerlab duel calculator survivor --pairs 5000 --from 30000
 
 import argparse
 
-from trainerlab.harness import run_tournament
-from trainerlab.options import add_bots, add_pairs, seeds_of, show
+from trainerlab import parallel
+from trainerlab.harness import TournamentResult, run_tournament
+from trainerlab.options import add_bots, add_jobs, add_pairs, seeds_of, show
 from trainerlab.roster import BOTS
+
+
+def play(bot_a: str, bot_b: str, seeds: range) -> TournamentResult:
+    """One block of pairs; a process of its own when they are spread over the cores."""
+    return run_tournament(BOTS[bot_a], BOTS[bot_b], pairs=len(seeds), first_seed=seeds[0])
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -16,11 +22,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     add_bots(parser)
     add_pairs(parser, 500)
+    add_jobs(parser)
     args = parser.parse_args(argv)
 
     seeds = seeds_of(args)
-    result = run_tournament(
-        BOTS[args.bot_a], BOTS[args.bot_b], pairs=len(seeds), first_seed=seeds[0]
+    progress = parallel.progress_on_terminal(len(seeds))
+    parts = parallel.run(play, args.bot_a, args.bot_b, seeds, args.jobs, progress)
+    result = TournamentResult(
+        wins=sum(p.wins for p in parts),
+        draws=sum(p.draws for p in parts),
+        losses=sum(p.losses for p in parts),
     )
     low, high = result.interval
     print(
