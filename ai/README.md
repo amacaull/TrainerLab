@@ -54,7 +54,7 @@ of pipes and log files.
 ## Playing in the terminal
 
 ```bash
-trainerlab play                               # random teams, against survivor (rule 4)
+trainerlab play                               # random teams, against forecaster (rule 6)
 trainerlab play --against hitter --seed 42    # choose the bot, replay a battle with its seed
 trainerlab play --team Dragapult,Snorlax,Toxapex,Excadrill,Blissey,Corviknight
 trainerlab play --speed fast --log battle.txt
@@ -257,12 +257,11 @@ trainerlab duel forecaster calculator --pairs 5000 --from 50000
 **Rule 6 beats rule 5 by 34 points**, the largest step so far. 5000 pairs
 take 37 minutes, against a minute and a half for rule 5.
 
-**But this duel flatters it.** Rule 6 assumes the foe plays as rule 5, and
-rule 5 is deterministic: against `calculator`, rule 6 knows the foe's move
-before choosing its own, every turn. Part of the gain is that knowledge, not
-the model. Against a bot that plays otherwise, the assumption is wrong; that
-duel, not measured yet, is what tells how much of the 34 points the model
-earns on its own.
+Rule 6 assumes the foe plays as rule 5, and rule 5 is deterministic: against
+`calculator`, rule 6 knows the foe's move before choosing its own. **That
+knowledge is not what makes it win**: against `survivor` and `matcher`, where
+the assumption is only partly true, it scores more (0.859, 0.864). It beats
+every bot measured against it: see [`docs/results.md`](../docs/results.md).
 
 ## Rule 7: the foe's best reply
 
@@ -273,14 +272,17 @@ worst odds those replies leave it. It keeps the option whose worst case is
 best: minimax, one turn deep. An option is dropped as soon as one reply puts
 it below the best option so far, since its worst case can only be lower.
 
-It is more cautious, and about six times slower. Fixed before measuring;
-to be measured on seeds no bot was chosen on:
+It is more cautious, and slower. Fixed before measuring, measured once:
 
 ```bash
 trainerlab duel strategist forecaster --pairs 5000 --from 70000
-trainerlab duel strategist calculator --pairs 5000 --from 50000   # as forecaster, to compare
-trainerlab duel strategist survivor --pairs 5000 --from 55000
 ```
+
+**Rule 7 beats rule 6 head to head**, 0.548 [0.538, 0.558], but does worse
+than rule 6 against `calculator` (0.739 against 0.844) and `survivor`
+(0.812 against 0.859): it guards against replies those bots never play.
+Exploiting a predictable foe or guarding against an unknown one: neither
+dominates ([`docs/results.md`](../docs/results.md)).
 
 ## Another model for the forecaster
 
@@ -300,7 +302,9 @@ trainerlab duel forecaster:gen2.npz forecaster --pairs 5000 --from 65000
 
 The last line measures the new model against the shipped one, on seeds no
 dataset used. The two bots differ only by their model, so the score is what
-the new data is worth.
+the new data is worth: **0.505 [0.495, 0.515], a draw.** The new model
+predicts the winner better, but ranks the options one turn apart the same
+way. The shipped model stays.
 
 ### The network, stopped early
 
@@ -314,6 +318,11 @@ table above:
 ```bash
 trainerlab train calculator-vs-survivor-40000-41999.npz --model network-stop
 ```
+
+It stops after 2 passes, with a test log loss of 0.540: the overfitting is
+gone, but it does no better than the logistic regression (0.532). Trained on
+the three datasets, it plays worse than the logistic regression trained on
+the same data, 0.473 [0.463, 0.482] ([`docs/results.md`](../docs/results.md)).
 
 ## Watching a battle between bots
 
@@ -418,7 +427,7 @@ Any line reproduces with `trainerlab duel <bot> <opponent> --pairs 5000`.
 
 **What the table says.**
 
-- **Rule 4 is the best bot**: it beats every other one, rule 3 included
+- **Rule 4 is the best of these four rules**: it beats every other one, rule 3 included
   (0.517, the whole interval above 0.5).
 - **Against the random bot, every rule looks alike** (about 0.97): the
   replacement rules of 3 and 4 only pay off against an opponent that plays

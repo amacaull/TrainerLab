@@ -71,7 +71,7 @@ def test_a_wrong_answer_is_asked_again() -> None:
 
 
 def test_play_asks_for_the_opponent_the_seed_the_team_and_the_speed() -> None:
-    assert _menu(["1", "", "", "", ""])[0] == ["play"]
+    assert _menu(["1", "", "", "", "", ""])[0] == ["play"]  # Enter: forecaster, shipped model
     team = "Dragapult,Snorlax"
     assert _menu(["1", "2", "x", "42", team, "instant"])[0] == [
         "play",

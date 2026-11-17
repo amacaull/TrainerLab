@@ -45,7 +45,7 @@ DESCRIPTIONS: dict[str, str] = {
     "strategist": "rule 7: forecaster, but rates each option by the foe's best reply",
 }
 
-DEFAULT_OPPONENT = "survivor"
+DEFAULT_OPPONENT = "forecaster"  # beats every bot but strategist, head to head
 # The bots that play with a win probability model, and can be given another one.
 MODEL_BOTS: dict[str, Callable[[WinModel], Bot]] = {
     "forecaster": ForecastBot,
