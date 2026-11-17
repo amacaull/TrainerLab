@@ -244,7 +244,13 @@ Every anomaly is printed with the seed that reproduces it.
 The random draws are hand-written so that a seed means the same thing
 everywhere. A golden test (`[golden]` in `tests/test_ffi_battle.cpp`) plays a
 full seeded 6v6 and compares a digest of every event with a hard-coded value.
-CI runs it on Linux; run it locally on macOS before merging an engine change.
+A second golden test does the same for `expected_damage`: a digest of the
+bits of every mean, for every move of every species against three defenders.
+It is what caught clang on Apple Silicon fusing `a * b + c` into one
+instruction, which gcc on x86-64 does not do: the last bit of some means
+differed, and two moves of equal mean ranked differently on the two systems.
+The engine is now compiled with `-ffp-contract=off`.
+CI runs both on Linux; run them locally on macOS before merging an engine change.
 A deliberate rule or data change that moves the digest updates it in the same
 commit.
 
