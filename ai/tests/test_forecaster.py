@@ -5,7 +5,7 @@ from trainerlab import _engine
 from trainerlab._engine import Action
 from trainerlab.environment import BattleEnvironment
 from trainerlab.features import feature_names
-from trainerlab.forecaster import ForecastBot, playable
+from trainerlab.forecaster import ForecastBot, StrategistBot, _replies, playable
 from trainerlab.model import WinModel
 
 
@@ -80,3 +80,38 @@ def test_the_shipped_model_loads_and_a_model_on_other_features_is_refused() -> N
     stray = WinModel((np.zeros((1, 1)),), (np.zeros(1),), np.zeros(1), np.ones(1), names)
     with pytest.raises(ValueError, match="other features"):
         ForecastBot(stray)
+
+
+def test_the_strategist_plays_like_the_forecaster_when_the_reply_changes_nothing() -> None:
+    # Odds that only fall with the foe's HP: whatever Excadrill replies, Seismic Toss is best.
+    # (Not Snorlax: its worst reply, Rest, heals it whatever Blissey did, and all options tie.)
+    env = BattleEnvironment(["Blissey", "Toxapex"], ["Excadrill"], seed=1)
+    bot = StrategistBot(_model_valuing(foe_hp_total=-10.0))
+
+    assert bot.choose_action(0, env.observe(0), env.legal_actions(0)) == Action.move(3)
+
+
+def test_the_strategist_fears_the_reply_that_hurts_most() -> None:
+    # Odds that only rise with its own HP: Blissey heals rather than attack, as the worst reply
+    # (Snorlax's strongest hit) leaves it the most HP after Soft-Boiled.
+    env = BattleEnvironment(["Blissey"], ["Snorlax"], seed=1)
+    view = env.observe(0)
+    blissey = view.active(0)
+    blissey.current_hp = blissey.stats.hp // 2
+    view.set_pokemon(0, 0, blissey)
+    bot = StrategistBot(_model_valuing(my_hp_total=10.0))
+
+    assert bot.choose_action(0, view, env.legal_actions(0)) == Action.move(0)
+
+
+def test_the_foe_replies_are_its_moves_and_its_switches_to_pokemon_seen() -> None:
+    env = BattleEnvironment(["Blissey"], ["Snorlax", "Gyarados", "KommoO"], seed=1)
+    view = env.observe(0)
+    assert all(a.kind == _engine.ACTION_MOVE for a in _replies(view, playable(view, 1), 1))
+
+    gyarados = _engine.make_combatant(_engine.find_species_id("Gyarados"))
+    gyarados.revealed = 1
+    view.set_pokemon(1, 1, gyarados)
+    switches = [a for a in _replies(view, playable(view, 1), 1) if a.kind == _engine.ACTION_SWITCH]
+
+    assert switches == [Action.switch(1)]

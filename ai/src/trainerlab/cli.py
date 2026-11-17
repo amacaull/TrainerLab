@@ -18,7 +18,7 @@ from typing import NamedTuple
 from trainerlab import audit, dataset, duel, play, train, watch
 from trainerlab.human import Ask
 from trainerlab.options import count, seed
-from trainerlab.roster import BOTS, DEFAULT_OPPONENT, DESCRIPTIONS, WITH_MODEL
+from trainerlab.roster import BOTS, DEFAULT_OPPONENT, DESCRIPTIONS, MODEL_BOTS
 from trainerlab.screen import SPEEDS
 
 Write = Callable[[str], None]
@@ -163,7 +163,7 @@ def _bot_options() -> list[tuple[str, str]]:
 def _bot(ask: Ask, write: Write, title: str, default: str | None = None) -> str:
     """A bot from the list; for the forecaster, the model it plays with too."""
     name = _choose(ask, write, title, _bot_options(), default)
-    if name != WITH_MODEL:
+    if name not in MODEL_BOTS:
         return name
     question = "Its model (empty: the one shipped)"
     model = _text(ask, write, question, "", lambda text: Path(text).is_file(), empty=True)

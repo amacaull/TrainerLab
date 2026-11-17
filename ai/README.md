@@ -266,11 +266,29 @@ the model. Against a bot that plays otherwise, the assumption is wrong; that
 duel, not measured yet, is what tells how much of the 34 points the model
 earns on its own.
 
+## Rule 7: the foe's best reply
+
+Rule 6 assumes the foe plays as rule 5. Rule 7 assumes nothing: for each of
+its options, it plays the turn against every reply of the foe (its moves,
+and its switches to Pokémon already seen), and rates the option by the
+worst odds those replies leave it. It keeps the option whose worst case is
+best: minimax, one turn deep. An option is dropped as soon as one reply puts
+it below the best option so far, since its worst case can only be lower.
+
+It is more cautious, and about six times slower. Fixed before measuring;
+to be measured on seeds no bot was chosen on:
+
+```bash
+trainerlab duel strategist forecaster --pairs 5000 --from 70000
+trainerlab duel strategist calculator --pairs 5000 --from 50000   # as forecaster, to compare
+trainerlab duel strategist survivor --pairs 5000 --from 55000
+```
+
 ## Another model for the forecaster
 
-Any command that takes a bot also takes `forecaster:MODEL.npz`: rule 6
-playing with the model in that file instead of the shipped one. In the menu,
-choosing `forecaster` asks for the model (Enter keeps the shipped one).
+Any command that takes a bot also takes `forecaster:MODEL.npz` (or
+`strategist:MODEL.npz`): rules 6 and 7 playing with the model in that file
+instead of the shipped one. In the menu, choosing either asks for the model (Enter keeps the shipped one).
 `trainerlab train` takes several datasets and puts them together, so a new
 model can learn from the positions rule 6 itself reaches:
 
@@ -330,6 +348,7 @@ possible, the variant is fixed before measuring at all.
 | `SwitchingBot` | `dodger` | **Rule 2.** Rule 1, but leaves a super effective threat for a Pokémon that resists it. |
 | `MatchupBot` | `matcher` | **Rule 3.** Rule 1, but replaces a fainted Pokémon with the best matchup: damage it can deal minus damage it can take. |
 | `SurvivalBot` | `survivor` | **Rule 4.** Rule 3, but leaves a Pokémon the opponent would knock out before it acts, if it still has half its HP and a bench Pokémon loses at most a third of its HP to the hit. |
+| `StrategistBot` | `strategist` | **Rule 7.** Rule 6, but without guessing the foe: each option is rated by the foe's best reply, the one that leaves it the lowest odds (minimax, one turn deep). |
 | `ForecastBot` | `forecaster` | **Rule 6.** For each option, plays the turn on a copy of what it sees, the foe playing what rule 5 would, then keeps the option whose position the win probability model rates best (the logistic regression below). A replacement is chosen the same way, without a turn. |
 | `OutlookBot` | `calculator` | **Rule 5.** Rule 4, but plays the move with the highest damage expected by the engine itself (`expected_damage`, its mean), instead of power × STAB × type effectiveness × accuracy. Escapes and replacements are rule 4's. |
 

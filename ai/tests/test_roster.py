@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from trainerlab.forecaster import MODEL, ForecastBot
+from trainerlab.forecaster import MODEL, ForecastBot, StrategistBot
 from trainerlab.roster import BOTS, bot_spec, factory, slug
 
 
@@ -38,3 +38,10 @@ def test_a_wrong_name_is_refused_with_why(text: str, error: str) -> None:
 def test_a_bot_with_a_model_gets_a_name_fit_for_a_file() -> None:
     assert slug("forecaster:models/gen2.npz") == "forecaster-gen2"
     assert slug("survivor") == "survivor"
+
+
+def test_the_strategist_takes_a_model_too(tmp_path: Path) -> None:
+    model = tmp_path / "gen2.npz"
+    shutil.copy(MODEL, model)
+
+    assert isinstance(factory(f"strategist:{model}")(0), StrategistBot)
