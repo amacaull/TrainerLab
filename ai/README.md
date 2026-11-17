@@ -266,6 +266,26 @@ the model. Against a bot that plays otherwise, the assumption is wrong; that
 duel, not measured yet, is what tells how much of the 34 points the model
 earns on its own.
 
+## Another model for the forecaster
+
+Any command that takes a bot also takes `forecaster:MODEL.npz`: rule 6
+playing with the model in that file instead of the shipped one. In the menu,
+choosing `forecaster` asks for the model (Enter keeps the shipped one).
+`trainerlab train` takes several datasets and puts them together, so a new
+model can learn from the positions rule 6 itself reaches:
+
+```bash
+trainerlab dataset forecaster calculator --pairs 2000 --from 60000
+trainerlab dataset forecaster survivor --pairs 2000 --from 62000
+trainerlab train calculator-vs-survivor-40000-41999.npz \
+  forecaster-vs-calculator-60000-61999.npz forecaster-vs-survivor-62000-63999.npz --out gen2.npz
+trainerlab duel forecaster:gen2.npz forecaster --pairs 5000 --from 65000
+```
+
+The last line measures the new model against the shipped one, on seeds no
+dataset used. The two bots differ only by their model, so the score is what
+the new data is worth.
+
 ## Watching a battle between bots
 
 ```bash

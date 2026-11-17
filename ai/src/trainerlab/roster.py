@@ -1,4 +1,12 @@
-"""Every bot, by the name the commands know it by: the composition root of the measurements."""
+"""Every bot, by the name the commands know it by: the composition root of the measurements.
+
+A bot is named alone (`forecaster`), or with the model it plays with (`forecaster:gen2.npz`), to
+measure a newly trained model against the shipped one.
+"""
+
+import argparse
+from functools import cache
+from pathlib import Path
 
 from trainerlab.bots import (
     HeuristicBot,
@@ -10,6 +18,7 @@ from trainerlab.bots import (
 )
 from trainerlab.forecaster import ForecastBot
 from trainerlab.harness import BotFactory
+from trainerlab.model import WinModel
 
 BOTS: dict[str, BotFactory] = {
     "random": lambda seed: RandomBot(seed=seed),
@@ -33,3 +42,37 @@ DESCRIPTIONS: dict[str, str] = {
 }
 
 DEFAULT_OPPONENT = "survivor"
+WITH_MODEL = "forecaster"  # the one bot that takes a model
+
+
+def factory(spec: str) -> BotFactory:
+    """The bot a name stands for: `forecaster:FILE.npz` plays with the model in that file."""
+    name, _, model = spec.partition(":")
+    if not model:
+        return BOTS[name]
+    path = str(Path(model).resolve())
+    return lambda seed: ForecastBot(_load(path))
+
+
+@cache
+def _load(path: str) -> WinModel:
+    return WinModel.load(Path(path))
+
+
+def bot_spec(text: str) -> str:
+    """Checks a bot's name on the command line (argparse type)."""
+    name, _, model = text.partition(":")
+    if name not in BOTS or (model and name != WITH_MODEL):
+        names = ", ".join(BOTS)
+        raise argparse.ArgumentTypeError(
+            f"unknown bot {text!r}: one of {names}, or {WITH_MODEL}:MODEL.npz"
+        )
+    if model and not Path(model).is_file():
+        raise argparse.ArgumentTypeError(f"no such model: {model}")
+    return text
+
+
+def slug(spec: str) -> str:
+    """A bot's name fit for a file name: forecaster:models/gen2.npz -> forecaster-gen2."""
+    name, _, model = spec.partition(":")
+    return f"{name}-{Path(model).stem}" if model else name

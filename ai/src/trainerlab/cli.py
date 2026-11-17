@@ -18,7 +18,7 @@ from typing import NamedTuple
 from trainerlab import audit, dataset, duel, play, train, watch
 from trainerlab.human import Ask
 from trainerlab.options import count, seed
-from trainerlab.roster import BOTS, DEFAULT_OPPONENT, DESCRIPTIONS
+from trainerlab.roster import BOTS, DEFAULT_OPPONENT, DESCRIPTIONS, WITH_MODEL
 from trainerlab.screen import SPEEDS
 
 Write = Callable[[str], None]
@@ -89,7 +89,7 @@ def menu(ask: Ask, write: Write) -> list[str]:
 
 
 def _play(ask: Ask, write: Write) -> list[str]:
-    against = _choose(ask, write, "Opponent", _bot_options(), DEFAULT_OPPONENT)
+    against = _bot(ask, write, "Opponent", DEFAULT_OPPONENT)
     seed = _text(ask, write, "Seed, to replay a battle (empty: random)", "", _is_int, empty=True)
     team = _text(ask, write, "Your team, comma-separated (empty: random)", "", None, empty=True)
     speed = _choose(ask, write, "Text speed", [(s, "") for s in SPEEDS], "normal")
@@ -126,7 +126,13 @@ def _dataset(ask: Ask, write: Write) -> list[str]:
 
 
 def _train(ask: Ask, write: Write) -> list[str]:
-    path = _text(ask, write, "Dataset (.npz)", None, lambda text: Path(text).is_file())
+    paths = _text(
+        ask,
+        write,
+        "Datasets (.npz), separated by spaces",
+        None,
+        lambda text: all(Path(p).is_file() for p in text.split()),
+    ).split()
     model = _choose(
         ask,
         write,
@@ -134,9 +140,9 @@ def _train(ask: Ask, write: Write) -> list[str]:
         [(m, f"hidden layers {h or 'none'}") for m, h in train.MODELS.items()],
         "logistic",
     )
-    default = str(train.default_name(Path(path), model))
+    default = str(train.default_name([Path(p) for p in paths], model))
     out = _text(ask, write, "File to write", default, None)
-    args = [path] + ([] if model == "logistic" else ["--model", model])
+    args = paths + ([] if model == "logistic" else ["--model", model])
     return args + ([] if out == default else ["--out", out])
 
 
@@ -154,9 +160,19 @@ def _bot_options() -> list[tuple[str, str]]:
     return [(name, DESCRIPTIONS[name]) for name in BOTS]
 
 
+def _bot(ask: Ask, write: Write, title: str, default: str | None = None) -> str:
+    """A bot from the list; for the forecaster, the model it plays with too."""
+    name = _choose(ask, write, title, _bot_options(), default)
+    if name != WITH_MODEL:
+        return name
+    question = "Its model (empty: the one shipped)"
+    model = _text(ask, write, question, "", lambda text: Path(text).is_file(), empty=True)
+    return f"{name}:{model}" if model else name
+
+
 def _two_bots(ask: Ask, write: Write) -> list[str]:
-    bot_a = _choose(ask, write, "Bot A, the one measured", _bot_options())
-    return [bot_a, _choose(ask, write, "Bot B, its opponent", _bot_options())]
+    bot_a = _bot(ask, write, "Bot A, the one measured")
+    return [bot_a, _bot(ask, write, "Bot B, its opponent")]
 
 
 def _how_many(ask: Ask, write: Write, default: int) -> tuple[int, int]:

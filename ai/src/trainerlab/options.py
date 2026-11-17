@@ -3,7 +3,7 @@
 import argparse
 
 from trainerlab.parallel import cores
-from trainerlab.roster import BOTS
+from trainerlab.roster import BOTS, WITH_MODEL, bot_spec
 
 
 def count(text: str) -> int:
@@ -31,9 +31,12 @@ def seeds_of(args: argparse.Namespace) -> range:
 def add_bots(parser: argparse.ArgumentParser) -> None:
     names = ", ".join(BOTS)
     parser.add_argument(
-        "bot_a", choices=list(BOTS), metavar="BOT_A", help=f"the bot measured: {names}"
+        "bot_a",
+        type=bot_spec,
+        metavar="BOT_A",
+        help=f"the bot measured: {names}, or {WITH_MODEL}:MODEL.npz with another model",
     )
-    parser.add_argument("bot_b", choices=list(BOTS), metavar="BOT_B", help="its opponent")
+    parser.add_argument("bot_b", type=bot_spec, metavar="BOT_B", help="its opponent")
 
 
 def add_jobs(parser: argparse.ArgumentParser) -> None:

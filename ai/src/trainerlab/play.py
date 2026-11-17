@@ -15,7 +15,7 @@ from trainerlab.battle import play_battle
 from trainerlab.environment import BattleEnvironment, random_team_pair
 from trainerlab.human import Ask, HumanPlayer
 from trainerlab.render import Style, describe_board, narrate
-from trainerlab.roster import BOTS, DEFAULT_OPPONENT
+from trainerlab.roster import DEFAULT_OPPONENT, WITH_MODEL, bot_spec, factory
 from trainerlab.screen import SPEEDS, Screen, Write
 from trainerlab.stats import BattleStats
 
@@ -34,9 +34,9 @@ def main(argv: list[str] | None = None, ask: Ask = input, write: Write = _stdout
     )
     parser.add_argument(
         "--against",
-        choices=list(BOTS),
+        type=bot_spec,
         default=DEFAULT_OPPONENT,
-        help=f"the bot to play against (default: {DEFAULT_OPPONENT})",
+        help=f"the bot to play against, or {WITH_MODEL}:MODEL.npz (default: {DEFAULT_OPPONENT})",
     )
     parser.add_argument("--seed", type=int, help="replays the same battle (default: random)")
     parser.add_argument("--team", help="your Pokemon, comma-separated (default: random)")
@@ -106,7 +106,7 @@ def _play(
     tell(env.opening_events)
     player = HumanPlayer(ask, screen, style, hints=hints)
     try:
-        winner = play_battle(env, player, BOTS[opponent](seed), tell)
+        winner = play_battle(env, player, factory(opponent)(seed), tell)
     except (EOFError, KeyboardInterrupt):
         screen.message("Battle abandoned.")
         return 130

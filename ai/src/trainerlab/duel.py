@@ -8,12 +8,12 @@ import argparse
 from trainerlab import parallel
 from trainerlab.harness import TournamentResult, run_tournament
 from trainerlab.options import add_bots, add_jobs, add_pairs, seeds_of, show
-from trainerlab.roster import BOTS
+from trainerlab.roster import factory
 
 
 def play(bot_a: str, bot_b: str, seeds: range) -> TournamentResult:
     """One block of pairs; a process of its own when they are spread over the cores."""
-    return run_tournament(BOTS[bot_a], BOTS[bot_b], pairs=len(seeds), first_seed=seeds[0])
+    return run_tournament(factory(bot_a), factory(bot_b), pairs=len(seeds), first_seed=seeds[0])
 
 
 def main(argv: list[str] | None = None) -> int:
