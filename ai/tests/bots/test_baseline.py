@@ -1,5 +1,5 @@
 from trainerlab._engine import Action
-from trainerlab.bots.rules import RandomBot
+from trainerlab.bots.baseline import RandomBot
 from trainerlab.game.environment import BattleEnvironment
 
 

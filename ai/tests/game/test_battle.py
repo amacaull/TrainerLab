@@ -3,7 +3,7 @@ from teams import TEAM0, TEAM1
 
 from trainerlab import _engine
 from trainerlab._engine import Action, ActionError
-from trainerlab.bots.rules import RandomBot
+from trainerlab.bots.baseline import RandomBot
 from trainerlab.game.battle import play_battle
 from trainerlab.game.environment import BattleEnvironment, random_team_pair
 

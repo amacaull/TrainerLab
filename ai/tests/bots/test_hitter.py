@@ -1,5 +1,6 @@
 from trainerlab._engine import Action
-from trainerlab.bots.rules import HeuristicBot, RandomBot
+from trainerlab.bots.baseline import RandomBot
+from trainerlab.bots.rules import hitter
 from trainerlab.experiments.tournament import run_tournament
 from trainerlab.game.environment import BattleEnvironment
 
@@ -7,7 +8,7 @@ from trainerlab.game.environment import BattleEnvironment
 def _choice(attacker: str, defender: str) -> Action:
     """What the heuristic bot plays as side 0 with `attacker` against `defender`."""
     env = BattleEnvironment([attacker], [defender], seed=42)
-    return HeuristicBot().choose_action(0, env.observe(0), env.legal_actions(0))
+    return hitter().choose_action(0, env.observe(0), env.legal_actions(0))
 
 
 def test_a_super_effective_move_beats_a_stronger_neutral_one() -> None:
@@ -40,7 +41,7 @@ def test_the_bot_reads_its_own_side_and_the_opposing_active() -> None:
     # Excadrill on Gyarados again, played from side 1: Stone Edge.
     env = BattleEnvironment(["Gyarados"], ["Excadrill"], seed=42)
 
-    action = HeuristicBot().choose_action(1, env.observe(1), env.legal_actions(1))
+    action = hitter().choose_action(1, env.observe(1), env.legal_actions(1))
 
     assert action == Action.move(2)
 
@@ -48,13 +49,13 @@ def test_the_bot_reads_its_own_side_and_the_opposing_active() -> None:
 def test_the_bot_takes_the_first_proposed_replacement() -> None:
     env = BattleEnvironment(["Dragapult", "Snorlax"], ["KommoO", "Blissey"], seed=42)
 
-    assert HeuristicBot().choose_replacement(1, env.observe(1), [1, 0]) == 1
+    assert hitter().choose_replacement(1, env.observe(1), [1, 0]) == 1
 
 
 def test_the_heuristic_bot_beats_the_random_bot() -> None:
     # Guards the README claim with fewer pairs, to keep the suite fast.
     result = run_tournament(
-        lambda seed: HeuristicBot(),
+        lambda seed: hitter(),
         lambda seed: RandomBot(seed=seed),
         pairs=100,
     )

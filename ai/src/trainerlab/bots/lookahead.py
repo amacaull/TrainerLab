@@ -16,7 +16,7 @@ from functools import cache
 import numpy as np
 
 from trainerlab import _engine
-from trainerlab.bots.rules import OutlookBot
+from trainerlab.bots.rules import calculator
 from trainerlab.game.views import playable
 from trainerlab.learning.features import feature_names, features
 from trainerlab.learning.model import SHIPPED, WinModel
@@ -25,10 +25,13 @@ MODEL = SHIPPED
 SAMPLES = 2  # turns played per option, on the same seeds for every option
 
 
-class ForecastBot:
+class Forecaster:
+    """Rule 6: plays each option a turn ahead, the foe playing as rule 5, and keeps the option
+    whose position the model rates best."""
+
     def __init__(self, model: WinModel | None = None) -> None:
-        self._model = model if model is not None else _shipped_model()
-        if self._model.feature_names != feature_names():
+        self.model = model if model is not None else _shipped_model()
+        if self.model.feature_names != feature_names():
             raise ValueError("the model was trained on other features: train it again")
 
     def choose_action(
@@ -44,7 +47,7 @@ class ForecastBot:
         def value(index: int) -> float:
             after = copy.copy(state)
             _engine.resolve_replacement(after, side, index)
-            return self._value(after, side)
+            return self.odds(after, side)
 
         return max(options, key=value)
 
@@ -60,16 +63,16 @@ class ForecastBot:
         for sample in range(SAMPLES):
             after = copy.copy(state)
             _engine.resolve_turn(after, *actions, state.turn * SAMPLES + sample)
-            total += self._value(after, side)
+            total += self.odds(after, side)
         return total / SAMPLES
 
-    def _value(self, state: _engine.BattleState, side: int) -> float:
+    def odds(self, state: _engine.BattleState, side: int) -> float:
         """The probability of winning from this position, as the model sees it."""
         mine, theirs = _engine.side_has_lost(state, side), _engine.side_has_lost(state, 1 - side)
         if mine or theirs:
             return 0.5 if mine and theirs else 0.0 if mine else 1.0
         x = features(_engine.observe(state, side), side)
-        return float(self._model.predict(x[np.newaxis])[0])
+        return float(self.model.predict(x[np.newaxis])[0])
 
 
 @cache
@@ -77,7 +80,7 @@ def _shipped_model() -> WinModel:
     return WinModel.load(MODEL)
 
 
-class StrategistBot(ForecastBot):
+class Strategist(Forecaster):
     """Rule 7: rule 6, but without guessing the foe: each option is rated by the foe's best reply,
     the one that leaves the bot the lowest odds (minimax, one turn deep).
 
@@ -90,11 +93,11 @@ class StrategistBot(ForecastBot):
         self, side: int, view: _engine.BattleState, legal: list[_engine.Action]
     ) -> _engine.Action:
         state = playable(view, 1 - side)
-        replies = _replies(view, state, 1 - side)
+        foe_replies = replies(view, state, 1 - side)
         best, best_value = legal[0], -1.0
         for action in legal:
             worst = 2.0
-            for reply in replies:
+            for reply in foe_replies:
                 worst = min(worst, self._after_turn(state, side, action, reply))
                 if worst <= best_value:
                     break  # already no better than the best option: its worst case is lower
@@ -103,7 +106,7 @@ class StrategistBot(ForecastBot):
         return best
 
 
-def _replies(
+def replies(
     view: _engine.BattleState, state: _engine.BattleState, foe: int
 ) -> list[_engine.Action]:
     """What the foe may do, but switch to a Pokemon the bot has not seen."""
@@ -117,4 +120,4 @@ def _replies(
 def _foe_action(state: _engine.BattleState, foe: int) -> _engine.Action:
     """What rule 5 would play in the foe's place."""
     legal = _engine.legal_actions(state, foe)
-    return OutlookBot().choose_action(foe, _engine.observe(state, foe), legal)
+    return calculator().choose_action(foe, _engine.observe(state, foe), legal)

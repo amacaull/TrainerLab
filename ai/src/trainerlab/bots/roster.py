@@ -9,28 +9,22 @@ from collections.abc import Callable
 from functools import cache
 from pathlib import Path
 
-from trainerlab.bots.lookahead import ForecastBot, StrategistBot
-from trainerlab.bots.rules import (
-    HeuristicBot,
-    MatchupBot,
-    OutlookBot,
-    RandomBot,
-    SurvivalBot,
-    SwitchingBot,
-)
+from trainerlab.bots.baseline import RandomBot
+from trainerlab.bots.lookahead import Forecaster, Strategist
+from trainerlab.bots.rules import calculator, dodger, hitter, matcher, survivor
 from trainerlab.game.pairs import BotFactory
 from trainerlab.game.player import Bot
 from trainerlab.learning.model import WinModel
 
 BOTS: dict[str, BotFactory] = {
     "random": lambda seed: RandomBot(seed=seed),
-    "hitter": lambda seed: HeuristicBot(),  # rule 1
-    "dodger": lambda seed: SwitchingBot(),  # rule 2
-    "matcher": lambda seed: MatchupBot(),  # rule 3
-    "survivor": lambda seed: SurvivalBot(),  # rule 4
-    "calculator": lambda seed: OutlookBot(),  # rule 5
-    "forecaster": lambda seed: ForecastBot(),  # rule 6
-    "strategist": lambda seed: StrategistBot(),  # rule 7
+    "hitter": lambda seed: hitter(),  # rule 1
+    "dodger": lambda seed: dodger(),  # rule 2
+    "matcher": lambda seed: matcher(),  # rule 3
+    "survivor": lambda seed: survivor(),  # rule 4
+    "calculator": lambda seed: calculator(),  # rule 5
+    "forecaster": lambda seed: Forecaster(),  # rule 6
+    "strategist": lambda seed: Strategist(),  # rule 7
 }
 
 # One line each, shown by the menu and by `trainerlab bots`.
@@ -48,8 +42,8 @@ DESCRIPTIONS: dict[str, str] = {
 DEFAULT_OPPONENT = "forecaster"  # beats every bot but strategist, head to head
 # The bots that play with a win probability model, and can be given another one.
 MODEL_BOTS: dict[str, Callable[[WinModel], Bot]] = {
-    "forecaster": ForecastBot,
-    "strategist": StrategistBot,
+    "forecaster": Forecaster,
+    "strategist": Strategist,
 }
 WITH_MODEL = "|".join(MODEL_BOTS)  # for help texts: forecaster|strategist:MODEL.npz
 

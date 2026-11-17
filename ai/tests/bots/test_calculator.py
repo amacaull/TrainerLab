@@ -1,5 +1,5 @@
 from trainerlab._engine import Action
-from trainerlab.bots.rules import OutlookBot, SurvivalBot
+from trainerlab.bots.rules import calculator, survivor
 from trainerlab.game.environment import BattleEnvironment
 
 
@@ -7,7 +7,7 @@ def _choices(team: list[str], foes: list[str], side: int = 0) -> tuple[Action, A
     """What rule 4 and rule 5 play on the first turn, for the side given."""
     env = BattleEnvironment(*((team, foes) if side == 0 else (foes, team)), seed=1)
     view, legal = env.observe(side), env.legal_actions(side)
-    return SurvivalBot().choose_action(side, view, legal), OutlookBot().choose_action(
+    return survivor().choose_action(side, view, legal), calculator().choose_action(
         side, view, legal
     )
 
@@ -44,4 +44,4 @@ def test_escapes_are_still_rule_four() -> None:
     snorlax.current_hp = 367
     view.set_pokemon(0, 0, snorlax)
 
-    assert OutlookBot().choose_action(0, view, env.legal_actions(0)) == Action.switch(2)
+    assert calculator().choose_action(0, view, env.legal_actions(0)) == Action.switch(2)
