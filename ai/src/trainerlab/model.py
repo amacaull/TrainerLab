@@ -27,6 +27,7 @@ class WinModel:
     mean: Array
     std: Array
     feature_names: tuple[str, ...]
+    epochs: int = 0  # passes over the data it was trained with (not saved)
 
     @property
     def kind(self) -> str:
@@ -74,8 +75,15 @@ def train(
     rate: float = 1e-3,
     decay: float = 1e-4,
     seed: int = 0,
+    validation: tuple[npt.NDArray[np.floating], npt.NDArray[np.floating]] | None = None,
+    patience: int = 3,
 ) -> WinModel:
-    """Fits the model to rows `x` and labels `y`. `hidden=()` is a logistic regression."""
+    """Fits the model to rows `x` and labels `y`. `hidden=()` is a logistic regression.
+
+    With `validation` rows and labels, training stops early: after each pass, the model is
+    scored on them, and the best one is kept once `patience` passes in a row did no better.
+    `epochs` is then the most passes allowed.
+    """
     rng = np.random.default_rng(seed)
     rows: Array = np.asarray(x, dtype=np.float64)
     labels: Array = np.asarray(y, dtype=np.float64).reshape(-1, 1)
@@ -94,7 +102,9 @@ def train(
     first = [np.zeros_like(p) for p in params]
     second = [np.zeros_like(p) for p in params]
     step = 0
-    for _ in range(epochs):
+    best: WinModel | None = None
+    best_loss, waited = np.inf, 0
+    for epoch in range(1, epochs + 1):
         order = rng.permutation(len(z))
         for start in range(0, len(z), batch):
             picked = order[start : start + batch]
@@ -104,7 +114,26 @@ def train(
                 m[...] = 0.9 * m + 0.1 * g
                 v[...] = 0.999 * v + 0.001 * g * g
                 p -= rate * (m / (1 - 0.9**step)) / (np.sqrt(v / (1 - 0.999**step)) + 1e-8)
-    return WinModel(tuple(weights), tuple(biases), mean, std, feature_names)
+        if validation is None:
+            continue
+        now = WinModel(
+            tuple(w.copy() for w in weights),
+            tuple(b.copy() for b in biases),
+            mean,
+            std,
+            feature_names,
+            epoch,
+        )
+        loss = log_loss(now.predict(validation[0]), validation[1])
+        if loss < best_loss:
+            best, best_loss, waited = now, loss, 0
+        else:
+            waited += 1
+            if waited == patience:
+                break
+    if best is not None:
+        return best
+    return WinModel(tuple(weights), tuple(biases), mean, std, feature_names, epochs)
 
 
 def _initial(rng: np.random.Generator, n_in: int, n_out: int, *, last: bool) -> Array:
