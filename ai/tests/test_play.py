@@ -10,7 +10,7 @@ from trainerlab.environment import DATA_DIR
 from trainerlab.play import main
 from trainerlab.screen import CLEAR
 
-SEED_LINE = re.compile(r"Seed \d+ \(replay this battle with --seed \d+\)\. Opponent: survivor\.")
+SEED_LINE = re.compile(r"Seed \d+ \(replay this battle with --seed \d+\)\. Opponent: forecaster\.")
 COLOUR = re.compile(r"\x1b\[3\dm")
 
 

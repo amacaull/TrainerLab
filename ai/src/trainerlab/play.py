@@ -1,6 +1,6 @@
 """`trainerlab play`: play a battle against a bot from the terminal.
 
-trainerlab play --against survivor --seed 42
+trainerlab play --against strategist --seed 42
 trainerlab play --team Dragapult,Snorlax,Toxapex,Excadrill,Blissey,Corviknight --no-hints
 """
 
