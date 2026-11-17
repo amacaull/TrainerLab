@@ -30,6 +30,25 @@ jobs:
       - name: Test
         run: ctest --test-dir engine/build --output-on-failure
 
+  search:
+    name: Search
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Configure
+        run: cmake -S search -B search/build -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+
+      - name: Build
+        run: cmake --build search/build -j
+
+      - name: Test
+        run: ctest --test-dir search/build --output-on-failure
+
+      # Speeds on a shared runner mean nothing: this only checks that the benchmark runs.
+      - name: Benchmark runs
+        run: search/build/search_bench 0.05
+
   ai:
     name: AI
     runs-on: ubuntu-24.04
