@@ -14,7 +14,7 @@ from collections.abc import Callable
 from typing import NamedTuple
 
 from trainerlab.bots.roster import BOTS, DESCRIPTIONS
-from trainerlab.commands import audit, dataset, duel, play, train, watch
+from trainerlab.commands import audit, bench, dataset, duel, play, train, watch
 from trainerlab.commands.console import stdout
 from trainerlab.commands.menu import menu
 from trainerlab.terminal.human import Ask
@@ -45,11 +45,12 @@ COMMANDS: dict[str, Command] = {
     "dataset": Command("turn battles into a dataset to learn from", lambda a, _: dataset.main(a)),
     "train": Command("fit a win probability model on a dataset", lambda a, _: train.main(a)),
     "bots": Command("list the bots and what each one does", _list_bots),
+    "bench": Command("measure how fast the bots play", lambda a, _: bench.main(a)),
 }
 
 
-# The modes of the menu: every command but the list of bots.
-MODES = [(name, command.summary) for name, command in COMMANDS.items() if name != "bots"]
+# The modes of the menu: every command but the list of bots and the benchmark.
+MODES = [(name, c.summary) for name, c in COMMANDS.items() if name not in ("bots", "bench")]
 
 
 def main(argv: list[str] | None = None, ask: Ask = input, write: Write = stdout) -> int:
