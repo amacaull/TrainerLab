@@ -15,7 +15,7 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 *.npz
-!ai/src/trainerlab/models/*.npz
+!ai/src/trainerlab/learning/models/*.npz
 
 # Editors and OS
 .vscode/
