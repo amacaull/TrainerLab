@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from trainerlab import _engine
-from trainerlab.dataset import build, main
+from trainerlab.dataset import build, default_name, main
 from trainerlab.decisions import decisions
 from trainerlab.environment import BattleEnvironment
 from trainerlab.features import feature_names, features
@@ -175,3 +175,9 @@ def test_a_fresh_process_writes_a_dataset_played_in_other_processes(tmp_path: Pa
     subprocess.run([sys.executable, "-c", script], check=True, capture_output=True)
 
     assert np.load(out)["x"].shape[0] > 0
+
+
+def test_a_forecaster_with_its_own_model_names_the_file_after_it() -> None:
+    assert default_name("forecaster:m/gen2.npz", "survivor", range(1, 3)) == (
+        "forecaster-gen2-vs-survivor-1-2.npz"
+    )

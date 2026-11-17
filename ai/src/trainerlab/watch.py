@@ -22,7 +22,7 @@ from trainerlab.harness import outcome_of, pair_battles, play_pair
 from trainerlab.options import add_bots, add_pairs, seeds_of
 from trainerlab.play import title_for
 from trainerlab.render import Style, describe_events, describe_move, describe_switch
-from trainerlab.roster import BOTS
+from trainerlab.roster import factory
 
 Write = Callable[[str], None]
 
@@ -61,7 +61,7 @@ def _list_losses(bot_a: str, bot_b: str, seeds: range, write: Write) -> None:
     lost = 0
     for seed in seeds:
         team0, team1 = random_team_pair(seed)
-        outcomes = play_pair(BOTS[bot_a], BOTS[bot_b], seed=seed, team0=team0, team1=team1)
+        outcomes = play_pair(factory(bot_a), factory(bot_b), seed=seed, team0=team0, team1=team1)
         for a_side, outcome in enumerate(outcomes):
             if outcome == "loss":
                 lost += 1
@@ -71,7 +71,7 @@ def _list_losses(bot_a: str, bot_b: str, seeds: range, write: Write) -> None:
 
 def _watch(bot_a: str, bot_b: str, seed: int, a_side: int, write: Write) -> None:
     team0, team1 = random_team_pair(seed)
-    battles = pair_battles(BOTS[bot_a], BOTS[bot_b], seed=seed, team0=team0, team1=team1)
+    battles = pair_battles(factory(bot_a), factory(bot_b), seed=seed, team0=team0, team1=team1)
     _, env, bot0, bot1 = next(battle for battle in battles if battle[0] == a_side)
     names = {a_side: f"A, {bot_a}", 1 - a_side: f"B, {bot_b}"}
     teams = {a_side: team0 if a_side == 0 else team1, 1 - a_side: team1 if a_side == 0 else team0}

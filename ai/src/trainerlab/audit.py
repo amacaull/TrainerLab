@@ -19,7 +19,7 @@ from trainerlab import _engine, estimate
 from trainerlab.decisions import Decision, decisions
 from trainerlab.harness import BotFactory, Outcome, outcome_of
 from trainerlab.options import add_bots, add_pairs, seeds_of, show
-from trainerlab.roster import BOTS
+from trainerlab.roster import factory
 
 Write = Callable[[str], None]
 
@@ -158,7 +158,7 @@ def main(argv: list[str] | None = None, write: Write = _stdout) -> int:
         signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
     seeds = seeds_of(args)
-    result = audit(BOTS[args.bot_a], BOTS[args.bot_b], seeds=seeds)
+    result = audit(factory(args.bot_a), factory(args.bot_b), seeds=seeds)
     won, drawn, lost = (result.battles[o] for o in ("win", "draw", "loss"))
     write(
         f"{args.bot_a} against {args.bot_b}, seeds {show(seeds)}: "

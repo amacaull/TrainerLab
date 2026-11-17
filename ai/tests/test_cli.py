@@ -118,11 +118,26 @@ def test_train_asks_for_a_dataset_that_exists_and_a_model(tmp_path: Path) -> Non
     data = tmp_path / "d.npz"
     data.write_bytes(b"")
 
-    command, shown = _menu(["6", "missing.npz", str(data), "2", "mine.npz"])
+    command, shown = _menu(["6", "missing.npz", f"{data} {data}", "2", "mine.npz"])
 
-    assert command == ["train", str(data), "--model", "network", "--out", "mine.npz"]
+    assert command == ["train", str(data), str(data), "--model", "network", "--out", "mine.npz"]
     assert "Invalid answer, try again." in shown
     assert _menu(["6", str(data), "", ""])[0] == ["train", str(data)]
+
+
+def test_the_forecaster_asks_for_its_model(tmp_path: Path) -> None:
+    model = tmp_path / "gen2.npz"
+    model.write_bytes(b"")
+
+    command, shown = _menu(["2", "7", "nowhere.npz", str(model), "7", "", "", ""])
+
+    assert command == ["duel", f"forecaster:{model}", "forecaster"]
+    assert "Its model (empty: the one shipped) > " in shown
+    assert _menu(["1", "7", str(model), "", "", ""])[0] == [
+        "play",
+        "--against",
+        f"forecaster:{model}",
+    ]
 
 
 def test_the_menu_prints_the_command_then_runs_it(capsys: pytest.CaptureFixture[str]) -> None:

@@ -78,7 +78,7 @@ def test_an_unknown_bot_is_refused(capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SystemExit):
         main(["genius", "random"])
 
-    assert "invalid choice: 'genius'" in capsys.readouterr().err
+    assert "unknown bot 'genius'" in capsys.readouterr().err
 
 
 def test_a_single_seed_is_one_pair(capsys: pytest.CaptureFixture[str]) -> None:

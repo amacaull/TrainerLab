@@ -22,7 +22,7 @@ from trainerlab.decisions import Decision, decisions
 from trainerlab.environment import DATA_DIR
 from trainerlab.features import Features, feature_names, features
 from trainerlab.options import add_bots, add_jobs, add_pairs, seeds_of, show
-from trainerlab.roster import BOTS
+from trainerlab.roster import factory, slug
 
 Write = Callable[[str], None]
 
@@ -54,11 +54,11 @@ def build(series: Iterable[Decision]) -> dict[str, npt.NDArray[np.generic]]:
 
 def build_block(bot_a: str, bot_b: str, seeds: range) -> dict[str, npt.NDArray[np.generic]]:
     """The rows of one block of pairs; a process of its own when they are spread over the cores."""
-    return build(decisions(BOTS[bot_a], BOTS[bot_b], seeds=seeds))
+    return build(decisions(factory(bot_a), factory(bot_b), seeds=seeds))
 
 
 def default_name(bot_a: str, bot_b: str, seeds: range) -> str:
-    return f"{bot_a}-vs-{bot_b}-{show(seeds)}.npz"
+    return f"{slug(bot_a)}-vs-{slug(bot_b)}-{show(seeds)}.npz"
 
 
 def _stdout(text: str) -> None:
