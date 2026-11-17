@@ -1,10 +1,137 @@
-# Results of the learned bots
+# Results
 
 Every line is a score over **5000 pairs of battles (10 000 battles)** on
 random teams, with its 95 % Wilson interval, reproducible with the command
 above its table. Since the engine is compiled without fused multiply-add
-(see the engine README, section 5), each line gives the same record, battle
-for battle, on macOS and on Linux.
+(see the engine README), each line gives the same record, battle for
+battle, on macOS and on Linux.
+
+## Rules 1 to 4
+
+Every bot against every other, seeds 0–4999. Each cell is the score of the row's bot against the
+column's bot; the whole interval is above 0.5 when the row's bot is better.
+
+| Bot ↓ against → | random | hitter (rule 1) | dodger (rule 2) | matcher (rule 3) | survivor (rule 4) |
+|---|---|---|---|---|---|
+| **random** | 0.500 | *0.027* | *0.076* | *0.026* | *0.025* |
+| **hitter** (rule 1) | 0.973 | 0.500 | *0.575* | *0.414* | *0.404* |
+| **dodger** (rule 2) | 0.924 | 0.425 | 0.500 | *0.368* | *0.361* |
+| **matcher** (rule 3) | 0.974 | 0.586 | 0.632 | 0.500 | *0.483* |
+| **survivor** (rule 4) | **0.975** | **0.596** | **0.639** | **0.517** | 0.500 |
+
+Cells in italics are not measured separately: each is one minus the measured
+duel the other way round.
+
+```mermaid
+xychart-beta
+    title "Score against rule 1 (hitter), 5000 pairs"
+    x-axis ["random", "dodger", "matcher", "survivor"]
+    y-axis "Score" 0 --> 1
+    bar [0.027, 0.425, 0.586, 0.596]
+    line [0.5, 0.5, 0.5, 0.5]
+```
+
+```mermaid
+xychart-beta
+    title "Each rule against the one it builds on, 5000 pairs"
+    x-axis ["rule 1 vs random", "rule 2 vs rule 1", "rule 3 vs rule 1", "rule 4 vs rule 3"]
+    y-axis "Score" 0 --> 1
+    bar [0.973, 0.425, 0.586, 0.517]
+    line [0.5, 0.5, 0.5, 0.5]
+```
+
+The measured duels, with their intervals:
+
+| Duel | Score | 95 % interval | Record (W / D / L) |
+|---|---|---|---|
+| random vs random | 0.500 | [0.490, 0.510] | 4969 / 58 / 4973 |
+| hitter vs random | 0.973 | [0.970, 0.976] | 9732 / 5 / 263 |
+| dodger vs random | 0.924 | [0.919, 0.929] | 9232 / 23 / 745 |
+| matcher vs random | 0.974 | [0.970, 0.977] | 9733 / 6 / 261 |
+| survivor vs random | 0.975 | [0.971, 0.977] | 9742 / 7 / 251 |
+| dodger vs hitter | 0.425 | [0.415, 0.435] | 4228 / 44 / 5728 |
+| matcher vs hitter | 0.586 | [0.576, 0.596] | 5837 / 49 / 4114 |
+| survivor vs hitter | 0.596 | [0.587, 0.606] | 5938 / 52 / 4010 |
+| matcher vs dodger | 0.632 | [0.623, 0.642] | 6302 / 42 / 3656 |
+| survivor vs dodger | 0.639 | [0.629, 0.648] | 6364 / 44 / 3592 |
+| survivor vs matcher | 0.517 | [0.507, 0.527] | 5148 / 43 / 4809 |
+
+Any line reproduces with `trainerlab duel <bot> <opponent> --pairs 5000`.
+
+**What the table says.**
+
+- **Rule 4 is the best of these four rules**: it beats every other one, rule 3 included
+  (0.517, the whole interval above 0.5).
+- **Against the random bot, every rule looks alike** (about 0.97): the
+  replacement rules of 3 and 4 only pay off against an opponent that plays
+  well. Beating the random bot says little once a bot is reasonable.
+- **Rule 2 is worse than rule 1 against everyone**, the random bot included.
+- **The mirror duels give exactly 0.500, by construction**: a deterministic
+  bot against itself plays the same battle twice in a pair, sides swapped, so
+  every pair is one win and one loss, or two draws. They check that the
+  harness is symmetric, not that the bots are balanced. Random against random,
+  whose two bots differ, is the real sanity check: 0.500.
+
+**How the rules were chosen.** Each decision was made earlier on 500 pairs
+(seeds 0–499), then confirmed on unseen seeds (10000–10499), before these
+5000-pair runs. Seeds 0–4999 include those first 500, so a tenth of these
+battles were already seen when the rules were chosen.
+
+### Negative results
+
+**Rule 2 loses to rule 1** (0.425 [0.415, 0.435]). Switching out of a super
+effective threat costs a turn, and the incoming Pokémon takes the hit. It is
+kept in the code as a measured negative result.
+
+**Rule 4 as first defined did not beat rule 3** (0.494 [0.464, 0.525], from
+the version described in the commit that introduced rule 4). It
+saved weakened Pokémon (median 36 % HP) at the cost of a hit on the
+switch-in, whereas letting a doomed Pokémon faint gives a free switch-in.
+Rule 4 above is the corrected version, fixed before being measured.
+
+### Traps found on the way
+
+**One matchup is not every matchup.** The first measurements used two fixed
+teams. There, rule 2 beat rule 1 (0.874), and the best replacement formula
+was "take the least damage". On random teams, rule 2 loses, and that formula
+is the weakest of the three tried.
+
+**Picking the best of several variants on the same data flatters it.** The
+replacement formula of rule 3 was chosen before measuring; three
+alternatives tried afterwards were checked on unseen seeds before any
+conclusion.
+
+**A tournament found a bug in the game loop.** A replacement can faint on
+entry (Stealth Rock), so who must replace next can change, or the battle can
+end. The loop now asks for one replacement at a time; two regression tests
+replay the battles that exposed it.
+
+## Rule 5: the damage the engine expects
+
+The engine now answers one question for any move:
+`_engine.expected_damage(view, side, slot)` gives the minimum, maximum and
+mean HP the move would take from the opposing active, by playing it through
+its own rules over every outcome of the dice (see the engine's [`docs/api.md`](../engine/docs/api.md)). Rule 5 is rule 4
+with one change: among its moves, it plays the highest mean. A move into Levitate, Seismic Toss, a second Fake Out, Poltergeist on a
+foe with no item or three hits of Triple Axel are now worth what they are
+really worth.
+
+The rule was fixed before measuring, and measured once, on seeds that served
+to choose nothing (30000–34999):
+
+```bash
+trainerlab duel calculator survivor --pairs 5000 --from 30000
+```
+
+| Duel | Score | 95 % interval | Record (W / D / L) |
+|---|---|---|---|
+| calculator (rule 5) vs survivor (rule 4) | **0.631** | [0.621, 0.640] | 6289 / 37 / 3674 |
+
+**Rule 5 beats rule 4 by thirteen points**, more than any step since rule 1
+against the random bot (rule 3 gained 8.6 points on rule 1, rule 4 1.7 on
+rule 3). The error analysis pointed there: half the losses a decision
+caused came from a wrong damage estimate
+([`error-analysis.md`](error-analysis.md)).
 
 ## Rule 5 and rule 6 against every other bot
 
@@ -91,6 +218,24 @@ Test: the battles whose seed is a multiple of 5, never seen in training.
 Stopping early cures the network's overfitting, but it stops after two
 passes and still does no better than the logistic regression: with these
 features, a hidden layer brings nothing.
+
+On the first dataset (147 356 rows from 3200 battles to train, 38 046 rows
+from 800 battles to test; the model shipped with rules 6 and 7 is its
+logistic regression):
+
+- **The logistic regression predicts the winner of an unseen position
+  72 % of the time**, against 51 % for the constant, and its scores in
+  training and in test are close: it generalises.
+- **The network overfits.** It does much better than the logistic
+  regression on the battles it was trained on (0.351) and worse on the
+  others (0.632). Rows of one battle look alike and share their label, and
+  the species features let it recognise a battle rather than a position:
+  3200 battles are few for 16 000 weights. It was measured as fixed in
+  advance; stopping it early is the variant measured on the next line.
+- **The weights of the logistic regression make sense.** The largest, on
+  standardised features: Pokémon alive and total HP of each side (the foe's
+  with a minus sign), then the best damage each active can expect, then the
+  HP of a few species (Dragapult, Azumarill, Mega Gengar).
 
 ## The data loop and the network, in play
 

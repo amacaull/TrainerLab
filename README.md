@@ -5,9 +5,11 @@
 A Pokémon-style battle engine in C++20, and AI agents that play it, written
 and measured in Python.
 
-> **Status: work in progress.** The engine is complete and tested. Hand-written
-> bots are measured, and you can play against them in the terminal:
-> `trainerlab play`, or just `trainerlab` for a menu (see [`ai/README.md`](ai/README.md)).
+> **Status: work in progress.** The engine is complete and tested. Seven bots
+> are measured, the best of them with a learned win model; you can play
+> against them in the terminal with `trainerlab play`, or `trainerlab` for a
+> menu. Next: search (simultaneous-move Nash, MCTS), then reinforcement
+> learning.
 
 ## Results so far
 
@@ -17,25 +19,25 @@ command.
 
 | Bot | Against | Score | 95 % interval |
 |---|---|---|---|
-| Rule 1: plays its highest expected damage | random bot | **0.973** | [0.970, 0.976] |
-| Rule 3: + replaces with the best matchup | rule 1 | **0.586** | [0.576, 0.596] |
-| Rule 4: + saves a healthy Pokémon about to fall first | rule 3 | **0.517** | [0.507, 0.527] |
-| Rule 5: rule 4, with the damage expected by the engine itself | rule 4 | **0.631** | [0.621, 0.640] |
-| Rule 6: plays each option a turn ahead, rated by a learned win model | rule 5 | **0.844** | [0.837, 0.851] |
-| Rule 7: rule 6, rating each option by the foe's best reply | rule 6 | **0.548** | [0.538, 0.558] |
+| `hitter` (rule 1): plays its strongest move | random | **0.973** | [0.970, 0.976] |
+| `matcher` (rule 3): + replaces with the best matchup | hitter | **0.586** | [0.576, 0.596] |
+| `survivor` (rule 4): + saves a healthy Pokémon about to fall | matcher | **0.517** | [0.507, 0.527] |
+| `calculator` (rule 5): + the damage the engine expects | survivor | **0.631** | [0.621, 0.640] |
+| `forecaster` (rule 6): a turn ahead, rated by a learned win model | calculator | **0.844** | [0.837, 0.851] |
+| `strategist` (rule 7): + rates each option by the foe's best reply | forecaster | **0.548** | [0.538, 0.558] |
 
-Rule 6 beats every earlier bot; rule 7 beats rule 6 head to head, but does
-worse than rule 6 against every other bot: guarding against the worst reply
-costs the chances a predictable foe leaves. Every duel, the models and the
-negative results: [`docs/results.md`](docs/results.md); the method and the
-earlier rules: [`ai/README.md`](ai/README.md).
+`forecaster` beats every earlier bot. `strategist` beats it head to head but
+does worse against every other bot: guarding against the worst reply costs
+the chances a predictable foe leaves.
 
-## What is here
+## Where to look
 
-| Directory | Content |
+| | |
 |---|---|
-| [`engine/`](engine/) | The battle engine: stateless, deterministic, 308 tests. See its [README](engine/README.md). |
-| [`ai/`](ai/) | Python: the engine binding, a referee, bots, a statistical tournament harness. See its [README](ai/README.md). |
+| [`engine/`](engine/) | The battle engine: stateless, deterministic, 309 tests. [README](engine/README.md), [API](engine/docs/api.md). |
+| [`ai/`](ai/) | The bots, the command `trainerlab`, the tournaments and the learning. [README](ai/README.md). |
+| [`docs/results.md`](docs/results.md) | Every duel and every model, negative results included. |
+| [`docs/error-analysis.md`](docs/error-analysis.md) | Why a bot loses: losses studied by hand, mistakes counted automatically. |
 
 ## Origin
 
