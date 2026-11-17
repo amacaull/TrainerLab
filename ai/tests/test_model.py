@@ -77,3 +77,27 @@ def test_the_scores_of_a_coin_toss_and_of_a_perfect_guess() -> None:
     assert brier(coin, y) == pytest.approx(0.25 * 3 / 4)
     assert log_loss(np.array([1.0, 0.0]), np.array([1.0, 0.0])) < 1e-9
     assert accuracy(np.array([0.9, 0.2, 0.9, 0.4]), y) == pytest.approx(2 / 3)  # draw left out
+
+
+def test_stopping_early_keeps_the_pass_that_did_best_on_the_validation_rows() -> None:
+    x, y = _linear_data()
+    xv, yv = _linear_data(seed=1)
+
+    stopped = train(x, y, NAMES, hidden=(8,), epochs=6, patience=6, validation=(xv, yv))
+
+    losses = [
+        log_loss(train(x, y, NAMES, hidden=(8,), epochs=k).predict(xv), yv) for k in range(1, 7)
+    ]
+    assert stopped.epochs == 1 + int(np.argmin(losses))
+    assert log_loss(stopped.predict(xv), yv) == pytest.approx(min(losses))
+
+
+def test_training_stops_once_the_validation_rows_stop_improving() -> None:
+    x, y = _linear_data()
+    rng = np.random.default_rng(2)
+    noise = (rng.normal(size=(500, 2)), (rng.random(500) < 0.5).astype(float))
+
+    stopped = train(x, y, NAMES, hidden=(8,), epochs=50, patience=1, validation=noise)
+
+    assert stopped.epochs < 50
+    assert train(x, y, NAMES, epochs=3).epochs == 3  # no validation: every pass

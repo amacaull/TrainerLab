@@ -220,9 +220,7 @@ Accuracy: rows won or lost on the right side of 0.5, draws left out.
   others (0.632). Rows of one battle look alike and share their label, and
   the species features let it recognise a battle rather than a position:
   3200 battles are few for 16 000 weights. It was measured as fixed in
-  advance; making it generalise (stopping early, on a validation set taken
-  from the training seeds) would be a new variant, to choose without the
-  test seeds and confirm on them.
+  advance; making it generalise is the variant below.
 - **The weights of the logistic regression make sense.** The largest, on
   standardised features: Pokémon alive and total HP of each side (the foe's
   with a minus sign), then the best damage each active can expect, then the
@@ -303,6 +301,19 @@ trainerlab duel forecaster:gen2.npz forecaster --pairs 5000 --from 65000
 The last line measures the new model against the shipped one, on seeds no
 dataset used. The two bots differ only by their model, so the score is what
 the new data is worth.
+
+### The network, stopped early
+
+`--model network-stop` is the same network, with one change fixed before
+measuring: from its training battles, it holds out those whose seed ends in
+1 or 6, scores itself on them after each pass over the data, and keeps the
+best pass once 3 passes in a row did no better (50 at most). The test
+battles (multiples of 5) stay untouched, so its test scores compare with the
+table above:
+
+```bash
+trainerlab train calculator-vs-survivor-40000-41999.npz --model network-stop
+```
 
 ## Watching a battle between bots
 

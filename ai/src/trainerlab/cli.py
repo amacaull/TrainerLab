@@ -137,7 +137,7 @@ def _train(ask: Ask, write: Write) -> list[str]:
         ask,
         write,
         "Model",
-        [(m, f"hidden layers {h or 'none'}") for m, h in train.MODELS.items()],
+        list(train.DESCRIPTIONS.items()),
         "logistic",
     )
     default = str(train.default_name([Path(p) for p in paths], model))
