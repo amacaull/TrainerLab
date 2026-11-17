@@ -3,7 +3,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from trainerlab.learning.model import WinModel, accuracy, brier, is_test, log_loss, train
+from trainerlab.learning.fitting import is_test
+from trainerlab.learning.model import WinModel, accuracy, brier, log_loss, train
 
 XOR = np.array([[0.0, 0.0], [0.0, 1.0], [1.0, 0.0], [1.0, 1.0]] * 64)
 XOR_WINS = np.array([0.0, 1.0, 1.0, 0.0] * 64)

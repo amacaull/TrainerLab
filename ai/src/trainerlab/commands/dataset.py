@@ -4,28 +4,22 @@ trainerlab dataset calculator survivor --pairs 2000 --from 40000
 """
 
 import argparse
-import sys
-from collections.abc import Callable
 from pathlib import Path
 
+from trainerlab.commands.console import stdout
 from trainerlab.commands.options import add_bots, add_jobs, add_pairs, seeds_of
 from trainerlab.experiments import parallel
 from trainerlab.experiments.dataset import default_name, generate, save
 from trainerlab.game.pairs import span
-
-Write = Callable[[str], None]
-
-
-def _stdout(text: str) -> None:
-    sys.stdout.write(text)
+from trainerlab.terminal.screen import Write
 
 
-def main(argv: list[str] | None = None, write: Write = _stdout) -> int:
+def main(argv: list[str] | None = None, write: Write = stdout) -> int:
     parser = argparse.ArgumentParser(
         prog="trainerlab dataset", description="Turn the decisions of battles into a dataset."
     )
     add_bots(parser)
-    add_pairs(parser, 500)
+    add_pairs(parser)
     add_jobs(parser)
     parser.add_argument(
         "--out", type=Path, help="the .npz file to write (default: BOT_A-vs-BOT_B-SEEDS.npz)"

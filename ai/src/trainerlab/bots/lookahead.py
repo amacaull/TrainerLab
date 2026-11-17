@@ -21,7 +21,6 @@ from trainerlab.game.views import playable
 from trainerlab.learning.features import feature_names, features
 from trainerlab.learning.model import SHIPPED, WinModel
 
-MODEL = SHIPPED
 SAMPLES = 2  # turns played per option, on the same seeds for every option
 
 
@@ -68,16 +67,11 @@ class Forecaster:
 
     def odds(self, state: _engine.BattleState, side: int) -> float:
         """The probability of winning from this position, as the model sees it."""
-        mine, theirs = _engine.side_has_lost(state, side), _engine.side_has_lost(state, 1 - side)
-        if mine or theirs:
-            return 0.5 if mine and theirs else 0.0 if mine else 1.0
+        lost, won = _engine.side_has_lost(state, side), _engine.side_has_lost(state, 1 - side)
+        if lost or won:
+            return 0.5 if lost and won else float(won)  # the battle is over: no need to guess
         x = features(_engine.observe(state, side), side)
         return float(self.model.predict(x[np.newaxis])[0])
-
-
-@cache
-def _shipped_model() -> WinModel:
-    return WinModel.load(MODEL)
 
 
 class Strategist(Forecaster):
@@ -115,6 +109,11 @@ def replies(
         for action in _engine.legal_actions(state, foe)
         if action.kind == _engine.ACTION_MOVE or not view.pokemon(foe, action.index).is_empty()
     ]
+
+
+@cache
+def _shipped_model() -> WinModel:
+    return WinModel.load(SHIPPED)
 
 
 def _foe_action(state: _engine.BattleState, foe: int) -> _engine.Action:

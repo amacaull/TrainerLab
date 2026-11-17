@@ -16,7 +16,6 @@ import numpy.typing as npt
 Array = npt.NDArray[np.float64]
 
 SHIPPED = Path(__file__).parent / "models" / "win-logistic.npz"  # the model rules 6 and 7 play with
-TEST_EVERY = 5  # a seed whose remainder by 5 is 0 goes to the test set: 20 % of the battles
 
 
 @dataclass(frozen=True)
@@ -43,6 +42,7 @@ class WinModel:
         return _sigmoid(z @ self.weights[-1] + self.biases[-1]).ravel()
 
     def save(self, path: Path) -> None:
+        """Writes the model as .npz: its layers, the standardisation and the feature names."""
         arrays: dict[str, Any] = {f"w{i}": w for i, w in enumerate(self.weights)}
         arrays |= {f"b{i}": b for i, b in enumerate(self.biases)}
         arrays |= {
@@ -100,8 +100,8 @@ def train(
     ]
     biases = [np.zeros(n_out) for n_out in sizes[1:]]
     params = weights + biases
-    first = [np.zeros_like(p) for p in params]
-    second = [np.zeros_like(p) for p in params]
+    first = [np.zeros_like(p) for p in params]  # Adam's running mean of the gradients
+    second = [np.zeros_like(p) for p in params]  # and of their squares
     step = 0
     best: WinModel | None = None
     best_loss, waited = np.inf, 0
@@ -112,6 +112,7 @@ def train(
             grads = _gradients(weights, biases, z[picked], labels[picked], decay)
             step += 1
             for p, g, m, v in zip(params, grads, first, second, strict=True):
+                # Adam's update, with its usual constants: beta1 0.9, beta2 0.999, epsilon 1e-8.
                 m[...] = 0.9 * m + 0.1 * g
                 v[...] = 0.999 * v + 0.001 * g * g
                 p -= rate * (m / (1 - 0.9**step)) / (np.sqrt(v / (1 - 0.999**step)) + 1e-8)
@@ -168,12 +169,6 @@ def _sigmoid(t: Array) -> Array:
 
 # ---------------------------------------------------------------------------------------------
 # Measuring a model
-
-
-def is_test(seeds: npt.NDArray[np.integer]) -> npt.NDArray[np.bool_]:
-    """Which rows go to the test set: by seed, so that no battle is split between the two."""
-    test: npt.NDArray[np.bool_] = np.asarray(seeds) % TEST_EVERY == 0
-    return test
 
 
 def log_loss(p: Array, y: npt.NDArray[np.floating]) -> float:

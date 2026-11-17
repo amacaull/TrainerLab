@@ -1,6 +1,7 @@
 """A human at the keyboard, as a bot: the game loop asks them exactly what it asks any bot."""
 
 from collections.abc import Callable
+from functools import partial
 
 from trainerlab import _engine
 from trainerlab.terminal.render import (
@@ -39,7 +40,7 @@ class HumanPlayer:
         labels = [describe_move(action, view, side, self._hints) for action in moves]
         if switches:
             labels.append("Switch…")
-        details = lambda: describe_moves(view, side)  # noqa: E731
+        details = partial(describe_moves, view, side)
         while True:
             choice = self._pick("What will you do?", labels, details=details)
             if choice is not None and choice < len(moves):

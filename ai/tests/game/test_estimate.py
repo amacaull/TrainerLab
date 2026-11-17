@@ -4,9 +4,8 @@ import pytest
 
 from trainerlab import _engine
 from trainerlab.game.environment import BattleEnvironment
-from trainerlab.game.estimate import effective_speed, estimate_damage, strongest_hit
-
-PARALYSIS = 4
+from trainerlab.game.estimate import PARALYSIS, effective_speed, estimate_damage, strongest_hit
+from trainerlab.game.events import EventKind
 
 
 def _leads(attacker: str, defender: str) -> tuple[_engine.BattlePokemon, _engine.BattlePokemon]:
@@ -28,7 +27,11 @@ def test_the_estimate_matches_the_engine_on_a_plain_hit() -> None:
         view = env.observe(0)
         guess = estimate_damage(view.active(0), view.active(1), 1)
         events = env.play_turn(_engine.Action.move(1), _engine.Action.move(0))  # Snorlax: Curse
-        dealt += [e.i0 for e in events if e.kind == 1 and e.side == 1 and not e.flags & 2]
+        dealt += [
+            e.i0
+            for e in events
+            if e.kind == EventKind.DAMAGE_DEALT and e.side == 1 and not e.flags & _engine.FLAG_CRIT
+        ]
 
     assert statistics.mean(dealt) == pytest.approx(guess, rel=0.03)
 

@@ -584,6 +584,12 @@ DamageOutlook BattleEngine::expectedDamage(const BattleState &state, int side,
   };
 
   DamageOutlook outlook{INT_MAX, 0, 0.0, true};
+  auto record = [&outlook](int damage, double weight) {
+    outlook.min = std::min(outlook.min, damage);
+    outlook.max = std::max(outlook.max, damage);
+    outlook.mean += weight * damage;
+  };
+
   OutcomeWalker walker;
   int walked = 0;
   do {
@@ -591,20 +597,14 @@ DamageOutlook BattleEngine::expectedDamage(const BattleState &state, int side,
       outlook = {INT_MAX, 0, 0.0, false};
       break;
     }
-    const int damage = lost(walker);
-    outlook.min = std::min(outlook.min, damage);
-    outlook.max = std::max(outlook.max, damage);
-    outlook.mean += walker.weight() * damage;
+    const int damage = lost(walker); // first: the walk sets the weight as it draws
+    record(damage, walker.weight());
   } while (walker.next());
 
   if (!outlook.exact) {
     MersenneRNG rng(kOutlookSampleSeed);
-    for (int i = 0; i < kOutlookSamples; ++i) {
-      const int damage = lost(rng);
-      outlook.min = std::min(outlook.min, damage);
-      outlook.max = std::max(outlook.max, damage);
-      outlook.mean += damage;
-    }
+    for (int i = 0; i < kOutlookSamples; ++i)
+      record(lost(rng), 1.0);
     outlook.mean /= kOutlookSamples;
   }
   return outlook;

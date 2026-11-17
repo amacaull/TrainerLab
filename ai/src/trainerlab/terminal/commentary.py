@@ -5,8 +5,6 @@ then every option with the bot's damage estimate and the one it chose; then the 
 turn, as they really happened. A mistake stands out where the estimate and the events disagree.
 """
 
-from collections.abc import Callable
-
 from trainerlab import _engine
 from trainerlab.game import estimate
 from trainerlab.game.battle import play_battle
@@ -19,8 +17,7 @@ from trainerlab.terminal.render import (
     describe_switch,
     title_for,
 )
-
-Write = Callable[[str], None]
+from trainerlab.terminal.screen import Write
 
 CHOSEN = ">"
 PLAIN = Style(enabled=False)

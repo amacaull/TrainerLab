@@ -19,6 +19,7 @@ BLOCK = 25  # pairs per block: small enough for a steady progress line and a fai
 
 
 def cores() -> int:
+    """The number of cores of this machine: the default number of processes."""
     return os.cpu_count() or 1
 
 

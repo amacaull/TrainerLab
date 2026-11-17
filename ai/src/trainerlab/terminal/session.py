@@ -9,7 +9,8 @@ from trainerlab.terminal.render import Style, describe_board, narrate, title_for
 from trainerlab.terminal.screen import Screen
 from trainerlab.terminal.stats import BattleStats
 
-ME = 0
+ME = 0  # the human plays side 0
+ABANDONED = 130  # the exit status of a program stopped by Ctrl-C
 RESULTS = {ME: "You won!", 1 - ME: "You lost.", None: "It's a draw."}
 
 
@@ -24,6 +25,7 @@ def play_session(
     ask: Ask,
     hints: bool,
 ) -> int:
+    """Plays the battle with the human as side 0; returns the exit status of the command."""
     screen.clear()
     screen.message(
         f"Seed {seed} (replay this battle with --seed {seed}). Opponent: {opponent_name}."
@@ -47,7 +49,7 @@ def play_session(
         winner = play_battle(env, player, opponent, tell)
     except (EOFError, KeyboardInterrupt):
         screen.message("Battle abandoned.")
-        return 130
+        return ABANDONED
 
     final = env.observe(ME)
     screen.clear()

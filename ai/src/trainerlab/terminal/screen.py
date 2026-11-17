@@ -27,10 +27,13 @@ Write = Callable[[str], None]
 
 
 def visible_length(text: str) -> int:
+    """The width of a text on screen: its colour codes take no room."""
     return len(ANSI.sub("", text))
 
 
 class Screen:
+    """Framed panels of a fixed width, typed out at the chosen speed, and copied to a log."""
+
     def __init__(
         self,
         write: Write,

@@ -5,20 +5,14 @@ trainerlab train a.npz b.npz c.npz --out gen2.npz        # several datasets, put
 """
 
 import argparse
-import sys
-from collections.abc import Callable
 from pathlib import Path
 
+from trainerlab.commands.console import stdout
 from trainerlab.learning.fitting import MODELS, DatasetError, default_name, fit, load
-
-Write = Callable[[str], None]
-
-
-def _stdout(text: str) -> None:
-    sys.stdout.write(text)
+from trainerlab.terminal.screen import Write
 
 
-def main(argv: list[str] | None = None, write: Write = _stdout) -> int:
+def main(argv: list[str] | None = None, write: Write = stdout) -> int:
     parser = argparse.ArgumentParser(
         prog="trainerlab train", description="Fit and measure a win probability model."
     )

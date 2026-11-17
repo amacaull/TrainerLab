@@ -3,8 +3,7 @@ from trainerlab.bots.baseline import RandomBot
 from trainerlab.bots.rules import hitter, survivor
 from trainerlab.experiments.tournament import run_tournament
 from trainerlab.game.environment import BattleEnvironment
-
-PARALYSIS = 4
+from trainerlab.game.estimate import PARALYSIS
 
 # Conkeldurr outspeeds Snorlax and should hit it for about 444 of its 524 HP. On the bench,
 # Azumarill and Corviknight would take a cheap hit; Corviknight has the better matchup.
@@ -70,14 +69,14 @@ def test_the_bot_reads_its_own_side_and_the_opposing_active() -> None:
     assert survivor().choose_action(1, view, env.legal_actions(1)) == Action.switch(2)
 
 
-def test_the_survival_bot_beats_the_random_bot() -> None:
+def test_the_survivor_beats_the_random_bot() -> None:
     result = run_tournament(lambda seed: survivor(), lambda seed: RandomBot(seed=seed), pairs=100)
     low, _ = result.interval
 
     assert low > 0.5
 
 
-def test_replacements_still_follow_rule_three() -> None:
+def test_it_replaces_like_the_matcher() -> None:
     env = BattleEnvironment(
         ["Dragapult"], ["Snorlax", "Weavile", "HoopaUnbound", "KommoO"], seed=42
     )

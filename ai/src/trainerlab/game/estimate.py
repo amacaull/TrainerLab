@@ -9,9 +9,10 @@ damage roll, for which it takes the average.
 
 from trainerlab import _engine
 
-LEVEL_FACTOR = 2 * 100 / 5 + 2  # every Pokemon is level 100
+LEVEL = 100  # every Pokemon
+LEVEL_FACTOR = 2 * LEVEL / 5 + 2
 AVERAGE_ROLL = 0.925  # damage rolls are uniform between 85 % and 100 %
-STAB_BONUS = 1.5
+STAB_BONUS = 1.5  # same-type attack bonus
 PHYSICAL = 0
 ATTACK, DEFENSE, SPECIAL_ATTACK, SPECIAL_DEFENSE, SPEED = range(5)
 PARALYSIS = 4
@@ -48,6 +49,7 @@ def strongest_hit(attacker: _engine.BattlePokemon, defender: _engine.BattlePokem
 
 
 def effective_speed(pokemon: _engine.BattlePokemon) -> float:
+    """Speed after its stage, a Choice Scarf and paralysis: who moves first, as a player sees it."""
     speed = _staged(pokemon.stats.speed, pokemon, SPEED)
     if _held_item(pokemon) == _SPEED_ITEM:
         speed *= _SPEED_ITEM_BOOST

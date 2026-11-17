@@ -37,6 +37,7 @@ class Decision:
 
     @property
     def by_a(self) -> bool:
+        """Whether bot A made this decision."""
         return self.side == self.a_side
 
     @property

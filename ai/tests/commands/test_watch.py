@@ -19,7 +19,7 @@ def _run(argv: list[str]) -> list[str]:
 
 
 def _losses(first_seed: int, pairs: int) -> list[tuple[int, int]]:
-    """(seed, A's side) of every battle survivor loses to matcher, measured by the harness."""
+    """(seed, A's side) of every battle survivor loses to matcher, measured by a tournament."""
     lost = []
     for seed in range(first_seed, first_seed + pairs):
         team0, team1 = random_team_pair(seed)

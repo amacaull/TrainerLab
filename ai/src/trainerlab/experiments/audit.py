@@ -13,10 +13,9 @@ from dataclasses import dataclass, field
 from trainerlab import _engine
 from trainerlab.game import estimate
 from trainerlab.game.decisions import Decision, decisions
+from trainerlab.game.events import EventKind
 from trainerlab.game.pairs import BotFactory, Outcome, outcome_of
 
-MOVE_USED, DAMAGE, ABILITY_TRIGGERED, STATUS_FAILED, MOVE_FAILED = 0, 1, 13, 5, 14
-LEVEL = 100  # every Pokemon is level 100: Seismic Toss takes 100 HP
 # The abilities that make a Pokemon immune to a move. Others also trigger as a move lands
 # (Disguise takes the hit, Magic Bounce sends it back): those are not an immunity the bot missed.
 IMMUNITIES = {"Levitate", "VoltAbsorb", "LightningRod", "FlashFire", "Bulletproof"}
@@ -26,7 +25,7 @@ def _own_move_followed_by(d: Decision) -> list[_engine.Event]:
     """The event right after each move the deciding side used this turn."""
     after = []
     for event, following in zip(d.events, d.events[1:], strict=False):
-        if event.kind == MOVE_USED and event.side == d.side:
+        if event.kind == EventKind.MOVE_USED and event.side == d.side:
             after.append(following)
     return after
 
@@ -36,8 +35,11 @@ def _no_effect(d: Decision) -> bool:
     return any(
         e.side != d.side
         and (
-            (e.kind == DAMAGE and e.f0 == 0)
-            or (e.kind == ABILITY_TRIGGERED and _engine.ability_name(e.name_id) in IMMUNITIES)
+            (e.kind == EventKind.DAMAGE_DEALT and e.f0 == 0)
+            or (
+                e.kind == EventKind.ABILITY_TRIGGERED
+                and _engine.ability_name(e.name_id) in IMMUNITIES
+            )
         )
         for e in _own_move_followed_by(d)
     )
@@ -46,7 +48,7 @@ def _no_effect(d: Decision) -> bool:
 def _failed(d: Decision) -> bool:
     """A move that failed outright: Fake Out after the first turn, hazards already laid..."""
     return any(
-        e.kind == MOVE_FAILED or (e.kind == STATUS_FAILED and e.side != d.side)
+        e.kind == EventKind.MOVE_FAILED or (e.kind == EventKind.STATUS_FAILED and e.side != d.side)
         for e in _own_move_followed_by(d)
     )
 
@@ -72,7 +74,7 @@ def _level_damage(attacker: _engine.BattlePokemon, foe: _engine.BattlePokemon, s
     level_based = any(effect.damage_equals_level for effect in move.effects)
     if not level_based or _engine.type_effectiveness(move.type, foe.species_id) == 0:
         return 0
-    return LEVEL
+    return estimate.LEVEL  # Seismic Toss takes 100 HP
 
 
 def _blind_choice(d: Decision) -> bool:
@@ -98,12 +100,16 @@ def _no_battles() -> dict[Outcome, int]:
 
 @dataclass
 class CheckCount:
+    """How often one check fired, and in how many battles of each outcome."""
+
     occurrences: int = 0
     battles: dict[Outcome, int] = field(default_factory=_no_battles)  # with at least one
 
 
 @dataclass
 class AuditResult:
+    """Bot A's decisions and battles, and the count of every check."""
+
     decisions: int = 0  # made by bot A
     battles: dict[Outcome, int] = field(default_factory=_no_battles)
     checks: dict[str, CheckCount] = field(default_factory=dict)

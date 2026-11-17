@@ -34,7 +34,7 @@ def test_the_bot_reads_its_own_side() -> None:
     assert rule_five == Action.move(3)
 
 
-def test_escapes_are_still_rule_four() -> None:
+def test_it_escapes_like_the_survivor() -> None:
     # Conkeldurr outspeeds Snorlax and would knock it out from 367 HP: Corviknight comes in.
     env = BattleEnvironment(
         ["Snorlax", "Azumarill", "Corviknight", "GiratinaOrigin"], ["Conkeldurr"], seed=1

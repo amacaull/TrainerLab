@@ -12,6 +12,7 @@ from contextlib import ExitStack
 
 from trainerlab import _engine
 from trainerlab.bots.roster import DEFAULT_OPPONENT, WITH_MODEL, bot_spec, factory
+from trainerlab.commands.console import stdout
 from trainerlab.game.environment import BattleEnvironment, random_team_pair
 from trainerlab.terminal.human import Ask
 from trainerlab.terminal.render import Style
@@ -19,12 +20,7 @@ from trainerlab.terminal.screen import SPEEDS, Screen, Write
 from trainerlab.terminal.session import play_session
 
 
-def _stdout(text: str) -> None:
-    sys.stdout.write(text)
-    sys.stdout.flush()
-
-
-def main(argv: list[str] | None = None, ask: Ask = input, write: Write = _stdout) -> int:
+def main(argv: list[str] | None = None, ask: Ask = input, write: Write = stdout) -> int:
     parser = argparse.ArgumentParser(
         prog="trainerlab play", description="Play a battle against a bot."
     )

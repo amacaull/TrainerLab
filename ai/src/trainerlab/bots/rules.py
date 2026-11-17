@@ -20,6 +20,8 @@ Switch = Callable[[int, View, list[Action]], Action | None]  # None: stay and mo
 
 @dataclass(frozen=True)
 class RuleBot:
+    """A bot made of three choices: it switches if `switch` says so, else moves."""
+
     move: MoveChoice
     replacement: Replacement
     switch: Switch | None = None
@@ -73,8 +75,6 @@ def calculator() -> RuleBot:
 # ---------------------------------------------------------------------------------------------
 # Move choices
 
-STAB_BONUS = 1.5  # same-type attack bonus
-
 
 def most_power(side: int, view: View, moves: list[Action]) -> Action:
     """The move with the highest power x STAB x type effectiveness x accuracy; status moves 0."""
@@ -93,7 +93,7 @@ def most_expected_damage(side: int, view: View, moves: list[Action]) -> Action:
 def _power_score(attacker: _engine.BattlePokemon, slot: int, defender_species: int) -> float:
     move = _engine.move_entry(attacker.move_ids[slot])
     attacker_types = _engine.species_entry(attacker.species_id)
-    stab = STAB_BONUS if move.type in (attacker_types.type1, attacker_types.type2) else 1.0
+    stab = estimate.STAB_BONUS if move.type in (attacker_types.type1, attacker_types.type2) else 1.0
     effectiveness = _engine.type_effectiveness(move.type, defender_species)
     hit_chance = move.accuracy / 100 if move.accuracy > 0 else 1.0
     return move.power * stab * effectiveness * hit_chance
@@ -113,6 +113,7 @@ def _best_power(attacker: _engine.BattlePokemon, defender_species: int) -> float
 
 
 def first_offered(side: int, view: View, options: list[int]) -> int:
+    """The first Pokemon the referee offers, in team order."""
     return options[0]
 
 

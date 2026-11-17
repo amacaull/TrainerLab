@@ -15,13 +15,17 @@ from typing import NamedTuple
 
 from trainerlab.bots.roster import BOTS, DESCRIPTIONS
 from trainerlab.commands import audit, dataset, duel, play, train, watch
+from trainerlab.commands.console import stdout
 from trainerlab.commands.menu import menu
 from trainerlab.terminal.human import Ask
+from trainerlab.terminal.screen import Write
 
-Write = Callable[[str], None]
+INTERRUPTED = 130  # the exit status of a program stopped by Ctrl-C
 
 
 class Command(NamedTuple):
+    """A subcommand: its line in the help, and how to run it."""
+
     summary: str
     run: Callable[[list[str], Ask], int]
 
@@ -48,19 +52,14 @@ COMMANDS: dict[str, Command] = {
 MODES = [(name, command.summary) for name, command in COMMANDS.items() if name != "bots"]
 
 
-def _stdout(text: str) -> None:
-    sys.stdout.write(text)
-    sys.stdout.flush()
-
-
-def main(argv: list[str] | None = None, ask: Ask = input, write: Write = _stdout) -> int:
+def main(argv: list[str] | None = None, ask: Ask = input, write: Write = stdout) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if not argv:
         try:
             argv = menu(ask, write, MODES)
         except (EOFError, KeyboardInterrupt):
             write("\n")
-            return 130
+            return INTERRUPTED
         write(f"\n{shlex.join(['trainerlab', *argv])}\n\n")
     command, rest = argv[0], argv[1:]
     if command in ("-h", "--help"):
