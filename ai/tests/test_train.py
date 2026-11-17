@@ -75,3 +75,15 @@ def test_datasets_with_other_features_are_refused(dataset: Path, tmp_path: Path)
 
     assert main([str(dataset), str(stray)], lines.append) == 2
     assert lines == ["These datasets do not have the same features: build them again\n"]
+
+
+def test_the_network_can_stop_early_on_battles_held_out_of_training(
+    dataset: Path, tmp_path: Path
+) -> None:
+    lines: list[str] = []
+    out = str(tmp_path / "stop.npz")
+
+    assert main([str(dataset), "--model", "network-stop", "--out", out], lines.append) == 0
+
+    held = next(line for line in lines if "held out to stop early" in line)
+    assert "best after 1 pass\n" in held or "passes" in held

@@ -4,7 +4,9 @@
     trainerlab train a.npz b.npz c.npz --out gen2.npz        # several datasets, put together
 
 The battles whose seed is a multiple of 5 are held out for the test: 20 % of them, never seen in
-training. The model is compared there with a constant, the share of wins in training.
+training. The model is compared there with a constant, the share of wins in training. A model
+that stops early also holds out, from its training battles, those whose seed ends in 1 or 6: it
+is scored on them after each pass over the data, and the best pass is kept.
 """
 
 import argparse
@@ -14,12 +16,20 @@ from pathlib import Path
 
 import numpy as np
 
-from trainerlab.model import accuracy, brier, is_test, log_loss, train
+from trainerlab.model import TEST_EVERY, accuracy, brier, is_test, log_loss, train
 
 Write = Callable[[str], None]
 
-# Fixed before any measurement: a logistic regression, and one hidden layer of 64 ReLU units.
-MODELS: dict[str, tuple[int, ...]] = {"logistic": (), "network": (64,)}
+# Fixed before any measurement: a logistic regression, and one hidden layer of 64 ReLU units,
+# trained for 10 passes; then the same network stopped early (at most 50 passes, patience 3).
+MODELS: dict[str, tuple[int, ...]] = {"logistic": (), "network": (64,), "network-stop": (64,)}
+DESCRIPTIONS = {
+    "logistic": "logistic regression",
+    "network": "one hidden layer of 64 units, 10 passes",
+    "network-stop": "one hidden layer of 64 units, stopped early on validation battles",
+}
+EARLY_STOP = {"network-stop"}
+MOST_PASSES, PATIENCE = 50, 3
 
 
 def default_name(datasets: list[Path], model: str) -> Path:
@@ -59,12 +69,32 @@ def main(argv: list[str] | None = None, write: Write = _stdout) -> int:
         f"({len(np.unique(seeds[test]))} seeds, the multiples of 5)\n\n"
     )
 
-    model = train(x[~test], y[~test], names, hidden=MODELS[args.model])
+    fit, validation = ~test, None
+    hidden = MODELS[args.model]
+    if args.model in EARLY_STOP:
+        held = fit & (seeds % TEST_EVERY == 1)
+        fit, validation = fit & ~held, (x[held], y[held])
+        model = train(
+            x[fit],
+            y[fit],
+            names,
+            hidden=hidden,
+            epochs=MOST_PASSES,
+            patience=PATIENCE,
+            validation=validation,
+        )
+    else:
+        model = train(x[fit], y[fit], names, hidden=hidden)
+    if validation is not None:
+        write(
+            f"{len(validation[1])} of the training rows held out to stop early: "
+            f"best after {model.epochs} pass{'es' if model.epochs > 1 else ''}\n\n"
+        )
     constant = np.full(test.sum(), y[~test].mean())
     write(f"{'':<18}{'log loss':>10}{'Brier':>8}{'accuracy':>10}\n")
     for label, p, labels in (
         ("constant, test", constant, y[test]),
-        (f"{model.kind}, train", model.predict(x[~test]), y[~test]),
+        (f"{model.kind}, train", model.predict(x[fit]), y[fit]),
         (f"{model.kind}, test", model.predict(x[test]), y[test]),
     ):
         write(
