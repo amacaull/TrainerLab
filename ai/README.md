@@ -352,13 +352,18 @@ possible, the variant is fixed before measuring at all.
 | Bot | Command name | Rule |
 |---|---|---|
 | `RandomBot` | `random` | A uniformly random legal choice: the baseline. |
-| `HeuristicBot` | `hitter` | **Rule 1.** Plays the move with the highest expected damage: power × STAB × type effectiveness × accuracy. |
-| `SwitchingBot` | `dodger` | **Rule 2.** Rule 1, but leaves a super effective threat for a Pokémon that resists it. |
-| `MatchupBot` | `matcher` | **Rule 3.** Rule 1, but replaces a fainted Pokémon with the best matchup: damage it can deal minus damage it can take. |
-| `SurvivalBot` | `survivor` | **Rule 4.** Rule 3, but leaves a Pokémon the opponent would knock out before it acts, if it still has half its HP and a bench Pokémon loses at most a third of its HP to the hit. |
-| `StrategistBot` | `strategist` | **Rule 7.** Rule 6, but without guessing the foe: each option is rated by the foe's best reply, the one that leaves it the lowest odds (minimax, one turn deep). |
-| `ForecastBot` | `forecaster` | **Rule 6.** For each option, plays the turn on a copy of what it sees, the foe playing what rule 5 would, then keeps the option whose position the win probability model rates best (the logistic regression below). A replacement is chosen the same way, without a turn. |
-| `OutlookBot` | `calculator` | **Rule 5.** Rule 4, but plays the move with the highest damage expected by the engine itself (`expected_damage`, its mean), instead of power × STAB × type effectiveness × accuracy. Escapes and replacements are rule 4's. |
+| `rules.hitter()` | `hitter` | **Rule 1.** Plays the move with the highest power × STAB × type effectiveness × accuracy, and sends in the first Pokémon offered. |
+| `rules.dodger()` | `dodger` | **Rule 2.** Rule 1, but leaves a super effective threat for a Pokémon that resists it. |
+| `rules.matcher()` | `matcher` | **Rule 3.** Rule 1, but replaces a fainted Pokémon with the best matchup: damage it can deal minus damage it can take. |
+| `rules.survivor()` | `survivor` | **Rule 4.** Rule 3, but leaves a Pokémon the opponent would knock out before it acts, if it still has half its HP and a bench Pokémon loses at most a third of its HP to the hit. |
+| `rules.calculator()` | `calculator` | **Rule 5.** Rule 4, but plays the move with the highest damage expected by the engine itself (`expected_damage`, its mean). |
+| `Forecaster` | `forecaster` | **Rule 6.** For each option, plays the turn on a copy of what it sees, the foe playing what rule 5 would, then keeps the option whose position the win probability model rates best (the logistic regression below). A replacement is chosen the same way, without a turn. |
+| `Strategist` | `strategist` | **Rule 7.** Rule 6, but without guessing the foe: each option is rated by the foe's best reply, the one that leaves it the lowest odds (minimax, one turn deep). |
+
+Rules 1 to 5 are each the assembly of three choices (`RuleBot`): a switch it
+may make before moving, its move, its replacement. `hitter()` is
+`RuleBot(move=most_power, replacement=first_offered)`; `calculator()` is
+`RuleBot(move=most_expected_damage, replacement=best_matchup, switch=escape)`.
 
 ## Results
 
