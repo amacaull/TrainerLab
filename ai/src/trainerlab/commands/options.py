@@ -5,6 +5,9 @@ import argparse
 from trainerlab.bots.roster import BOTS, WITH_MODEL, bot_spec
 from trainerlab.experiments.parallel import cores
 
+PAIRS = 500  # the default length of a series: about a minute on a laptop
+SCANNED_PAIRS = 50  # the pairs `watch --losses` looks through by default
+
 
 def count(text: str) -> int:
     """A number of pairs: a whole number, at least 1."""
@@ -14,6 +17,7 @@ def count(text: str) -> int:
 
 
 def seed(text: str) -> int:
+    """A seed: a whole number, 0 or more."""
     if not text.isdigit():
         raise argparse.ArgumentTypeError(f"not a seed: {text!r} (e.g. 30000)")
     return int(text)
@@ -44,7 +48,7 @@ def add_jobs(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def add_pairs(parser: argparse.ArgumentParser, default: int, what: str = "to play") -> None:
+def add_pairs(parser: argparse.ArgumentParser, default: int = PAIRS, what: str = "to play") -> None:
     parser.add_argument(
         "--pairs",
         type=count,

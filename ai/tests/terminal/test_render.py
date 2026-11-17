@@ -4,6 +4,7 @@ import pytest
 
 from trainerlab import _engine
 from trainerlab.game.environment import BattleEnvironment
+from trainerlab.game.events import EventKind as K
 from trainerlab.terminal.render import (
     Style,
     describe_board,
@@ -26,7 +27,7 @@ PLAIN = Style(enabled=False)
 class FakeEvent:
     """An engine event built by hand, to reach every event kind."""
 
-    kind: int
+    kind: K
     side: int = 1
     slot: int = 0
     name_id: int = -1
@@ -290,15 +291,14 @@ def test_the_forced_options_say_what_will_really_happen() -> None:
     assert describe_move(_engine.Action.move(0), view, 0) == "Unleash Phantom Force"
 
 
-@pytest.mark.parametrize("kind", range(36))
-def test_every_event_kind_reads_as_a_sentence(kind: int) -> None:
+@pytest.mark.parametrize("kind", list(K))
+def test_every_event_kind_reads_as_a_sentence(kind: K) -> None:
     view = _view(["Gyarados"], ["Snorlax"])
-    names = {0: "Waterfall", 3: "Waterfall", 14: "Waterfall", 24: "Waterfall"}
-    if kind in names:
-        name_id = _engine.find_move_id(names[kind])
-    elif kind in (13, 35):
+    if kind in (K.MOVE_USED, K.MISSED, K.MOVE_FAILED, K.CHARGING):
+        name_id = _engine.find_move_id("Waterfall")
+    elif kind in (K.ABILITY_TRIGGERED, K.ABILITY_DAMAGE):
         name_id = _engine.find_ability_id("Intimidate")
-    elif kind in (26, 27, 28, 29):
+    elif kind in (K.ITEM_TRIGGERED, K.ITEM_CONSUMED, K.ITEM_DAMAGE, K.ITEM_KNOCKED_OFF):
         name_id = _engine.find_item_id("Leftovers")
     else:
         name_id = -1
@@ -312,7 +312,11 @@ def test_every_event_kind_reads_as_a_sentence(kind: int) -> None:
 
 def test_damage_never_exceeds_the_hp_left_and_is_followed_through_the_turn() -> None:
     view = _view(["Gyarados"], ["Snorlax"])  # Snorlax has 524 HP
-    hits = [FakeEvent(1, i0=400, f0=1.0), FakeEvent(22, i0=50), FakeEvent(1, i0=400, f0=1.0)]
+    hits = [
+        FakeEvent(K.DAMAGE_DEALT, i0=400, f0=1.0),
+        FakeEvent(K.HEALED, i0=50),
+        FakeEvent(K.DAMAGE_DEALT, i0=400, f0=1.0),
+    ]
 
     assert _lines(hits, view) == [
         "The foe's Snorlax lost 400 HP.",
@@ -325,7 +329,7 @@ def test_a_foe_never_seen_before_enters_at_full_hp() -> None:
     before = _view(["Gyarados"], ["Snorlax", "Blissey"])  # Blissey, slot 1, is hidden
     # The foe's own view stands in for the view after the entry, where Blissey is visible.
     after = BattleEnvironment(["Gyarados"], ["Snorlax", "Blissey"], seed=1).observe(1)
-    hit = FakeEvent(19, slot=1, i0=89, i1=0)  # Stealth Rock as Blissey enters
+    hit = FakeEvent(K.HAZARD_DAMAGE, slot=1, i0=89, i1=0)  # Stealth Rock as Blissey enters
 
     assert describe_events([hit], before, after, 0, PLAIN) == [
         "The foe's Blissey is hurt by Stealth Rock (89 HP)."
@@ -335,8 +339,8 @@ def test_a_foe_never_seen_before_enters_at_full_hp() -> None:
 def test_damage_tells_crits_and_type_effectiveness() -> None:
     view = _view(["Gyarados"], ["Snorlax"])
     events = [
-        FakeEvent(1, i0=10, f0=2.0, flags=_engine.FLAG_CRIT),
-        FakeEvent(1, i0=10, f0=0.5),
+        FakeEvent(K.DAMAGE_DEALT, i0=10, f0=2.0, flags=_engine.FLAG_CRIT),
+        FakeEvent(K.DAMAGE_DEALT, i0=10, f0=0.5),
     ]
 
     assert _lines(events, view) == [
@@ -351,14 +355,19 @@ def test_damage_tells_crits_and_type_effectiveness() -> None:
     + [(-3, "severely fell")],
 )
 def test_stat_changes_say_how_much(delta: int, verb: str) -> None:
-    (line,) = _lines([FakeEvent(9, i0=delta, i1=0)], _view(["Gyarados"], ["Snorlax"]))
+    (line,) = _lines(
+        [FakeEvent(K.STAT_STAGE_CHANGED, i0=delta, i1=0)], _view(["Gyarados"], ["Snorlax"])
+    )
 
     assert line == f"The foe's Snorlax's Attack {verb}!"
 
 
 def test_struggle_and_its_recoil_have_names() -> None:
     view = _view(["Gyarados"], ["Snorlax"])
-    events = [FakeEvent(0, name_id=-2), FakeEvent(35, name_id=-3, i0=5)]
+    events = [
+        FakeEvent(K.MOVE_USED, name_id=_engine.STRUGGLE),
+        FakeEvent(K.ABILITY_DAMAGE, name_id=_engine.STRUGGLE_RECOIL, i0=5),
+    ]
 
     assert _lines(events, view) == [
         "The foe's Snorlax used Struggle!",
@@ -368,7 +377,11 @@ def test_struggle_and_its_recoil_have_names() -> None:
 
 def test_events_say_whose_pokemon_it_is() -> None:
     view = _view(["Gyarados"], ["Snorlax"])
-    events = [FakeEvent(2, side=0), FakeEvent(2, side=1), FakeEvent(18, side=1, slot=-1, i0=0)]
+    events = [
+        FakeEvent(K.FAINTED, side=0),
+        FakeEvent(K.FAINTED, side=1),
+        FakeEvent(K.HAZARD_SET, side=1, slot=-1, i0=0),
+    ]
 
     assert _lines(events, view) == [
         "Your Gyarados fainted!",
@@ -379,7 +392,12 @@ def test_events_say_whose_pokemon_it_is() -> None:
 
 def test_a_fainted_pokemon_leaving_the_field_is_not_told_again() -> None:
     view = _view(["Gyarados"], ["Snorlax"])
-    events = [FakeEvent(1, i0=600, f0=1.0), FakeEvent(2), FakeEvent(11), FakeEvent(11, side=0)]
+    events = [
+        FakeEvent(K.DAMAGE_DEALT, i0=600, f0=1.0),
+        FakeEvent(K.FAINTED),
+        FakeEvent(K.SWITCHED_OUT),
+        FakeEvent(K.SWITCHED_OUT, side=0),
+    ]
 
     assert _lines(events, view) == [
         "The foe's Snorlax lost 524 HP.",
@@ -391,11 +409,11 @@ def test_a_fainted_pokemon_leaving_the_field_is_not_told_again() -> None:
 def test_knockouts_crits_and_super_effective_hits_are_worth_a_pause() -> None:
     view = _view(["Gyarados"], ["Snorlax"])
     events = [
-        FakeEvent(1, i0=10, f0=1.0),
-        FakeEvent(1, i0=10, f0=2.0),
-        FakeEvent(1, i0=10, f0=1.0, flags=_engine.FLAG_CRIT),
-        FakeEvent(2),
-        FakeEvent(15, side=-1, slot=-1, i0=1),
+        FakeEvent(K.DAMAGE_DEALT, i0=10, f0=1.0),
+        FakeEvent(K.DAMAGE_DEALT, i0=10, f0=2.0),
+        FakeEvent(K.DAMAGE_DEALT, i0=10, f0=1.0, flags=_engine.FLAG_CRIT),
+        FakeEvent(K.FAINTED),
+        FakeEvent(K.WEATHER_STARTED, side=-1, slot=-1, i0=1),
     ]
 
     lines = narrate(list(events), view, view, 0, PLAIN)
@@ -407,7 +425,7 @@ def test_knockouts_crits_and_super_effective_hits_are_worth_a_pause() -> None:
 def test_coloured_lines_keep_their_capital_letter() -> None:
     view = _view(["Gyarados"], ["Snorlax"])
 
-    (line,) = describe_events([FakeEvent(2)], view, view, 0, Style(enabled=True))
+    (line,) = describe_events([FakeEvent(K.FAINTED)], view, view, 0, Style(enabled=True))
 
     assert line == "\033[31mThe foe's Snorlax\033[0m fainted!"
 

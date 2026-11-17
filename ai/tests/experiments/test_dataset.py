@@ -11,9 +11,10 @@ from trainerlab.commands.dataset import main
 from trainerlab.experiments.dataset import build, default_name
 from trainerlab.game.decisions import decisions
 from trainerlab.game.environment import BattleEnvironment
+from trainerlab.game.estimate import PARALYSIS
 from trainerlab.learning.features import feature_names, features
 
-PARALYSIS, SAND = 4, 3
+SAND = 3
 
 
 def _column(x: np.ndarray, name: str) -> float:

@@ -8,13 +8,11 @@ from collections.abc import Callable
 from pathlib import Path
 
 from trainerlab.bots.roster import BOTS, DEFAULT_OPPONENT, DESCRIPTIONS, MODEL_BOTS
-from trainerlab.commands.options import count, seed
+from trainerlab.commands.options import PAIRS, SCANNED_PAIRS, count, seed
 from trainerlab.experiments.dataset import default_name
 from trainerlab.learning import fitting
 from trainerlab.terminal.human import Ask
-from trainerlab.terminal.screen import SPEEDS
-
-Write = Callable[[str], None]
+from trainerlab.terminal.screen import SPEEDS, Write
 
 
 def menu(ask: Ask, write: Write, modes: list[tuple[str, str]]) -> list[str]:
@@ -35,29 +33,29 @@ def _play(ask: Ask, write: Write) -> list[str]:
 
 
 def _duel(ask: Ask, write: Write) -> list[str]:
-    return [*_two_bots(ask, write), *_pairs(ask, write, 500)]
+    return [*_two_bots(ask, write), *_pairs(ask, write, PAIRS)]
 
 
 def _watch(ask: Ask, write: Write) -> list[str]:
     bots = _two_bots(ask, write)
     modes = [("losses", "list the battles bot A lost"), ("seed", "replay one battle")]
     if _choose(ask, write, "Watch", modes, "losses") == "losses":
-        return [*bots, "--losses", *_pairs(ask, write, 50)]
+        return [*bots, "--losses", *_pairs(ask, write, SCANNED_PAIRS)]
     seed = _text(ask, write, "Seed of the pair", None, _is_int)
     side = _text(ask, write, "Bot A's side, 0 or 1", "0", lambda text: text in ("0", "1"))
     return [*bots, "--seed", seed, *([] if side == "0" else ["--side", side])]
 
 
 def _audit(ask: Ask, write: Write) -> list[str]:
-    return [*_two_bots(ask, write), *_pairs(ask, write, 500)]
+    return [*_two_bots(ask, write), *_pairs(ask, write, PAIRS)]
 
 
 def _dataset(ask: Ask, write: Write) -> list[str]:
     bots = _two_bots(ask, write)
-    pairs, first = _how_many(ask, write, 500)
+    pairs, first = _how_many(ask, write, PAIRS)
     default = default_name(bots[0], bots[1], range(first, first + pairs))
     out = _text(ask, write, "File to write", default, None)
-    return [*bots, *_pair_args(pairs, first, 500), *([] if out == default else ["--out", out])]
+    return [*bots, *_pair_args(pairs, first, PAIRS), *([] if out == default else ["--out", out])]
 
 
 def _train(ask: Ask, write: Write) -> list[str]:
@@ -68,13 +66,7 @@ def _train(ask: Ask, write: Write) -> list[str]:
         None,
         lambda text: all(Path(p).is_file() for p in text.split()),
     ).split()
-    model = _choose(
-        ask,
-        write,
-        "Model",
-        list(fitting.DESCRIPTIONS.items()),
-        "logistic",
-    )
+    model = _choose(ask, write, "Model", list(fitting.DESCRIPTIONS.items()), "logistic")
     default = str(fitting.default_name([Path(p) for p in paths], model))
     out = _text(ask, write, "File to write", default, None)
     args = paths + ([] if model == "logistic" else ["--model", model])
@@ -96,7 +88,7 @@ def _bot_options() -> list[tuple[str, str]]:
 
 
 def _bot(ask: Ask, write: Write, title: str, default: str | None = None) -> str:
-    """A bot from the list; for the forecaster, the model it plays with too."""
+    """A bot from the list; for a bot that plays with a model, the model too."""
     name = _choose(ask, write, title, _bot_options(), default)
     if name not in MODEL_BOTS:
         return name
@@ -119,6 +111,7 @@ def _how_many(ask: Ask, write: Write, default: int) -> tuple[int, int]:
 
 
 def _pair_args(pairs: int, first: int, default: int) -> list[str]:
+    """The options for these pairs, leaving out what the command would take by default."""
     args = [] if pairs == default else ["--pairs", str(pairs)]
     return args + ([] if first == 0 else ["--from", str(first)])
 

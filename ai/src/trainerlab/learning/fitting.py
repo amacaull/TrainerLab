@@ -12,15 +12,10 @@ from pathlib import Path
 import numpy as np
 import numpy.typing as npt
 
-from trainerlab.learning.model import (
-    TEST_EVERY,
-    WinModel,
-    accuracy,
-    brier,
-    is_test,
-    log_loss,
-    train,
-)
+from trainerlab.learning.model import WinModel, accuracy, brier, log_loss, train
+
+TEST_EVERY = 5  # a seed whose remainder by 5 is 0 goes to the test set: 20 % of the battles
+VALIDATION = 1  # with early stopping, a training seed whose remainder by 5 is 1 is held out
 
 # Fixed before any measurement: a logistic regression, and one hidden layer of 64 ReLU units,
 # trained for 10 passes; then the same network stopped early (at most 50 passes, patience 3).
@@ -50,6 +45,8 @@ class Rows:
 
 @dataclass(frozen=True)
 class Score:
+    """How close a model's probabilities came to the outcomes of some rows."""
+
     label: str
     log_loss: float
     brier: float
@@ -69,7 +66,14 @@ class Fit:
     scores: list[Score]
 
 
+def is_test(seeds: npt.NDArray[np.integer]) -> npt.NDArray[np.bool_]:
+    """Which rows go to the test set: by seed, so that no battle is split between the two."""
+    test: npt.NDArray[np.bool_] = np.asarray(seeds) % TEST_EVERY == 0
+    return test
+
+
 def load(paths: list[Path]) -> Rows:
+    """The rows of these datasets, put together, if they have the same features."""
     missing = [path for path in paths if not path.is_file()]
     if missing:
         raise DatasetError(f"No such dataset: {missing[0]}")
@@ -88,7 +92,7 @@ def fit(rows: Rows, model: str) -> Fit:
     fit_rows, validation = ~test, None
     hidden = MODELS[model]
     if model in EARLY_STOP:
-        held = fit_rows & (seeds % TEST_EVERY == 1)
+        held = fit_rows & (seeds % TEST_EVERY == VALIDATION)
         fit_rows, validation = fit_rows & ~held, (x[held], y[held])
         trained = train(
             x[fit_rows],
@@ -126,5 +130,6 @@ def _score(label: str, p: npt.NDArray[np.float64], labels: npt.NDArray[np.floati
 
 
 def default_name(datasets: list[Path], model: str) -> Path:
+    """Next to the first dataset: calculator-vs-survivor-40000-41999-plus-2-logistic.npz."""
     first, more = datasets[0], len(datasets) - 1
     return first.with_name(f"{first.stem}{f'-plus-{more}' if more else ''}-{model}.npz")

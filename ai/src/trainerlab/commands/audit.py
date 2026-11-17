@@ -4,31 +4,24 @@ trainerlab audit survivor matcher --pairs 1000 --from 20000
 """
 
 import argparse
-import signal
-import sys
-from collections.abc import Callable
 
 from trainerlab.bots.roster import factory
+from trainerlab.commands.console import quiet_on_closed_pipe, stdout
 from trainerlab.commands.options import add_bots, add_pairs, seeds_of
 from trainerlab.experiments.audit import audit
 from trainerlab.game.pairs import span
-
-Write = Callable[[str], None]
-
-
-def _stdout(text: str) -> None:
-    sys.stdout.write(text)
+from trainerlab.terminal.screen import Write
 
 
-def main(argv: list[str] | None = None, write: Write = _stdout) -> int:
+def main(argv: list[str] | None = None, write: Write = stdout) -> int:
     parser = argparse.ArgumentParser(
         prog="trainerlab audit", description="Count a bot's mistakes a program can spot."
     )
     add_bots(parser)
-    add_pairs(parser, 500)
+    add_pairs(parser)
     args = parser.parse_args(argv)
-    if write is _stdout:
-        signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+    if write is stdout:
+        quiet_on_closed_pipe()
 
     seeds = seeds_of(args)
     result = audit(factory(args.bot_a), factory(args.bot_b), seeds=seeds)

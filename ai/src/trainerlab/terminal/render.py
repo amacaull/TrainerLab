@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from trainerlab import _engine
+from trainerlab.game.events import EventKind as K
 
 STATUS_NAMES = ["", "burned", "poisoned", "badly poisoned", "paralyzed", "asleep", "frozen"]
 STATUS_TAGS = ["", "BRN", "PSN", "TOX", "PAR", "SLP", "FRZ"]
@@ -19,7 +20,6 @@ WEATHER_NAMES = ["", "rain", "harsh sunlight", "a sandstorm", "snow", "strong wi
 TERRAIN_NAMES = ["", "Electric Terrain"]
 HAZARD_NAMES = ["Stealth Rock", "Spikes", "Toxic Spikes"]
 SKIP_REASONS = ["is fast asleep", "is frozen solid", "is fully paralyzed", "flinched"]
-STRUGGLE, STRUGGLE_RECOIL = -2, -3
 CATEGORY_NAMES = ["physical", "special", "status"]
 STATUS_CATEGORY = 2
 # Names whose punctuation a capital-letter split cannot guess.
@@ -49,10 +49,16 @@ class EventFields(Protocol):
     def flags(self) -> int: ...
 
 
-# Event kinds that take HP away, the one that gives it back, and the others that matter here.
-_HP_LOSSES = {1, 6, 17, 19, 23, 28, 35}
-_HEALED = 22
-_MOVE_USED, _DAMAGE, _FAINTED, _SWITCHED_OUT = 0, 1, 2, 11
+# The event kinds that take HP away.
+HP_LOSSES = {
+    K.DAMAGE_DEALT,
+    K.STATUS_DAMAGE,
+    K.WEATHER_DAMAGE,
+    K.HAZARD_DAMAGE,
+    K.RECOIL_DAMAGE,
+    K.ITEM_DAMAGE,
+    K.ABILITY_DAMAGE,
+}
 
 
 @dataclass(frozen=True)
@@ -103,7 +109,7 @@ def readable(name: str) -> str:
 
 
 def move_label(move_id: int) -> str:
-    return "Struggle" if move_id == STRUGGLE else readable(_engine.move_name(move_id))
+    return "Struggle" if move_id == _engine.STRUGGLE else readable(_engine.move_name(move_id))
 
 
 def pokemon_label(view: _engine.BattleState, side: int, slot: int, me: int, style: Style) -> str:
@@ -358,18 +364,18 @@ def narrate(
         key = (event.side, event.slot)
         if key not in hp:
             hp[key] = _hp_before(before, after, event.side, event.slot)
-        if event.kind == _SWITCHED_OUT and hp[key] == 0:
+        if event.kind == K.SWITCHED_OUT and hp[key] == 0:
             continue
         amount = event.i0
-        if event.kind in _HP_LOSSES:
+        if event.kind in HP_LOSSES:
             amount = min(amount, hp[key])
             hp[key] -= amount
-        elif event.kind == _HEALED:
+        elif event.kind == K.HEALED:
             hp[key] += amount
         who = pokemon_label(after, event.side, event.slot, me, style)
         text = POKEMON_EVENTS[event.kind](event, who, amount)
-        emphasis = event.kind == _FAINTED or (
-            event.kind == _DAMAGE and (bool(event.flags & _engine.FLAG_CRIT) or event.f0 > 1)
+        emphasis = event.kind == K.FAINTED or (
+            event.kind == K.DAMAGE_DEALT and (bool(event.flags & _engine.FLAG_CRIT) or event.f0 > 1)
         )
         lines.append(Narration(text, emphasis, event.kind, event.side, event.slot, amount))
     return lines
@@ -423,7 +429,7 @@ def _direction(event: EventFields) -> str:
 
 
 def _ability(event: EventFields) -> str:
-    if event.name_id == STRUGGLE_RECOIL:
+    if event.name_id == _engine.STRUGGLE_RECOIL:
         return "struggle recoil"
     return readable(_engine.ability_name(event.name_id))
 
@@ -433,45 +439,49 @@ def _item(event: EventFields) -> str:
 
 
 POKEMON_EVENTS: dict[int, Callable[[EventFields, str, int], str]] = {
-    0: lambda e, who, n: f"{who} used {move_label(e.name_id)}!",
-    1: _damage,
-    2: lambda e, who, n: f"{who} fainted!",
-    3: lambda e, who, n: f"{who}'s attack missed!",
-    4: lambda e, who, n: f"{who} is now {STATUS_NAMES[e.i0]}!",
-    5: lambda e, who, n: f"{who} could not be {STATUS_NAMES[e.i0]}.",
-    6: lambda e, who, n: f"{who} is hurt by being {STATUS_NAMES[e.i1]} ({n} HP).",
-    7: lambda e, who, n: f"{who} is no longer {STATUS_NAMES[e.i0]}.",
-    8: lambda e, who, n: f"{who} {SKIP_REASONS[e.i0]}!",
-    9: _stage_change,
-    10: lambda e, who, n: f"{who}'s {STAT_NAMES[e.i0]} won't go any {_direction(e)}!",
-    11: lambda e, who, n: f"{who} withdrew.",
-    12: lambda e, who, n: f"{who} entered the battle!",
-    13: lambda e, who, n: f"{who}'s {_ability(e)} activated!",
-    14: lambda e, who, n: f"{who} used {move_label(e.name_id)}, but it failed!",
-    17: lambda e, who, n: f"{who} is buffeted by {WEATHER_NAMES[e.i1]} ({n} HP).",
-    19: lambda e, who, n: f"{who} is hurt by {HAZARD_NAMES[e.i1]} ({n} HP).",
-    21: lambda e, who, n: f"{who} absorbed the Toxic Spikes.",
-    22: lambda e, who, n: f"{who} restored {n} HP.",
-    23: lambda e, who, n: f"{who} is hit with recoil ({n} HP).",
-    24: lambda e, who, n: f"{who} is charging {move_label(e.name_id)}!",
-    25: lambda e, who, n: f"{who} protected itself!",
-    26: lambda e, who, n: f"{who}'s {_item(e)} activated!",
-    27: lambda e, who, n: f"{who} used up its {_item(e)}.",
-    28: lambda e, who, n: f"{who} is hurt by its {_item(e)} ({n} HP).",
-    29: lambda e, who, n: f"{who} lost its {_item(e)}!",
-    34: lambda e, who, n: f"{who} took its attacker down with it!",
-    35: lambda e, who, n: f"{who} is hurt by {_ability(e)} ({n} HP).",
+    K.MOVE_USED: lambda e, who, n: f"{who} used {move_label(e.name_id)}!",
+    K.DAMAGE_DEALT: _damage,
+    K.FAINTED: lambda e, who, n: f"{who} fainted!",
+    K.MISSED: lambda e, who, n: f"{who}'s attack missed!",
+    K.STATUS_APPLIED: lambda e, who, n: f"{who} is now {STATUS_NAMES[e.i0]}!",
+    K.STATUS_FAILED: lambda e, who, n: f"{who} could not be {STATUS_NAMES[e.i0]}.",
+    K.STATUS_DAMAGE: lambda e, who, n: f"{who} is hurt by being {STATUS_NAMES[e.i1]} ({n} HP).",
+    K.STATUS_CURED: lambda e, who, n: f"{who} is no longer {STATUS_NAMES[e.i0]}.",
+    K.MOVE_SKIPPED: lambda e, who, n: f"{who} {SKIP_REASONS[e.i0]}!",
+    K.STAT_STAGE_CHANGED: _stage_change,
+    K.STAT_CHANGE_FAILED: lambda e, who, n: (
+        f"{who}'s {STAT_NAMES[e.i0]} won't go any {_direction(e)}!"
+    ),
+    K.SWITCHED_OUT: lambda e, who, n: f"{who} withdrew.",
+    K.SWITCHED_IN: lambda e, who, n: f"{who} entered the battle!",
+    K.ABILITY_TRIGGERED: lambda e, who, n: f"{who}'s {_ability(e)} activated!",
+    K.MOVE_FAILED: lambda e, who, n: f"{who} used {move_label(e.name_id)}, but it failed!",
+    K.WEATHER_DAMAGE: lambda e, who, n: f"{who} is buffeted by {WEATHER_NAMES[e.i1]} ({n} HP).",
+    K.HAZARD_DAMAGE: lambda e, who, n: f"{who} is hurt by {HAZARD_NAMES[e.i1]} ({n} HP).",
+    K.TOXIC_SPIKES_ABSORBED: lambda e, who, n: f"{who} absorbed the Toxic Spikes.",
+    K.HEALED: lambda e, who, n: f"{who} restored {n} HP.",
+    K.RECOIL_DAMAGE: lambda e, who, n: f"{who} is hit with recoil ({n} HP).",
+    K.CHARGING: lambda e, who, n: f"{who} is charging {move_label(e.name_id)}!",
+    K.PROTECTED: lambda e, who, n: f"{who} protected itself!",
+    K.ITEM_TRIGGERED: lambda e, who, n: f"{who}'s {_item(e)} activated!",
+    K.ITEM_CONSUMED: lambda e, who, n: f"{who} used up its {_item(e)}.",
+    K.ITEM_DAMAGE: lambda e, who, n: f"{who} is hurt by its {_item(e)} ({n} HP).",
+    K.ITEM_KNOCKED_OFF: lambda e, who, n: f"{who} lost its {_item(e)}!",
+    K.DESTINY_BOND_TRIGGERED: lambda e, who, n: f"{who} took its attacker down with it!",
+    K.ABILITY_DAMAGE: lambda e, who, n: f"{who} is hurt by {_ability(e)} ({n} HP).",
 }
 
 FIELD_EVENTS: dict[int, Callable[[EventFields, int], str]] = {
-    15: lambda e, me: f"It started: {WEATHER_NAMES[e.i0]}.",
-    16: lambda e, me: f"The {WEATHER_NAMES[e.i0]} stopped.",
-    18: lambda e, me: f"{HAZARD_NAMES[e.i0]} now lies around {team_label(e.side, me)}.",
-    20: lambda e, me: f"The hazards around {team_label(e.side, me)} are gone.",
-    30: lambda e, me: f"{TERRAIN_NAMES[e.i0]} covers the field.",
-    31: lambda e, me: f"The {TERRAIN_NAMES[e.i0]} faded.",
-    32: lambda e, me: f"Aurora Veil protects {team_label(e.side, me)} for {e.i0} turns.",
-    33: lambda e, me: f"Aurora Veil around {team_label(e.side, me)} wore off.",
+    K.WEATHER_STARTED: lambda e, me: f"It started: {WEATHER_NAMES[e.i0]}.",
+    K.WEATHER_ENDED: lambda e, me: f"The {WEATHER_NAMES[e.i0]} stopped.",
+    K.HAZARD_SET: lambda e, me: f"{HAZARD_NAMES[e.i0]} now lies around {team_label(e.side, me)}.",
+    K.HAZARDS_CLEARED: lambda e, me: f"The hazards around {team_label(e.side, me)} are gone.",
+    K.TERRAIN_STARTED: lambda e, me: f"{TERRAIN_NAMES[e.i0]} covers the field.",
+    K.TERRAIN_ENDED: lambda e, me: f"The {TERRAIN_NAMES[e.i0]} faded.",
+    K.SCREEN_STARTED: lambda e, me: (
+        f"Aurora Veil protects {team_label(e.side, me)} for {e.i0} turns."
+    ),
+    K.SCREEN_ENDED: lambda e, me: f"Aurora Veil around {team_label(e.side, me)} wore off.",
 }
 
 

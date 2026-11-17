@@ -105,7 +105,7 @@ def test_the_strategist_fears_the_reply_that_hurts_most() -> None:
     assert bot.choose_action(0, view, env.legal_actions(0)) == Action.move(0)
 
 
-def test_the_foereplies_are_its_moves_and_its_switches_to_pokemon_seen() -> None:
+def test_the_foe_replies_are_its_moves_and_its_switches_to_pokemon_seen() -> None:
     env = BattleEnvironment(["Blissey"], ["Snorlax", "Gyarados", "KommoO"], seed=1)
     view = env.observe(0)
     assert all(a.kind == _engine.ACTION_MOVE for a in replies(view, playable(view, 1), 1))

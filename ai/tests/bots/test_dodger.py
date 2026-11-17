@@ -6,7 +6,7 @@ from trainerlab.game.environment import BattleEnvironment
 
 
 def _choice(team: list[str], opponent: list[str]) -> Action:
-    """What the switching bot plays as side 0 with `team` against `opponent`."""
+    """What the dodger plays as side 0 with `team` against `opponent`."""
     env = BattleEnvironment(team, opponent, seed=42)
     return dodger().choose_action(0, env.observe(0), env.legal_actions(0))
 
@@ -51,7 +51,7 @@ def test_the_bot_reads_its_own_side_and_the_opposing_active() -> None:
     assert action == Action.switch(1)
 
 
-def test_the_switching_bot_beats_the_random_bot() -> None:
+def test_the_dodger_beats_the_random_bot() -> None:
     result = run_tournament(lambda seed: dodger(), lambda seed: RandomBot(seed=seed), pairs=100)
     low, _ = result.interval
 

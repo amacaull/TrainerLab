@@ -4,7 +4,7 @@ from trainerlab.game.environment import BattleEnvironment
 
 
 def _replacement(team: list[str], opponent: list[str], options: list[int]) -> int:
-    """Which of `options` the matchup bot sends in as side 0 against `opponent`'s lead."""
+    """Which of `options` the matcher sends in as side 0 against `opponent`'s lead."""
     env = BattleEnvironment(team, opponent, seed=42)
     return matcher().choose_replacement(0, env.observe(0), options)
 
@@ -46,7 +46,7 @@ def test_the_bot_reads_its_own_side_and_the_opposing_active() -> None:
     assert matcher().choose_replacement(1, env.observe(1), [1, 2, 3]) == 3
 
 
-def test_the_matchup_bot_beats_the_damage_only_bot() -> None:
+def test_the_matcher_beats_the_hitter() -> None:
     result = run_tournament(lambda seed: matcher(), lambda seed: hitter(), pairs=200)
     low, _ = result.interval
 

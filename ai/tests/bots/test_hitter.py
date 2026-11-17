@@ -6,7 +6,7 @@ from trainerlab.game.environment import BattleEnvironment
 
 
 def _choice(attacker: str, defender: str) -> Action:
-    """What the heuristic bot plays as side 0 with `attacker` against `defender`."""
+    """What the hitter plays as side 0 with `attacker` against `defender`."""
     env = BattleEnvironment([attacker], [defender], seed=42)
     return hitter().choose_action(0, env.observe(0), env.legal_actions(0))
 
@@ -52,7 +52,7 @@ def test_the_bot_takes_the_first_proposed_replacement() -> None:
     assert hitter().choose_replacement(1, env.observe(1), [1, 0]) == 1
 
 
-def test_the_heuristic_bot_beats_the_random_bot() -> None:
+def test_the_hitter_beats_the_random_bot() -> None:
     # Guards the README claim with fewer pairs, to keep the suite fast.
     result = run_tournament(
         lambda seed: hitter(),

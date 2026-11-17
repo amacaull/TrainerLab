@@ -1,8 +1,14 @@
 from trainerlab.game.environment import BattleEnvironment
+from trainerlab.game.events import EventKind
 from trainerlab.terminal.render import Narration
 from trainerlab.terminal.stats import BattleStats
 
-MOVE_USED, DAMAGE, FAINTED, HEALED = 0, 1, 2, 22
+MOVE_USED, DAMAGE, FAINTED, HEALED = (
+    EventKind.MOVE_USED,
+    EventKind.DAMAGE_DEALT,
+    EventKind.FAINTED,
+    EventKind.HEALED,
+)
 
 
 def _event(kind: int, side: int, slot: int = 0, amount: int = 0) -> Narration:

@@ -2,12 +2,13 @@
 the most damage. Built from the narrated history, so damage is counted as really lost."""
 
 from trainerlab import _engine
+from trainerlab.game.events import EventKind
 from trainerlab.terminal.render import Narration
-
-MOVE_USED, DAMAGE, FAINTED = 0, 1, 2
 
 
 class BattleStats:
+    """Knock-outs and damage dealt by each Pokemon, keyed by (side, team index)."""
+
     def __init__(self) -> None:
         self._actor: tuple[int, int] | None = None
         self.damage: dict[tuple[int, int], int] = {}
@@ -18,11 +19,11 @@ class BattleStats:
         for line in lines:
             actor = self._actor
             hit_by_foe = actor is not None and actor[0] != line.side
-            if line.kind == MOVE_USED:
+            if line.kind == EventKind.MOVE_USED:
                 self._actor = (line.side, line.slot)
-            elif line.kind == DAMAGE and actor is not None and hit_by_foe:
+            elif line.kind == EventKind.DAMAGE_DEALT and actor is not None and hit_by_foe:
                 self.damage[actor] = self.damage.get(actor, 0) + line.amount
-            elif line.kind == FAINTED:
+            elif line.kind == EventKind.FAINTED:
                 self.fainted[line.side] += 1
                 if actor is not None and hit_by_foe:
                     self.knockouts[actor] = self.knockouts.get(actor, 0) + 1

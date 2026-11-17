@@ -4,8 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from trainerlab.bots.lookahead import MODEL, Forecaster, Strategist
+from trainerlab.bots.lookahead import Forecaster, Strategist
 from trainerlab.bots.roster import BOTS, bot_spec, factory, slug
+from trainerlab.learning.model import SHIPPED
 
 
 def test_a_bot_named_alone_is_the_one_listed() -> None:
@@ -14,7 +15,7 @@ def test_a_bot_named_alone_is_the_one_listed() -> None:
 
 def test_the_forecaster_can_play_with_another_model(tmp_path: Path) -> None:
     model = tmp_path / "gen2.npz"
-    shutil.copy(MODEL, model)
+    shutil.copy(SHIPPED, model)
 
     bot = factory(f"forecaster:{model}")(0)
 
@@ -42,6 +43,6 @@ def test_a_bot_with_a_model_gets_a_name_fit_for_a_file() -> None:
 
 def test_the_strategist_takes_a_model_too(tmp_path: Path) -> None:
     model = tmp_path / "gen2.npz"
-    shutil.copy(MODEL, model)
+    shutil.copy(SHIPPED, model)
 
     assert isinstance(factory(f"strategist:{model}")(0), Strategist)

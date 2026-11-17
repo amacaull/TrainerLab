@@ -10,6 +10,8 @@ DATA_DIR = Path(__file__).resolve().parents[4] / "engine" / "data"
 
 
 class BattleEnvironment:
+    """One battle: the real state, each side's view of it, and the turns played on it."""
+
     def __init__(
         self, team0: list[str], team1: list[str], *, seed: int, max_turns: int = 1000
     ) -> None:
@@ -66,14 +68,15 @@ class BattleEnvironment:
             raise RuntimeError(f"Side {pending[0]} must replace first")
         return _engine.resolve_replacement(self._state, side, team_index)
 
-    def _require_not_over(self) -> None:
-        if self.is_over():
-            raise RuntimeError("The battle is over")
-
     def pending_replacements(self) -> list[int]:
+        """The sides that must send a Pokemon in, the faster one first."""
         first = _engine.faster_side(self._state, self._turn_seed())
         order = (first, 1 - first)
         return [side for side in order if self.legal_replacements(side)]
+
+    def _require_not_over(self) -> None:
+        if self.is_over():
+            raise RuntimeError("The battle is over")
 
     def _turn_seed(self) -> int:
         # Same formula as the engine's golden test: each turn gets its own deterministic seed.
