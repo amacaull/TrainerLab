@@ -105,6 +105,14 @@ set(BATTLE_ENGINE_DATA_PATH "${CMAKE_CURRENT_SOURCE_DIR}/data")
 
 target_compile_options(battle_engine_lib PRIVATE ${BATTLE_ENGINE_WARNINGS})
 
+# No fused multiply-add: clang on Apple Silicon fuses a * b + c into one instruction with a single
+# rounding, gcc on x86-64 does not, and the last bit of a double then differs between the two.
+# expected_damage sums probability x damage: two moves of equal mean could rank differently on
+# macOS and Linux. With this, the same state gives the same figures, bit for bit, on both.
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(battle_engine_lib PRIVATE -ffp-contract=off)
+endif()
+
 # Required to link the archive into the Python extension module.
 set_target_properties(battle_engine_lib PROPERTIES POSITION_INDEPENDENT_CODE ON)
 

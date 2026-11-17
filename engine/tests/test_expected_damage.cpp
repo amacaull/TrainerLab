@@ -10,6 +10,8 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include <cstdint>
+#include <cstring>
 #include <map>
 #include <stdexcept>
 #include <string>
@@ -319,4 +321,28 @@ TEST_CASE("every move of every species against every species stays within bounds
   // Only the volleys of several hits each with a crit and a roll are sampled.
   REQUIRE(sampled > 0);
   REQUIRE(sampled < 5 * species_count());
+}
+
+TEST_CASE("expected damage is the same, bit for bit, on every platform",
+          "[expected_damage][ffi][golden]") {
+  // Every move of every species against three defenders: a digest of the bits of each mean.
+  // A compiler that fuses a * b + c (clang on Apple Silicon, by default) moves the last bit of
+  // some means, and two moves of equal mean then rank differently: CMakeLists.txt forbids it.
+  ensureInit();
+  uint64_t digest = 0xcbf29ce484222325ull;
+  for (const char *defender : {"Snorlax", "Corviknight", "Toxapex"}) {
+    for (int a = 0; a < species_count(); ++a) {
+      BattleState s;
+      s.teams[0][0] = make_combatant(a);
+      s.teams[1][0] = make_combatant(find_species_id(defender));
+      s.team_size = {1, 1};
+      for (int slot = 0; slot < kMaxMovesPerPokemon; ++slot) {
+        const double mean = expected_damage(s, 0, slot).mean;
+        uint64_t bits = 0;
+        std::memcpy(&bits, &mean, sizeof bits);
+        digest = (digest ^ bits) * 0x100000001b3ull;
+      }
+    }
+  }
+  REQUIRE(digest == 0x735a1c202c8c91e1ull);
 }
