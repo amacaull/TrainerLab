@@ -3,8 +3,9 @@ import pytest
 
 from trainerlab import _engine
 from trainerlab._engine import Action
-from trainerlab.bots.lookahead import ForecastBot, StrategistBot, _replies, playable
+from trainerlab.bots.lookahead import ForecastBot, StrategistBot, _replies
 from trainerlab.game.environment import BattleEnvironment
+from trainerlab.game.views import playable
 from trainerlab.learning.features import feature_names
 from trainerlab.learning.model import WinModel
 

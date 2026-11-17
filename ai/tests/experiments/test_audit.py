@@ -5,7 +5,8 @@ import pytest
 from trainerlab import _engine
 from trainerlab._engine import Action
 from trainerlab.bots.roster import BOTS
-from trainerlab.experiments.audit import CHECKS, audit, main
+from trainerlab.commands.audit import main
+from trainerlab.experiments.audit import CHECKS, audit
 from trainerlab.game.decisions import Decision, decisions
 from trainerlab.game.environment import BattleEnvironment
 

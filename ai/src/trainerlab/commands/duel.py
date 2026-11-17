@@ -5,15 +5,10 @@ trainerlab duel calculator survivor --pairs 5000 --from 30000
 
 import argparse
 
-from trainerlab.bots.roster import factory
-from trainerlab.commands.options import add_bots, add_jobs, add_pairs, seeds_of, show
+from trainerlab.commands.options import add_bots, add_jobs, add_pairs, seeds_of
 from trainerlab.experiments import parallel
-from trainerlab.game.harness import TournamentResult, run_tournament
-
-
-def play(bot_a: str, bot_b: str, seeds: range) -> TournamentResult:
-    """One block of pairs; a process of its own when they are spread over the cores."""
-    return run_tournament(factory(bot_a), factory(bot_b), pairs=len(seeds), first_seed=seeds[0])
+from trainerlab.experiments.tournament import duel
+from trainerlab.game.pairs import span
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -27,16 +22,11 @@ def main(argv: list[str] | None = None) -> int:
 
     seeds = seeds_of(args)
     progress = parallel.progress_on_terminal(len(seeds))
-    parts = parallel.run(play, args.bot_a, args.bot_b, seeds, args.jobs, progress)
-    result = TournamentResult(
-        wins=sum(p.wins for p in parts),
-        draws=sum(p.draws for p in parts),
-        losses=sum(p.losses for p in parts),
-    )
+    result = duel(args.bot_a, args.bot_b, seeds, args.jobs, progress)
     low, high = result.interval
     print(
         f"{args.bot_a} vs {args.bot_b}: {result.score:.3f} [{low:.3f}, {high:.3f}] "
         f"({result.wins} wins, {result.draws} draws, {result.losses} losses, "
-        f"seeds {show(seeds)})"
+        f"seeds {span(seeds)})"
     )
     return 0

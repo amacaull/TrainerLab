@@ -1,6 +1,6 @@
 from trainerlab.bots.rules import HeuristicBot, MatchupBot
+from trainerlab.experiments.tournament import run_tournament
 from trainerlab.game.environment import BattleEnvironment
-from trainerlab.game.harness import run_tournament
 
 
 def _replacement(team: list[str], opponent: list[str], options: list[int]) -> int:

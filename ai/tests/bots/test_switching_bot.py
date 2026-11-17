@@ -1,7 +1,7 @@
 from trainerlab._engine import Action
 from trainerlab.bots.rules import RandomBot, SwitchingBot
+from trainerlab.experiments.tournament import run_tournament
 from trainerlab.game.environment import BattleEnvironment
-from trainerlab.game.harness import run_tournament
 
 
 def _choice(team: list[str], opponent: list[str]) -> Action:

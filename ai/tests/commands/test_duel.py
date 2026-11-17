@@ -13,7 +13,7 @@ from trainerlab.bots.rules import (
     SwitchingBot,
 )
 from trainerlab.commands.duel import main
-from trainerlab.game.harness import run_tournament
+from trainerlab.experiments.tournament import run_tournament
 
 LINE = re.compile(
     r"^(\w+) vs (\w+): (\d\.\d{3}) \[(\d\.\d{3}), (\d\.\d{3})\] "

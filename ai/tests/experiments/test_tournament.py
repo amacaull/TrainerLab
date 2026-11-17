@@ -3,8 +3,9 @@ from teams import TEAM0, TEAM1
 
 from trainerlab import _engine
 from trainerlab.bots.rules import RandomBot
+from trainerlab.experiments.tournament import TournamentResult, run_tournament, wilson_interval
 from trainerlab.game.environment import DATA_DIR
-from trainerlab.game.harness import TournamentResult, play_pair, run_tournament, wilson_interval
+from trainerlab.game.pairs import play_pair
 
 _engine.engine_init(str(DATA_DIR))
 DESTINY_BOND = _engine.find_move_id("DestinyBond")
