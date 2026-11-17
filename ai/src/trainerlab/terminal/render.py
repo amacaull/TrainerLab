@@ -473,3 +473,9 @@ FIELD_EVENTS: dict[int, Callable[[EventFields, int], str]] = {
     32: lambda e, me: f"Aurora Veil protects {team_label(e.side, me)} for {e.i0} turns.",
     33: lambda e, me: f"Aurora Veil around {team_label(e.side, me)} wore off.",
 }
+
+
+def title_for(before: _engine.BattleState, after: _engine.BattleState) -> str:
+    if after.turn != before.turn:
+        return f"Turn {after.turn}"
+    return "Battle start" if after.turn == 0 else "Switch-in"

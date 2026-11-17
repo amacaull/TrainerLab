@@ -1,6 +1,4 @@
-"""`trainerlab dataset`: turns the decisions of a series of battles into a learning dataset.
-
-    trainerlab dataset calculator survivor --pairs 2000 --from 40000
+"""The decisions of a series of battles, turned into a learning dataset.
 
 Each decision becomes one row: features of what the deciding side saw, from its point of view
 ("my" side against the "foe"), and as label the score of its battle for that side: 1 for a win,
@@ -8,9 +6,7 @@ Each decision becomes one row: features of what the deciding side saw, from its 
 seed of each row: a train/test split must go by seed, never by row.
 """
 
-import argparse
-import sys
-from collections.abc import Callable, Iterable
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -19,13 +15,11 @@ import numpy.typing as npt
 
 from trainerlab import _engine
 from trainerlab.bots.roster import factory, slug
-from trainerlab.commands.options import add_bots, add_jobs, add_pairs, seeds_of, show
 from trainerlab.experiments import parallel
 from trainerlab.game.decisions import Decision, decisions
 from trainerlab.game.environment import DATA_DIR
+from trainerlab.game.pairs import span
 from trainerlab.learning.features import Features, feature_names, features
-
-Write = Callable[[str], None]
 
 SCORE = {"win": 1.0, "draw": 0.5, "loss": 0.0}
 
@@ -59,42 +53,30 @@ def build_block(bot_a: str, bot_b: str, seeds: range) -> dict[str, npt.NDArray[n
 
 
 def default_name(bot_a: str, bot_b: str, seeds: range) -> str:
-    return f"{slug(bot_a)}-vs-{slug(bot_b)}-{show(seeds)}.npz"
+    return f"{slug(bot_a)}-vs-{slug(bot_b)}-{span(seeds)}.npz"
 
 
-def _stdout(text: str) -> None:
-    sys.stdout.write(text)
-
-
-def main(argv: list[str] | None = None, write: Write = _stdout) -> int:
-    parser = argparse.ArgumentParser(
-        prog="trainerlab dataset", description="Turn the decisions of battles into a dataset."
-    )
-    add_bots(parser)
-    add_pairs(parser, 500)
-    add_jobs(parser)
-    parser.add_argument(
-        "--out", type=Path, help="the .npz file to write (default: BOT_A-vs-BOT_B-SEEDS.npz)"
-    )
-    args = parser.parse_args(argv)
-
-    seeds = seeds_of(args)
-    out = args.out or Path(default_name(args.bot_a, args.bot_b, seeds))
-    progress = parallel.progress_on_terminal(len(seeds))
-    parts = parallel.run(build_block, args.bot_a, args.bot_b, seeds, args.jobs, progress)
+def generate(
+    bot_a: str,
+    bot_b: str,
+    seeds: range,
+    jobs: int,
+    progress: parallel.Progress | None = None,
+) -> dict[str, npt.NDArray[np.generic]]:
+    """Every decision of the pairs of these seeds, played on `jobs` processes, as rows."""
+    parts = parallel.run(build_block, bot_a, bot_b, seeds, jobs, progress)
     data = {key: np.concatenate([p[key] for p in parts]) for key in parts[0]}
     data["feature_names"] = parts[0]["feature_names"]
+    return data
+
+
+def save(path: Path, data: dict[str, npt.NDArray[np.generic]], bots: tuple[str, str]) -> None:
+    """Writes the rows with where they come from: the two bots, and the catalog they used."""
     # The battles may all have been played in other processes: this one loads the catalog itself.
     _engine.engine_init(str(DATA_DIR))
     origin = {
-        "bots": np.array([args.bot_a, args.bot_b]),
+        "bots": np.array(bots),
         "catalog_fingerprint": np.uint64(_engine.catalog_fingerprint()),
     }
     payload: dict[str, Any] = {**data, **origin}  # Any: numpy's stub also matches allow_pickle
-    np.savez_compressed(out, **payload)
-    rows, width = data["x"].shape
-    write(
-        f"{args.bot_a} against {args.bot_b}, seeds {show(seeds)}: "
-        f"{rows} decisions x {width} features, mean label {data['y'].mean():.3f} -> {out}\n"
-    )
-    return 0
+    np.savez_compressed(path, **payload)

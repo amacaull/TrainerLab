@@ -4,10 +4,11 @@ import pytest
 
 from trainerlab import _engine
 from trainerlab.bots.roster import BOTS
-from trainerlab.commands.watch import CHOSEN, main
+from trainerlab.commands.watch import main
 from trainerlab.game.decisions import decisions
 from trainerlab.game.environment import random_team_pair
-from trainerlab.game.harness import play_pair
+from trainerlab.game.pairs import play_pair
+from trainerlab.terminal.commentary import CHOSEN
 from trainerlab.terminal.render import describe_move, describe_switch
 
 

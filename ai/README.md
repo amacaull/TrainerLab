@@ -91,12 +91,15 @@ again.
 
 | Package | Role |
 |---|---|
-| `game/` | **The game.** The referee (`environment`), the loop (`battle`), the contract a player honours (`player`), a pair of battles from its seed (`harness`), every decision replayed (`decisions`), and what a player can reckon of damage and speed from what it sees (`estimate`). |
+| `game/` | **The game.** The referee (`environment`), the loop (`battle`), the contract a player honours (`player`), a pair of battles from its seed (`pairs`), every decision replayed (`decisions`), what a player can reckon of damage and speed (`estimate`), and a playable state built from a view (`views`). |
+| `learning/` | **What is learned.** The features of a position (`features`), the win probability model (`model`), fitting it on datasets and scoring it on unseen battles (`fitting`), and the model shipped with rules 6 and 7 (`models/`). |
 | `bots/` | **The players.** Rules 1 to 5 (`rules`), rules 6 and 7 that look a turn ahead (`lookahead`), and every bot by name (`roster`). |
-| `learning/` | **What is learned.** The features of a position (`features`), the win probability model and its training (`model`), and the model shipped with rules 6 and 7 (`models/`). |
-| `experiments/` | **Many battles at once.** Spreading pairs over the cores (`parallel`), the automatic audit of mistakes (`audit`), the datasets (`dataset`). |
-| `terminal/` | **You, in the terminal.** The human player (`human`), the text (`render`), the framed panels (`screen`), the end-of-battle summary (`stats`). |
-| `commands/` | **The command** `trainerlab`: the menu (`cli`), the shared options, and one module per mode (`play`, `duel`, `watch`, `train`). |
+| `experiments/` | **Many battles at once.** Scores and duels (`tournament`), spreading pairs over the cores (`parallel`), the automatic audit of mistakes (`audit`), the datasets (`dataset`). |
+| `terminal/` | **You, in the terminal.** A battle against a bot (`session`), a battle between bots told with what each one saw (`commentary`), the human player (`human`), the text (`render`), the framed panels (`screen`), the end-of-battle summary (`stats`). |
+| `commands/` | **The command** `trainerlab`: the dispatch (`cli`), the menu (`menu`), the shared options, and one thin module per mode: it reads the options, calls the domain, prints the result. |
+
+Each domain imports only those above it in this table (the terminal, only
+`game/`); a test reads every import to keep it so.
 
 A bot never sees the real state: it receives `observe(side)`, which hides
 the opponent's Pokémon that have not entered the field and the remaining

@@ -12,15 +12,11 @@ from contextlib import ExitStack
 
 from trainerlab import _engine
 from trainerlab.bots.roster import DEFAULT_OPPONENT, WITH_MODEL, bot_spec, factory
-from trainerlab.game.battle import play_battle
 from trainerlab.game.environment import BattleEnvironment, random_team_pair
-from trainerlab.terminal.human import Ask, HumanPlayer
-from trainerlab.terminal.render import Style, describe_board, narrate
+from trainerlab.terminal.human import Ask
+from trainerlab.terminal.render import Style
 from trainerlab.terminal.screen import SPEEDS, Screen, Write
-from trainerlab.terminal.stats import BattleStats
-
-ME = 0
-RESULTS = {ME: "You won!", 1 - ME: "You lost.", None: "It's a draw."}
+from trainerlab.terminal.session import play_session
 
 
 def _stdout(text: str) -> None:
@@ -69,52 +65,7 @@ def main(argv: list[str] | None = None, ask: Ask = input, write: Write = _stdout
 
         width = max(60, min(100, shutil.get_terminal_size().columns))
         screen = Screen(write, width=width, speed=args.speed, clear=terminal, log=log)
-        return _play(env, args.against, seed, team, screen, style, ask, not args.no_hints)
-
-
-def title_for(before: _engine.BattleState, after: _engine.BattleState) -> str:
-    if after.turn != before.turn:
-        return f"Turn {after.turn}"
-    return "Battle start" if after.turn == 0 else "Switch-in"
-
-
-def _play(
-    env: BattleEnvironment,
-    opponent: str,
-    seed: int,
-    team: list[str],
-    screen: Screen,
-    style: Style,
-    ask: Ask,
-    hints: bool,
-) -> int:
-    screen.clear()
-    screen.message(f"Seed {seed} (replay this battle with --seed {seed}). Opponent: {opponent}.")
-    screen.message("Your team: " + ", ".join(team))
-    stats = BattleStats()
-    before = env.observe(ME)
-
-    def tell(events: list[_engine.Event]) -> None:
-        nonlocal before
-        after = env.observe(ME)
-        lines = narrate(list(events), before, after, ME, style)
-        if lines:
-            screen.narrate(title_for(before, after), lines)
-        stats.record(lines)
-        before = after
-
-    tell(env.opening_events)
-    player = HumanPlayer(ask, screen, style, hints=hints)
-    try:
-        winner = play_battle(env, player, factory(opponent)(seed), tell)
-    except (EOFError, KeyboardInterrupt):
-        screen.message("Battle abandoned.")
-        return 130
-
-    final = env.observe(ME)
-    screen.clear()
-    screen.panel("Final board", describe_board(final, ME, style))
-    screen.panel("Last turn", screen.take_history())
-    screen.panel(RESULTS[winner], stats.summary(final, ME, env.turn))
-    screen.message(RESULTS[winner])
-    return 0
+        opponent = factory(args.against)(seed)
+        return play_session(
+            env, opponent, args.against, seed, team, screen, style, ask, not args.no_hints
+        )

@@ -18,7 +18,7 @@ from trainerlab.bots.rules import (
     SurvivalBot,
     SwitchingBot,
 )
-from trainerlab.game.harness import BotFactory
+from trainerlab.game.pairs import BotFactory
 from trainerlab.game.player import Bot
 from trainerlab.learning.model import WinModel
 

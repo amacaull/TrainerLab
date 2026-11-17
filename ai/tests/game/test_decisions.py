@@ -7,7 +7,7 @@ from trainerlab import _engine
 from trainerlab.bots.rules import RandomBot
 from trainerlab.game.decisions import Decision, decisions
 from trainerlab.game.environment import BattleEnvironment, random_team_pair
-from trainerlab.game.harness import BotFactory, play_pair
+from trainerlab.game.pairs import BotFactory, play_pair
 
 
 def _fixed(seed: int) -> tuple[list[str], list[str]]:

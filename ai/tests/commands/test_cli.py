@@ -5,7 +5,8 @@ from pathlib import Path
 import pytest
 
 from trainerlab.bots.roster import BOTS
-from trainerlab.commands.cli import main, menu
+from trainerlab.commands.cli import MODES, main
+from trainerlab.commands.menu import menu
 from trainerlab.terminal.human import Ask
 
 
@@ -26,7 +27,7 @@ def _scripted(answers: list[str], prompts: list[str] | None = None) -> Ask:
 def _menu(answers: list[str]) -> tuple[list[str], str]:
     """The command the menu builds, and everything it showed: lists, messages and prompts."""
     shown: list[str] = []
-    return menu(_scripted(answers, shown), shown.append), "".join(shown)
+    return menu(_scripted(answers, shown), shown.append, MODES), "".join(shown)
 
 
 # The modes, in menu order: 1 play, 2 duel, 3 watch, 4 audit, 5 dataset.

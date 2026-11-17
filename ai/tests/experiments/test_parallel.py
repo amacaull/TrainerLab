@@ -1,7 +1,6 @@
 import pytest
 
-from trainerlab.commands import duel
-from trainerlab.experiments import parallel
+from trainerlab.experiments import parallel, tournament
 
 
 def test_the_seeds_are_cut_into_consecutive_blocks_in_order() -> None:
@@ -16,8 +15,8 @@ def test_never_more_blocks_than_seeds_nor_fewer_than_one() -> None:
 def test_spreading_the_pairs_over_processes_changes_no_result() -> None:
     seeds = range(30000, 30060)  # three blocks of 20
 
-    alone = parallel.run(duel.play, "hitter", "random", seeds, 1)
-    spread = parallel.run(duel.play, "hitter", "random", seeds, 2)
+    alone = parallel.run(tournament.play_block, "hitter", "random", seeds, 1)
+    spread = parallel.run(tournament.play_block, "hitter", "random", seeds, 2)
 
     assert len(alone) == len(spread) == 3
     assert [(r.wins, r.losses) for r in alone] == [(r.wins, r.losses) for r in spread]
@@ -45,7 +44,7 @@ def test_progress_is_updated_after_each_block() -> None:
     clock = iter(float(t) for t in range(100))
     progress = parallel.Progress(30, shown.append, lambda: next(clock))
 
-    parallel.run(duel.play, "hitter", "random", range(30), 1, progress)
+    parallel.run(tournament.play_block, "hitter", "random", range(30), 1, progress)
 
     assert [line.split()[0] for line in shown[:-1]] == ["15/30", "30/30"]
     assert "about 0 s left" in shown[-2]

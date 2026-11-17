@@ -7,7 +7,8 @@ import pytest
 
 from trainerlab import _engine
 from trainerlab.bots.roster import BOTS
-from trainerlab.experiments.dataset import build, default_name, main
+from trainerlab.commands.dataset import main
+from trainerlab.experiments.dataset import build, default_name
 from trainerlab.game.decisions import decisions
 from trainerlab.game.environment import BattleEnvironment
 from trainerlab.learning.features import feature_names, features
@@ -168,7 +169,7 @@ def test_a_fresh_process_writes_a_dataset_played_in_other_processes(tmp_path: Pa
     # The battles are played in child processes: the parent never loads the catalog by itself.
     out = tmp_path / "fresh.npz"
     script = (
-        "from trainerlab.experiments.dataset import main\n"
+        "from trainerlab.commands.dataset import main\n"
         f"main(['hitter', 'random', '--pairs', '2', '--jobs', '2', '--out', {str(out)!r}])\n"
     )
 

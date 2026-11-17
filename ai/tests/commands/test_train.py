@@ -5,9 +5,10 @@ import numpy as np
 import pytest
 
 from trainerlab.bots.roster import BOTS
-from trainerlab.commands.train import default_name, main
+from trainerlab.commands.train import main
 from trainerlab.experiments.dataset import build
 from trainerlab.game.decisions import decisions
+from trainerlab.learning.fitting import default_name
 from trainerlab.learning.model import WinModel
 
 

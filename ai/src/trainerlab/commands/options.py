@@ -19,10 +19,6 @@ def seed(text: str) -> int:
     return int(text)
 
 
-def show(seeds: range) -> str:
-    return f"{seeds[0]}-{seeds[-1]}"
-
-
 def seeds_of(args: argparse.Namespace) -> range:
     """The seeds of the pairs asked for: one pair per seed, from --from upwards."""
     return range(args.first_seed, args.first_seed + args.pairs)

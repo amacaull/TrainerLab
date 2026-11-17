@@ -12,7 +12,7 @@ from typing import Literal, NamedTuple
 from trainerlab import _engine
 from trainerlab.game.battle import play_battle
 from trainerlab.game.environment import BattleEnvironment, random_team_pair
-from trainerlab.game.harness import BotFactory, Outcome, TeamSource, outcome_of, pair_battles
+from trainerlab.game.pairs import BotFactory, Outcome, TeamSource, outcome_of, pair_battles
 from trainerlab.game.player import Bot
 
 Kind = Literal["action", "replacement"]
