@@ -481,7 +481,7 @@ void BattleEngine::resolveHit(BattleState &state, int side, const Move &move, in
 }
 
 namespace {
-// The subcode is the only part of a refusal callers read (README.md, section 6).
+// The subcode is the only part of a refusal callers read (docs/api.md, errors).
 [[noreturn]] void refuse(const char *code, const std::string &detail) {
   throw std::invalid_argument(std::string(code) + ": " + detail);
 }

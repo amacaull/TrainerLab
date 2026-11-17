@@ -11,8 +11,8 @@
 
 namespace engine::ffi {
 namespace {
-// Kind numbers come from the README.md section 6 table, NOT from the order of the std::variant: the
-// two diverge.
+// Kind numbers come from the event table of docs/api.md, NOT from the order of the std::variant:
+// the two diverge.
 enum Kind : uint8_t {
   kMoveUsed = 0,
   kDamageDealt = 1,

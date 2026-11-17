@@ -8,8 +8,7 @@
 #include <vector>
 
 // Every function may throw. Messages start with a stable prefix (E_INIT, E_DATA, E_ARG, E_STATE,
-// E_TEAM, E_ACTION): callers across a language boundary only get what(). Contract: README.md,
-// section 6.
+// E_TEAM, E_ACTION): callers across a language boundary only get what(). Contract: docs/api.md.
 namespace engine::ffi {
 // Idempotent for the same path. Another path throws: two catalogs in one process would mean two id
 // spaces.
@@ -54,7 +53,7 @@ struct FfiAction {
   int32_t pivot_target = -1; // kind 0 only, -1 = auto
 };
 
-// The meaning of i0/i1/f0/flags depends on kind: see the event table in README.md, section 6.
+// The meaning of i0/i1/f0/flags depends on kind: see the event table in docs/api.md.
 struct FfiEvent {
   uint8_t kind = 0;
   int8_t side = -1; // -1 for field-wide events
@@ -113,7 +112,7 @@ MoveEntry move_entry(int id);
 
 // The type chart multiplier of a move type against a species (0, 0.25, 0.5, 1, 2 or 4), so that a
 // client never copies the chart. Chart only: an ability that grants an immunity (Levitate, Volt
-// Absorb...) is not taken into account. move_type uses the Type numbering of README.md, section 6.
+// Absorb...) is not taken into account. move_type uses the Type numbering of docs/api.md.
 float type_effectiveness(int move_type, int species_id);
 
 BattlePokemon make_combatant(int species_id);
@@ -133,7 +132,7 @@ int faster_side(const BattleState &state, uint64_t seed);
 bool is_over(const BattleState &state);
 bool side_has_lost(const BattleState &state, int side);
 
-// What resolve_turn accepts for this side, one entry per distinct outcome (README.md, section 6).
+// What resolve_turn accepts for this side, one entry per distinct outcome (docs/api.md).
 // Empty when the active is fainted: ask legal_replacements instead.
 std::vector<FfiAction> legal_actions(const BattleState &state, int side);
 

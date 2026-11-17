@@ -395,7 +395,7 @@ class Action:
         ...
 class Event:
     """
-    One engine event. The meaning of i0, i1, f0 and flags depends on kind: see the event table in engine/README.md, section 6.
+    One engine event. The meaning of i0, i1, f0 and flags depends on kind: see the event table in engine/docs/api.md.
     """
     def __repr__(self) -> str:
         ...

@@ -1,7 +1,7 @@
 // Python binding of the flat engine API (engine/include/engine/ffi/ffi.hpp).
 //
 // Same function names as the C++ API; struct fields are exposed in snake_case. Enums travel as int,
-// with the frozen numbering of engine/README.md, section 6. Errors become Python exceptions, one
+// with the frozen numbering of engine/docs/api.md. Errors become Python exceptions, one
 // class per prefix, with the full message kept.
 
 #include "engine/ffi/ffi.hpp"
@@ -360,7 +360,7 @@ void bindActionsAndEvents(py::module_ &m) {
 
   py::class_<FfiEvent>(m, "Event",
                        "One engine event. The meaning of i0, i1, f0 and flags depends on kind: "
-                       "see the event table in engine/README.md, section 6.")
+                       "see the event table in engine/docs/api.md.")
       .def_property_readonly("kind", [](const FfiEvent &e) { return static_cast<int>(e.kind); })
       .def_property_readonly("side", [](const FfiEvent &e) { return static_cast<int>(e.side); })
       .def_property_readonly("slot", [](const FfiEvent &e) { return static_cast<int>(e.slot); })

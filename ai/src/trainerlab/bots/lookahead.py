@@ -3,7 +3,7 @@
 For each of its options, the bot plays the turn on a copy of what it sees, the foe playing what
 rule 5 would play, then asks the model how likely it is to win from the position reached. A
 replacement is chosen the same way, without a turn. The model ships with the package
-(learning/models/win-logistic.npz): the logistic regression measured in the README, rebuilt by
+(learning/models/win-logistic.npz): the logistic regression measured in docs/results.md, rebuilt by
 
     trainerlab dataset calculator survivor --pairs 2000 --from 40000
     trainerlab train calculator-vs-survivor-40000-41999.npz \
