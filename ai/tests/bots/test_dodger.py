@@ -1,5 +1,6 @@
 from trainerlab._engine import Action
-from trainerlab.bots.rules import RandomBot, SwitchingBot
+from trainerlab.bots.baseline import RandomBot
+from trainerlab.bots.rules import dodger
 from trainerlab.experiments.tournament import run_tournament
 from trainerlab.game.environment import BattleEnvironment
 
@@ -7,7 +8,7 @@ from trainerlab.game.environment import BattleEnvironment
 def _choice(team: list[str], opponent: list[str]) -> Action:
     """What the switching bot plays as side 0 with `team` against `opponent`."""
     env = BattleEnvironment(team, opponent, seed=42)
-    return SwitchingBot().choose_action(0, env.observe(0), env.legal_actions(0))
+    return dodger().choose_action(0, env.observe(0), env.legal_actions(0))
 
 
 def test_a_threatened_pokemon_leaves_for_one_that_resists_the_threat() -> None:
@@ -45,15 +46,13 @@ def test_the_threat_is_the_opponent_strongest_move() -> None:
 def test_the_bot_reads_its_own_side_and_the_opposing_active() -> None:
     env = BattleEnvironment(["Infernape"], ["Snorlax", "Dragapult"], seed=42)
 
-    action = SwitchingBot().choose_action(1, env.observe(1), env.legal_actions(1))
+    action = dodger().choose_action(1, env.observe(1), env.legal_actions(1))
 
     assert action == Action.switch(1)
 
 
 def test_the_switching_bot_beats_the_random_bot() -> None:
-    result = run_tournament(
-        lambda seed: SwitchingBot(), lambda seed: RandomBot(seed=seed), pairs=100
-    )
+    result = run_tournament(lambda seed: dodger(), lambda seed: RandomBot(seed=seed), pairs=100)
     low, _ = result.interval
 
     assert low > 0.5

@@ -1,5 +1,5 @@
 from trainerlab import _engine
-from trainerlab.bots.rules import HeuristicBot
+from trainerlab.bots.rules import hitter
 from trainerlab.game.battle import play_battle
 from trainerlab.game.environment import BattleEnvironment
 
@@ -16,7 +16,7 @@ def test_the_game_loop_reports_every_turn_and_replacement() -> None:
     reported: list[list[_engine.Event]] = []
     env = BattleEnvironment(["Dragapult", "Snorlax"], ["KommoO", "Blissey"], seed=42)
 
-    play_battle(env, HeuristicBot(), HeuristicBot(), reported.append)
+    play_battle(env, hitter(), hitter(), reported.append)
 
     kinds = [[event.kind for event in events] for events in reported]
     assert FAINTED in kinds[0]  # turn 1: Kommo-o falls

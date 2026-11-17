@@ -1,5 +1,6 @@
 from trainerlab._engine import Action
-from trainerlab.bots.rules import HeuristicBot, RandomBot, SurvivalBot
+from trainerlab.bots.baseline import RandomBot
+from trainerlab.bots.rules import hitter, survivor
 from trainerlab.experiments.tournament import run_tournament
 from trainerlab.game.environment import BattleEnvironment
 
@@ -17,12 +18,12 @@ def _decide(team: list[str], active_hp: int, bench_hp: dict[int, int] | None = N
         pokemon = view.pokemon(0, index)
         pokemon.current_hp = hp
         view.set_pokemon(0, index, pokemon)
-    return SurvivalBot().choose_action(0, view, env.legal_actions(0))
+    return survivor().choose_action(0, view, env.legal_actions(0))
 
 
 def _rule_one(team: list[str]) -> Action:
     env = BattleEnvironment(team, ["Conkeldurr"], seed=1)
-    return HeuristicBot().choose_action(0, env.observe(0), env.legal_actions(0))
+    return hitter().choose_action(0, env.observe(0), env.legal_actions(0))
 
 
 def test_a_pokemon_about_to_fall_first_escapes_to_the_best_survivor() -> None:
@@ -56,7 +57,7 @@ def test_an_opponent_that_does_not_outspeed_is_no_reason_to_leave() -> None:
     view.set_pokemon(0, 0, snorlax)
     view.set_pokemon(1, 0, conkeldurr)
 
-    assert SurvivalBot().choose_action(0, view, env.legal_actions(0)) == _rule_one(TEAM)
+    assert survivor().choose_action(0, view, env.legal_actions(0)) == _rule_one(TEAM)
 
 
 def test_the_bot_reads_its_own_side_and_the_opposing_active() -> None:
@@ -66,13 +67,11 @@ def test_the_bot_reads_its_own_side_and_the_opposing_active() -> None:
     snorlax.current_hp = 367
     view.set_pokemon(1, 0, snorlax)
 
-    assert SurvivalBot().choose_action(1, view, env.legal_actions(1)) == Action.switch(2)
+    assert survivor().choose_action(1, view, env.legal_actions(1)) == Action.switch(2)
 
 
 def test_the_survival_bot_beats_the_random_bot() -> None:
-    result = run_tournament(
-        lambda seed: SurvivalBot(), lambda seed: RandomBot(seed=seed), pairs=100
-    )
+    result = run_tournament(lambda seed: survivor(), lambda seed: RandomBot(seed=seed), pairs=100)
     low, _ = result.interval
 
     assert low > 0.5
@@ -83,4 +82,4 @@ def test_replacements_still_follow_rule_three() -> None:
         ["Dragapult"], ["Snorlax", "Weavile", "HoopaUnbound", "KommoO"], seed=42
     )
 
-    assert SurvivalBot().choose_replacement(1, env.observe(1), [1, 2, 3]) == 3
+    assert survivor().choose_replacement(1, env.observe(1), [1, 2, 3]) == 3

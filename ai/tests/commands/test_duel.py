@@ -1,17 +1,12 @@
 import re
+from collections.abc import Callable
 
 import pytest
 
-from trainerlab.bots.lookahead import ForecastBot, StrategistBot
+from trainerlab.bots.baseline import RandomBot
+from trainerlab.bots.lookahead import Forecaster, Strategist
 from trainerlab.bots.roster import BOTS
-from trainerlab.bots.rules import (
-    HeuristicBot,
-    MatchupBot,
-    OutlookBot,
-    RandomBot,
-    SurvivalBot,
-    SwitchingBot,
-)
+from trainerlab.bots.rules import RuleBot, calculator, dodger, hitter, matcher, survivor
 from trainerlab.commands.duel import main
 from trainerlab.experiments.tournament import run_tournament
 
@@ -59,17 +54,22 @@ def test_the_command_plays_the_requested_seeds(capsys: pytest.CaptureFixture[str
 
 
 @pytest.mark.parametrize(
-    ("name", "bot_class"),
+    ("name", "rule"),
     [
-        ("random", RandomBot),
-        ("hitter", HeuristicBot),
-        ("dodger", SwitchingBot),
-        ("matcher", MatchupBot),
-        ("survivor", SurvivalBot),
-        ("calculator", OutlookBot),
-        ("forecaster", ForecastBot),
-        ("strategist", StrategistBot),
+        ("hitter", hitter),
+        ("dodger", dodger),
+        ("matcher", matcher),
+        ("survivor", survivor),
+        ("calculator", calculator),
     ],
+)
+def test_each_rule_is_built_from_its_choices(name: str, rule: Callable[[], RuleBot]) -> None:
+    assert BOTS[name](0) == rule()
+
+
+@pytest.mark.parametrize(
+    ("name", "bot_class"),
+    [("random", RandomBot), ("forecaster", Forecaster), ("strategist", Strategist)],
 )
 def test_each_name_builds_its_bot(name: str, bot_class: type) -> None:
     assert type(BOTS[name](0)) is bot_class

@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from teams import TEAM0, TEAM1
 
 from trainerlab import _engine
-from trainerlab.bots.rules import RandomBot
+from trainerlab.bots.baseline import RandomBot
 from trainerlab.game.decisions import Decision, decisions
 from trainerlab.game.environment import BattleEnvironment, random_team_pair
 from trainerlab.game.pairs import BotFactory, play_pair

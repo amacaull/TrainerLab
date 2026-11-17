@@ -6,15 +6,9 @@ import pytest
 from teams import TEAM0, TEAM1
 
 from trainerlab import _engine
-from trainerlab.bots.lookahead import ForecastBot, StrategistBot
-from trainerlab.bots.rules import (
-    HeuristicBot,
-    MatchupBot,
-    OutlookBot,
-    RandomBot,
-    SurvivalBot,
-    SwitchingBot,
-)
+from trainerlab.bots.baseline import RandomBot
+from trainerlab.bots.lookahead import Forecaster, Strategist
+from trainerlab.bots.rules import calculator, dodger, hitter, matcher, survivor
 from trainerlab.game.battle import play_battle
 from trainerlab.game.environment import BattleEnvironment
 from trainerlab.game.player import Bot
@@ -22,13 +16,13 @@ from trainerlab.game.player import Bot
 # Every new bot is added here and inherits the whole contract.
 BOT_FACTORIES: list[Callable[[int], Bot]] = [
     lambda seed: RandomBot(seed=seed),
-    lambda seed: HeuristicBot(),
-    lambda seed: SwitchingBot(),
-    lambda seed: MatchupBot(),
-    lambda seed: SurvivalBot(),
-    lambda seed: OutlookBot(),
-    lambda seed: ForecastBot(),
-    lambda seed: StrategistBot(),
+    lambda seed: hitter(),
+    lambda seed: dodger(),
+    lambda seed: matcher(),
+    lambda seed: survivor(),
+    lambda seed: calculator(),
+    lambda seed: Forecaster(),
+    lambda seed: Strategist(),
 ]
 
 

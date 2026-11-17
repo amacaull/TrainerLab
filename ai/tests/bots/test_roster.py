@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from trainerlab.bots.lookahead import MODEL, ForecastBot, StrategistBot
+from trainerlab.bots.lookahead import MODEL, Forecaster, Strategist
 from trainerlab.bots.roster import BOTS, bot_spec, factory, slug
 
 
@@ -18,7 +18,7 @@ def test_the_forecaster_can_play_with_another_model(tmp_path: Path) -> None:
 
     bot = factory(f"forecaster:{model}")(0)
 
-    assert isinstance(bot, ForecastBot)
+    assert isinstance(bot, Forecaster)
     assert bot_spec(f"forecaster:{model}") == f"forecaster:{model}"
 
 
@@ -44,4 +44,4 @@ def test_the_strategist_takes_a_model_too(tmp_path: Path) -> None:
     model = tmp_path / "gen2.npz"
     shutil.copy(MODEL, model)
 
-    assert isinstance(factory(f"strategist:{model}")(0), StrategistBot)
+    assert isinstance(factory(f"strategist:{model}")(0), Strategist)
