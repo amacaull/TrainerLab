@@ -1,7 +1,7 @@
 """The kinds of engine events, by name: the numbers of `Event.kind`.
 
 The binding gives events as flat records whose `kind` is a number (engine/src/ffi/convert.cpp,
-and the event table of the engine's README, section 6). This is the one place that names them.
+and the event table of engine/docs/api.md). This is the one place that names them.
 """
 
 from enum import IntEnum

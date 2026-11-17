@@ -29,7 +29,7 @@ STATUS_VERBS = ["", "burn", "poison", "badly poison", "paralyze", "put to sleep"
 
 
 class EventFields(Protocol):
-    """The fields of an engine event that the text needs (README.md of the engine, section 6)."""
+    """The fields of an engine event that the text needs (the event table of engine/docs/api.md)."""
 
     @property
     def kind(self) -> int: ...
@@ -350,9 +350,9 @@ def narrate(
 ) -> list[Narration]:
     """The turn's history, from the views before and after it.
 
-    The engine reports raw damage, which can exceed the HP left (README.md of the engine,
-    section 6): HP are followed through the turn so that each line shows what was really lost.
-    A fainted Pokemon leaving the field is not told: its knock-out already was.
+    The engine reports raw damage, which can exceed the HP left (engine/docs/api.md): HP are
+    followed through the turn so that each line shows what was really lost. A fainted Pokemon
+    leaving the field is not told: its knock-out already was.
     """
     hp: dict[tuple[int, int], int] = {}
     lines = []

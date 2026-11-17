@@ -53,7 +53,7 @@ def test_the_bot_takes_the_first_proposed_replacement() -> None:
 
 
 def test_the_hitter_beats_the_random_bot() -> None:
-    # Guards the README claim with fewer pairs, to keep the suite fast.
+    # Guards the measured claim with fewer pairs, to keep the suite fast.
     result = run_tournament(
         lambda seed: hitter(),
         lambda seed: RandomBot(seed=seed),

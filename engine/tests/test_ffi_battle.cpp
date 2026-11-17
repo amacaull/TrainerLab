@@ -173,7 +173,7 @@ TEST_CASE("the boundary refuses to work over an invalid state", "[ffi][battle]")
 
 TEST_CASE("every error crossing the boundary carries a known prefix", "[ffi][battle]") {
   ensureInit();
-  // A prefix is a convention nothing compiles (README.md section 6, errors);
+  // A prefix is a convention nothing compiles (docs/api.md, errors);
   // this is the test that turns it into an invariant.
   BattleState bad = duel("Dragapult", "Snorlax");
   bad.teams[0][0].currentHp = -1;
@@ -201,7 +201,7 @@ TEST_CASE("every error crossing the boundary carries a known prefix", "[ffi][bat
 TEST_CASE("every action refusal carries a frozen subcode", "[ffi][battle]") {
   ensureInit();
   // E_ACTION is the only prefix that reaches a player, so its subcode is a
-  // contract (README.md section 6, errors). A convention nothing compiles is a
+  // contract (docs/api.md, errors). A convention nothing compiles is a
   // convention that drifts; this test is the lock.
   BattleState s = duel("Dragapult", "Snorlax");
   start_battle(s, 42);
