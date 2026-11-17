@@ -89,29 +89,14 @@ again.
 
 ## How it fits together
 
-| Module | Role |
+| Package | Role |
 |---|---|
-| `environment.py` | **The referee.** Owns the real battle state and enforces the rules: legal actions, turns, replacements in speed order, turn limit, winner. Also draws random legal teams. |
-| `bots.py` | **The players.** Each bot picks among the options the referee offers, from its side's view only. |
-| `battle.py` | **The game loop.** Asks each bot for its choices and hands them to the referee until the end. |
-| `harness.py` | **The measurement.** Plays paired battles and computes a score with its confidence interval. |
-| `decisions.py` | **The data.** Replays the battles of a tournament and gives every decision: what the bot saw, its options, its choice, and how the battle ended. |
-| `estimate.py` | **The bots' mental model of damage**, built only from what a player can see. |
-| `roster.py` | **Every bot by name**: the only place that knows them all. |
-| `cli.py` | **The command** `trainerlab`: the menu, and the dispatch to each mode below. |
-| `duel.py` | **`trainerlab duel`**: one bot against another, over paired battles. |
-| `human.py` | **You, as a bot.** The game loop asks you exactly what it asks any bot; a wrong key is asked again. |
-| `render.py` | **The text.** Views, options and events turned into sentences, with colours in a terminal. |
-| `screen.py` | **The terminal.** Framed panels, cleared screens and the typed-out history, with the log file. |
-| `stats.py` | **The end-of-battle summary.** Knock-outs and damage dealt, credited to the Pokémon that attacked. |
-| `play.py` | **`trainerlab play`**. |
-| `watch.py` | **`trainerlab watch`**: replays a battle between two bots, with what each one saw and estimated. |
-| `audit.py` | **`trainerlab audit`**: counts the mistakes of a bot that a program can spot on its own. |
-| `dataset.py` | **`trainerlab dataset`**: turns the decisions of a series of battles into features and labels, in a `.npz` file. |
-| `features.py` | **What a side sees, as numbers**: the features of a position, for the dataset and for rule 6. |
-| `forecaster.py` | **Rule 6**: plays each option a turn ahead and keeps what the model rates best. Ships with its model, `models/win-logistic.npz`. |
-| `model.py` | **The win probability model**: a logistic regression or a small neural network, in numpy, with its training and its scores. |
-| `train.py` | **`trainerlab train`**: fits a model on a dataset and measures it on battles it has never seen. |
+| `game/` | **The game.** The referee (`environment`), the loop (`battle`), the contract a player honours (`player`), a pair of battles from its seed (`harness`), every decision replayed (`decisions`), and what a player can reckon of damage and speed from what it sees (`estimate`). |
+| `bots/` | **The players.** Rules 1 to 5 (`rules`), rules 6 and 7 that look a turn ahead (`lookahead`), and every bot by name (`roster`). |
+| `learning/` | **What is learned.** The features of a position (`features`), the win probability model and its training (`model`), and the model shipped with rules 6 and 7 (`models/`). |
+| `experiments/` | **Many battles at once.** Spreading pairs over the cores (`parallel`), the automatic audit of mistakes (`audit`), the datasets (`dataset`). |
+| `terminal/` | **You, in the terminal.** The human player (`human`), the text (`render`), the framed panels (`screen`), the end-of-battle summary (`stats`). |
+| `commands/` | **The command** `trainerlab`: the menu (`cli`), the shared options, and one module per mode (`play`, `duel`, `watch`, `train`). |
 
 A bot never sees the real state: it receives `observe(side)`, which hides
 the opponent's Pokémon that have not entered the field and the remaining
@@ -125,8 +110,8 @@ pair of battles entirely. No battle is stored: `decisions` replays them, and
 the same call always gives the same decisions.
 
 ```python
-from trainerlab.decisions import decisions
-from trainerlab.roster import BOTS
+from trainerlab.bots.roster import BOTS
+from trainerlab.game.decisions import decisions
 
 for d in decisions(BOTS["survivor"], BOTS["matcher"], seeds=range(20000, 21000)):
     d.view, d.legal, d.choice  # what the deciding side saw, its options, its choice
@@ -241,7 +226,7 @@ keeps the best option:
   the turn: it is filled with a copy of the foe's active, still unseen, and
   the view the model reads hides it again.
 - **The model** is the logistic regression measured above, shipped with the
-  package (`ai/src/trainerlab/models/win-logistic.npz`). It is rebuilt with
+  package (`ai/src/trainerlab/learning/models/win-logistic.npz`). It is rebuilt with
   the two commands of the previous section (`--out` to put it there).
 
 Fixed before measuring, measured once on seeds that served for nothing else:
