@@ -108,3 +108,11 @@ It holds no expected damage: on this Linux machine it takes 1.6 million
 positions a second, against 4500 for the features of the win model. The
 network will have to learn damage from types, stats and moves, which a
 network can; the time saved goes to playing more games.
+
+## 6.2: the vector environment
+
+256 battles at once, both sides played by the caller, a finished battle
+starting again at once (`search/src/vec_env.cpp`). With random legal actions,
+on this Linux machine, one core: about 217 000 battle steps a second in C++,
+193 000 from Python (`learning/env.py`), some 3000 battles a second. The
+environment will not be the bottleneck of self-play: the network will.
