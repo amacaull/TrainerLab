@@ -3,6 +3,7 @@
 #include "engine/core/battle_state.hpp"
 #include "engine/core/data_loader.hpp"
 #include "engine/core/engine.hpp"
+#include "search/estimate.hpp"
 #include "search/features.hpp"
 
 #include <cstdint>
@@ -20,7 +21,9 @@ class Game {
 public:
   explicit Game(const std::string &dataDir);
 
+  const engine::DataLoader &data() const { return data_; }
   const engine::BattleEngine &rules() const { return rules_; }
+  const Estimate &estimate() const { return estimate_; }
   const Features &features() const { return features_; }
 
   // Two random legal teams of six, the same ones for the same seed, started with this seed.
@@ -29,7 +32,8 @@ public:
 private:
   engine::DataLoader data_;
   engine::BattleEngine rules_{data_};
-  Features features_{data_, rules_};
+  Estimate estimate_{data_};
+  Features features_{data_, rules_, estimate_};
 };
 
 // How a battle played to its end came out.

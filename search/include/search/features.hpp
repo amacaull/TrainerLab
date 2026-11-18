@@ -3,6 +3,7 @@
 #include "engine/core/battle_state.hpp"
 #include "engine/core/data_loader.hpp"
 #include "engine/core/engine.hpp"
+#include "search/estimate.hpp"
 
 #include <string>
 #include <vector>
@@ -15,7 +16,8 @@ namespace search {
 // computed in double, in the same order as in Python, then rounded once to float.
 class Features {
 public:
-  Features(const engine::DataLoader &data, const engine::BattleEngine &rules);
+  Features(const engine::DataLoader &data, const engine::BattleEngine &rules,
+           const Estimate &estimate);
 
   // The name of each column, in order: the same as feature_names() in Python.
   const std::vector<std::string> &names() const { return names_; }
@@ -24,12 +26,11 @@ public:
   void compute(const engine::BattleState &view, int side, float *out) const;
 
 private:
-  double effectiveSpeed(const engine::BattlePokemon &pokemon) const;
   double bestDamage(const engine::BattleState &view, int side) const;
 
   const engine::BattleEngine &rules_;
+  const Estimate &estimate_;
   int species_;
-  int choiceScarf_;
   std::vector<std::string> names_;
 };
 } // namespace search

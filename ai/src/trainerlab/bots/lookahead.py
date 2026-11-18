@@ -2,26 +2,24 @@
 
 For each of its options, the bot plays the turn on a copy of what it sees, the foe playing what
 rule 5 would play, then asks the model how likely it is to win from the position reached. A
-replacement is chosen the same way, without a turn. The model ships with the package
-(learning/models/win-logistic.npz): the logistic regression measured in docs/results.md, rebuilt by
+replacement is chosen the same way, without a turn. The search runs in C++ (search/src/
+forecaster.cpp); the Python version it replaced, decision for decision, is kept by the tests as
+the reference (tests/bots/reference_lookahead.py).
+
+The model ships with the package (learning/models/win-logistic.npz): the logistic regression
+measured in docs/results.md, rebuilt by
 
     trainerlab dataset calculator survivor --pairs 2000 --from 40000
-    trainerlab train calculator-vs-survivor-40000-41999.npz \
+    trainerlab train calculator-vs-survivor-40000-41999.npz \\
       --out ai/src/trainerlab/learning/models/win-logistic.npz
 """
 
-import copy
 from functools import cache
 
-import numpy as np
-
-from trainerlab import _engine
-from trainerlab.bots.rules import calculator
-from trainerlab.game.views import playable
-from trainerlab.learning.features import feature_names, features
+from trainerlab import _engine, _search
+from trainerlab.game.environment import DATA_DIR
+from trainerlab.learning.features import feature_names
 from trainerlab.learning.model import SHIPPED, WinModel
-
-SAMPLES = 2  # turns played per option, on the same seeds for every option
 
 
 class Forecaster:
@@ -32,46 +30,22 @@ class Forecaster:
         self.model = model if model is not None else _shipped_model()
         if self.model.feature_names != feature_names():
             raise ValueError("the model was trained on other features: train it again")
+        _search.init(str(DATA_DIR))
+        self._search = _search.Forecaster(
+            list(self.model.weights), list(self.model.biases), self.model.mean, self.model.std
+        )
 
     def choose_action(
         self, side: int, view: _engine.BattleState, legal: list[_engine.Action]
     ) -> _engine.Action:
-        state = playable(view, 1 - side)
-        foe_action = _foe_action(state, 1 - side)
-        return max(legal, key=lambda action: self._after_turn(state, side, action, foe_action))
+        return legal[self._search.choose_action(view, side, legal)]
 
     def choose_replacement(self, side: int, view: _engine.BattleState, options: list[int]) -> int:
-        state = playable(view, 1 - side)
-
-        def value(index: int) -> float:
-            after = copy.copy(state)
-            _engine.resolve_replacement(after, side, index)
-            return self.odds(after, side)
-
-        return max(options, key=value)
-
-    def _after_turn(
-        self,
-        state: _engine.BattleState,
-        side: int,
-        action: _engine.Action,
-        foe_action: _engine.Action,
-    ) -> float:
-        actions = (action, foe_action) if side == 0 else (foe_action, action)
-        total = 0.0
-        for sample in range(SAMPLES):
-            after = copy.copy(state)
-            _engine.resolve_turn(after, *actions, state.turn * SAMPLES + sample)
-            total += self.odds(after, side)
-        return total / SAMPLES
+        return options[self._search.choose_replacement(view, side, options)]
 
     def odds(self, state: _engine.BattleState, side: int) -> float:
         """The probability of winning from this position, as the model sees it."""
-        lost, won = _engine.side_has_lost(state, side), _engine.side_has_lost(state, 1 - side)
-        if lost or won:
-            return 0.5 if lost and won else float(won)  # the battle is over: no need to guess
-        x = features(_engine.observe(state, side), side)
-        return float(self.model.predict(x[np.newaxis])[0])
+        return self._search.odds(state, side)
 
 
 class Strategist(Forecaster):
@@ -86,37 +60,9 @@ class Strategist(Forecaster):
     def choose_action(
         self, side: int, view: _engine.BattleState, legal: list[_engine.Action]
     ) -> _engine.Action:
-        state = playable(view, 1 - side)
-        foe_replies = replies(view, state, 1 - side)
-        best, best_value = legal[0], -1.0
-        for action in legal:
-            worst = 2.0
-            for reply in foe_replies:
-                worst = min(worst, self._after_turn(state, side, action, reply))
-                if worst <= best_value:
-                    break  # already no better than the best option: its worst case is lower
-            if worst > best_value:
-                best, best_value = action, worst
-        return best
-
-
-def replies(
-    view: _engine.BattleState, state: _engine.BattleState, foe: int
-) -> list[_engine.Action]:
-    """What the foe may do, but switch to a Pokemon the bot has not seen."""
-    return [
-        action
-        for action in _engine.legal_actions(state, foe)
-        if action.kind == _engine.ACTION_MOVE or not view.pokemon(foe, action.index).is_empty()
-    ]
+        return legal[self._search.choose_strategist_action(view, side, legal)]
 
 
 @cache
 def _shipped_model() -> WinModel:
     return WinModel.load(SHIPPED)
-
-
-def _foe_action(state: _engine.BattleState, foe: int) -> _engine.Action:
-    """What rule 5 would play in the foe's place."""
-    legal = _engine.legal_actions(state, foe)
-    return calculator().choose_action(foe, _engine.observe(state, foe), legal)
