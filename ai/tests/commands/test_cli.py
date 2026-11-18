@@ -66,7 +66,7 @@ def test_a_wrong_answer_is_asked_again() -> None:
     command, shown = _menu(answers)
 
     assert command == ["duel", "hitter", "random", "--pairs", "2", "--from", "7"]
-    assert shown.count("Type a number from 1 to 6.") == 2  # the mode: 0, 9
+    assert shown.count("Type a number from 1 to 7.") == 2  # the mode: 0, 9
     assert shown.count("Type a number from 1 to 9.") == 2  # bot A: empty (no default), genius
     assert shown.count("Invalid answer, try again.") == 3
 
@@ -198,3 +198,7 @@ def test_without_arguments_the_command_line_is_read(
 
     assert main() == 0
     assert capsys.readouterr().out.startswith("usage:")
+
+
+def test_usage_asks_for_two_bots_and_the_pairs() -> None:
+    assert _menu(["usage", "random", "hitter", "", ""])[0] == ["usage", "random", "hitter"]

@@ -9,6 +9,7 @@ from pathlib import Path
 
 from trainerlab.bots.roster import BOTS, DEFAULT_OPPONENT, DESCRIPTIONS, MODEL_BOTS
 from trainerlab.commands.options import PAIRS, SCANNED_PAIRS, count, seed
+from trainerlab.commands.usage import PAIRS as USAGE_PAIRS
 from trainerlab.experiments.dataset import default_name
 from trainerlab.learning import fitting
 from trainerlab.terminal.human import Ask
@@ -50,6 +51,10 @@ def _audit(ask: Ask, write: Write) -> list[str]:
     return [*_two_bots(ask, write), *_pairs(ask, write, PAIRS)]
 
 
+def _usage(ask: Ask, write: Write) -> list[str]:
+    return [*_two_bots(ask, write), *_pairs(ask, write, USAGE_PAIRS)]
+
+
 def _dataset(ask: Ask, write: Write) -> list[str]:
     bots = _two_bots(ask, write)
     pairs, first = _how_many(ask, write, PAIRS)
@@ -80,6 +85,7 @@ QUESTIONS: dict[str, Callable[[Ask, Write], list[str]]] = {
     "audit": _audit,
     "dataset": _dataset,
     "train": _train,
+    "usage": _usage,
 }
 
 
