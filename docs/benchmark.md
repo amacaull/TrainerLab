@@ -100,3 +100,11 @@ positions it rates: about 18 positions per decision, each with 8
 
 On the Mac: **659 forecaster decisions a second** (157 at 5.1, 4.2 times
 more), and the reference duel in 5.6 s on its ten cores.
+
+## 6.1: the encoding for networks
+
+One vector per Pokémon, the field, the legal options (`search/src/encoding.cpp`).
+It holds no expected damage: on this Linux machine it takes 1.6 million
+positions a second, against 4500 for the features of the win model. The
+network will have to learn damage from types, stats and moves, which a
+network can; the time saved goes to playing more games.

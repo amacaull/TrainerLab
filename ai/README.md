@@ -135,6 +135,10 @@ it is a logistic regression (`--model logistic`, the default), trained by
 Adam from a fixed seed. `--model network` adds a hidden layer of 64 units,
 `network-stop` stops it early on held-out training battles.
 
+For the networks of palier 6, `learning/encoding.py` reads a position as one
+vector per Pokémon (153 numbers and 7 catalog ids each, twelve slots), the
+field (17) and a mask of the ten options; computed in C++.
+
 ## Known limitations
 
 - Rules 1 to 4 score moves by power × STAB × type × accuracy, which ignores

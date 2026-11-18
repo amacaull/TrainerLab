@@ -139,6 +139,37 @@ PYBIND11_MODULE(_search, m) {
           "What rule 5 plays from this view: the foe the forecaster assumes.");
 
   m.def(
+      "encoding_names",
+      [] {
+        const search::Encoding &e = loaded().encoding();
+        return py::make_tuple(e.pokemonNames(), e.fieldNames());
+      },
+      "The names of the columns of a Pokemon's vector, and of the field's.");
+
+  m.def(
+      "encode",
+      [](const engine::BattleState &view, int side) {
+        const search::Encoding &e = loaded().encoding();
+        const auto slots = static_cast<py::ssize_t>(search::Encoding::kSlots);
+        py::array_t<float> pokemon({slots, static_cast<py::ssize_t>(e.pokemonNames().size())});
+        py::array_t<int32_t> ids({slots, static_cast<py::ssize_t>(search::Encoding::kIds)});
+        py::array_t<float> field(static_cast<py::ssize_t>(e.fieldNames().size()));
+        e.encode(view, side, pokemon.mutable_data(), ids.mutable_data(), field.mutable_data());
+        return py::make_tuple(pokemon, ids, field);
+      },
+      py::arg("view"), py::arg("side"),
+      "What `side` sees, for a network: (pokemon[12, P], ids[12, 7], field[F]).");
+
+  m.def(
+      "action_mask",
+      [](const std::vector<engine::ffi::FfiAction> &legal) {
+        py::array_t<float> out(static_cast<py::ssize_t>(search::Encoding::kActions));
+        search::Encoding::mask(toActions(legal), out.mutable_data());
+        return out;
+      },
+      py::arg("legal"), "1 for each legal option: moves 0-3 by slot, then switches 4-9.");
+
+  m.def(
       "openings", [](int count, int turns) { return search::openings(loaded(), count, turns); },
       py::arg("count"), py::arg("turns") = 3,
       "Random battles from seeds 0, 1, 2..., played `turns` random turns on, with both actives "

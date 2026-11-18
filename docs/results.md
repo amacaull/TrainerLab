@@ -218,6 +218,32 @@ worse one, where `strategist` plays the safest. Kept in the code as a measured
 negative result, for the self-play of palier 6, where the foe learns to
 exploit.
 
+## Rule 9: a tree search, measured negative
+
+```bash
+trainerlab duel mcts forecaster --pairs 5000 --from 100000
+trainerlab duel mcts strategist --pairs 5000 --from 105000
+trainerlab usage mcts forecaster --pairs 200 --from 96000
+```
+
+| Duel | Score | 95 % interval | Record (W / D / L) |
+|---|---|---|---|
+| mcts vs forecaster | 0.489 | [0.479, 0.498] | 4873 / 25 / 5102 |
+| mcts vs strategist | 0.470 | [0.460, 0.480] | 4681 / 41 / 5278 |
+
+`mcts` lays a hazard 7.8 % of the times it can, against 6 to 8 % for the
+other bots that look ahead: the criterion set before measuring fails. **A
+deeper search does not reveal what hazards are worth: the limit is the
+evaluation**, a model that sees little but Pokémon alive and HP, trained on
+games without strategy. With 200 simulations and up to 81 pairs of options,
+the search barely explores past the first turn, with one roll of the dice per
+simulation where `forecaster` plays two: it plays a little worse, twenty
+times slower. Kept in the code: the search over simultaneous moves and the
+guessed teams serve again in palier 6, guided by a network.
+
+It is the fifth experiment against the same wall: more data, a network, a
+mixed strategy, a tree search, all without gain.
+
 ## What the bots do with their turns
 
 ```bash

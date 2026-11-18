@@ -117,6 +117,14 @@ int main(int argc, char **argv) {
   line("expected damage, first move", "calls", rate(seconds, [&] {
          return static_cast<long>(rules.expectedDamage(view(), 0, 0).max >= 0);
        }));
+  const search::Encoding &encoding = game.encoding();
+  std::vector<float> slots(search::Encoding::kSlots * encoding.pokemonNames().size());
+  std::vector<int32_t> ids(search::Encoding::kSlots * search::Encoding::kIds);
+  std::vector<float> fieldRow(encoding.fieldNames().size());
+  line("encoding of a position (palier 6)", "positions", rate(seconds, [&] {
+         encoding.encode(view(), 0, slots.data(), ids.data(), fieldRow.data());
+         return 1L;
+       }));
   std::vector<float> row(game.features().names().size());
   line("features of a position", "positions", rate(seconds, [&] {
          game.features().compute(view(), 0, row.data());

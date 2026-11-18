@@ -7,7 +7,7 @@ import numpy
 import numpy.typing
 import trainerlab._engine
 import typing
-__all__: list[str] = ['Forecaster', 'feature_names', 'features', 'init', 'openings']
+__all__: list[str] = ['Forecaster', 'action_mask', 'encode', 'encoding_names', 'feature_names', 'features', 'init', 'openings']
 class Forecaster:
     """
     Rules 6 to 9 in C++, with the layers of a WinModel.
@@ -42,6 +42,18 @@ class Forecaster:
         """
         The probability of winning from this position, as the model sees it.
         """
+def action_mask(legal: collections.abc.Sequence[trainerlab._engine.Action]) -> numpy.typing.NDArray[numpy.float32]:
+    """
+    1 for each legal option: moves 0-3 by slot, then switches 4-9.
+    """
+def encode(view: trainerlab._engine.BattleState, side: typing.SupportsInt | typing.SupportsIndex) -> tuple[numpy.typing.NDArray[numpy.float32], numpy.typing.NDArray[numpy.int32], numpy.typing.NDArray[numpy.float32]]:
+    """
+    What `side` sees, for a network: (pokemon[12, P], ids[12, 7], field[F]).
+    """
+def encoding_names() -> tuple[list[str], list[str]]:
+    """
+    The names of the columns of a Pokemon's vector, and of the field's.
+    """
 def feature_names() -> list[str]:
     """
     The name of each column of features(), in order.
