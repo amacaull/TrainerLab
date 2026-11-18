@@ -30,9 +30,13 @@ private:
     int options;
   };
 
-  // The index this run takes among outcomes of the given probabilities. Impossible outcomes are
-  // never taken, and a draw with one possible outcome is not a branch.
-  int take(const std::vector<double> &probabilities);
+  // The most outcomes one draw can have: the 16 damage rolls, with room to spare. A draw is walked
+  // millions of times per second, so its outcomes live on the stack, not in a vector.
+  static constexpr int kMaxOutcomes = 32;
+
+  // The index this run takes among `count` outcomes of the given probabilities. Impossible outcomes
+  // are never taken, and a draw with one possible outcome is not a branch.
+  int take(const double *probabilities, int count);
 
   std::vector<Draw> path_;
   size_t depth_ = 0;
