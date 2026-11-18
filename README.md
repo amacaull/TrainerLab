@@ -38,6 +38,7 @@ the chances a predictable foe leaves.
 | [`search/`](search/) | The C++ side of the AI: playouts and benchmark now, search next. [README](search/README.md). |
 | [`ai/`](ai/) | The bots, the command `trainerlab`, the tournaments and the learning. [README](ai/README.md). |
 | [`docs/results.md`](docs/results.md) | Every duel and every model, negative results included. |
+| [`docs/benchmark.md`](docs/benchmark.md) | How fast the engine and the bots play, from Python and from C++. |
 | [`docs/error-analysis.md`](docs/error-analysis.md) | Why a bot loses: losses studied by hand, mistakes counted automatically. |
 
 ## Origin
