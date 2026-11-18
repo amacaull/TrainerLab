@@ -6,7 +6,8 @@ on its own.
 
 | | |
 |---|---|
-| `include/search/game.hpp` | The rules and the catalog loaded once; a random battle from a seed; a random playout to the end |
+| `include/search/game.hpp` | The rules and the catalog loaded once; a random battle from a seed; a random playout to the end; the benchmark's positions |
+| `include/search/features.hpp` | The 249 features of a position, the same as `trainerlab.learning.features`, bit for bit |
 | `bench/bench.cpp` | `search_bench`: how fast the engine plays, through each of its APIs |
 | `tests/` | Catch2 tests |
 
@@ -22,4 +23,6 @@ ctest --test-dir search/build --output-on-failure
 search/build/search_bench                # about 2 s per line
 ```
 
-The Python counterpart, on comparable positions: `trainerlab bench`.
+The Python counterpart, on the same positions: `trainerlab bench`. From
+Python, `trainerlab._search` exposes the features and the positions. The
+measurements: [`docs/benchmark.md`](../docs/benchmark.md).

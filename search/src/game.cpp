@@ -32,16 +32,20 @@ std::array<engine::BattlePokemon, kTeam> randomTeam(std::mt19937_64 &rng) {
   }
 }
 
+engine::DataLoader load(const std::string &dataDir) {
+  engine::ffi::engine_init(dataDir); // the flat API sets battles up: same catalog
+  engine::DataLoader data;
+  data.loadAll(dataDir);
+  return data;
+}
+
 template <class T> const T &pick(const std::vector<T> &options, std::mt19937_64 &rng) {
   std::uniform_int_distribution<size_t> index(0, options.size() - 1);
   return options[index(rng)];
 }
 } // namespace
 
-Game::Game(const std::string &dataDir) {
-  engine::ffi::engine_init(dataDir);
-  data_.loadAll(dataDir);
-}
+Game::Game(const std::string &dataDir) : data_(load(dataDir)) {}
 
 engine::BattleState Game::randomBattle(uint64_t seed) const {
   std::mt19937_64 rng(seed);
@@ -76,5 +80,16 @@ Outcome playRandomly(const Game &game, engine::BattleState &state, uint64_t seed
   else if (state.sideHasLost(0) && !state.sideHasLost(1))
     winner = 1;
   return {winner, state.turn};
+}
+
+std::vector<engine::BattleState> openings(const Game &game, int count, int turns) {
+  std::vector<engine::BattleState> found;
+  for (uint64_t seed = 0; static_cast<int>(found.size()) < count; ++seed) {
+    engine::BattleState state = game.randomBattle(seed);
+    playRandomly(game, state, seed, turns);
+    if (!state.isOver() && !state.active(0).isFainted() && !state.active(1).isFainted())
+      found.push_back(state);
+  }
+  return found;
 }
 } // namespace search

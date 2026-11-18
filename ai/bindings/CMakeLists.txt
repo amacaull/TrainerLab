@@ -11,6 +11,10 @@ set(BATTLE_ENGINE_BUILD_TESTS OFF)
 set(BATTLE_ENGINE_BUILD_DEMO OFF)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../engine ${CMAKE_CURRENT_BINARY_DIR}/engine)
 
+# The search as a library, on the engine added above.
+set(SEARCH_BUILD_TESTS OFF)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../search ${CMAKE_CURRENT_BINARY_DIR}/search)
+
 find_package(Python 3.10 REQUIRED COMPONENTS Interpreter Development.Module)
 
 # scikit-build-core puts pybind11's config on the path when pybind11 is in build-system.requires;
@@ -33,5 +37,11 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(_engine PRIVATE -Wall -Wextra -Wpedantic -Wshadow -Wconversion)
 endif()
 
-# Lands as trainerlab/_engine.<ext> in the wheel.
-install(TARGETS _engine LIBRARY DESTINATION trainerlab)
+pybind11_add_module(_search search_module.cpp)
+target_link_libraries(_search PRIVATE search_lib)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(_search PRIVATE -Wall -Wextra -Wpedantic -Wshadow -Wconversion)
+endif()
+
+# Land as trainerlab/_engine.<ext> and trainerlab/_search.<ext> in the wheel.
+install(TARGETS _engine _search LIBRARY DESTINATION trainerlab)

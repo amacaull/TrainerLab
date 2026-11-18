@@ -19,7 +19,10 @@ option(SEARCH_BUILD_TESTS "Build the Catch2 test suite and the benchmark" ON)
 # The engine as a library: its own tests and demo stay in engine/.
 set(BATTLE_ENGINE_BUILD_TESTS OFF)
 set(BATTLE_ENGINE_BUILD_DEMO OFF)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../engine ${CMAKE_CURRENT_BINARY_DIR}/engine)
+# Unless a parent (the Python build) already added it.
+if(NOT TARGET battle_engine_lib)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../engine ${CMAKE_CURRENT_BINARY_DIR}/engine)
+endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     set(SEARCH_WARNINGS -Wall -Wextra -Wpedantic -Wshadow -Wconversion)
@@ -27,6 +30,7 @@ endif()
 
 add_library(search_lib STATIC
     src/game.cpp
+    src/features.cpp
 )
 target_include_directories(search_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(search_lib PUBLIC battle_engine_lib)
