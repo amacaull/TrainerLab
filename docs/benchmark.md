@@ -97,3 +97,6 @@ On this Linux machine, the reference duel (500 pairs) takes 44 s, against
 2 min 05 s before 5.2. A decision is now dominated by the features of the
 positions it rates: about 18 positions per decision, each with 8
 `expected_damage` calls. That is where the next gain lies.
+
+On the Mac: **659 forecaster decisions a second** (157 at 5.1, 4.2 times
+more), and the reference duel in 5.6 s on its ten cores.
