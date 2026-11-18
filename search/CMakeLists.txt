@@ -33,6 +33,7 @@ add_library(search_lib STATIC
     src/features.cpp
     src/estimate.cpp
     src/forecaster.cpp
+    src/matrix_game.cpp
 )
 target_include_directories(search_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(search_lib PUBLIC battle_engine_lib)
@@ -61,7 +62,8 @@ if(SEARCH_BUILD_TESTS)
     FetchContent_MakeAvailable(Catch2)
 
     enable_testing()
-    add_executable(search_tests tests/test_game.cpp tests/test_forecaster.cpp)
+    add_executable(search_tests tests/test_game.cpp tests/test_forecaster.cpp
+                                tests/test_matrix_game.cpp)
     target_link_libraries(search_tests PRIVATE search_lib Catch2::Catch2WithMain)
     target_compile_options(search_tests PRIVATE ${SEARCH_WARNINGS})
     target_compile_definitions(search_tests PRIVATE TRAINERLAB_DATA_DIR="${TRAINERLAB_DATA_PATH}")

@@ -10,7 +10,7 @@ from functools import cache
 from pathlib import Path
 
 from trainerlab.bots.baseline import RandomBot
-from trainerlab.bots.lookahead import Forecaster, Strategist
+from trainerlab.bots.lookahead import Forecaster, Nash, Strategist
 from trainerlab.bots.rules import calculator, dodger, hitter, matcher, survivor
 from trainerlab.game.pairs import BotFactory
 from trainerlab.game.player import Bot
@@ -25,6 +25,7 @@ BOTS: dict[str, BotFactory] = {
     "calculator": lambda seed: calculator(),  # rule 5
     "forecaster": lambda seed: Forecaster(),  # rule 6
     "strategist": lambda seed: Strategist(),  # rule 7
+    "nash": lambda seed: Nash(seed=seed),  # rule 8
 }
 
 # One line each, shown by the menu and by `trainerlab bots`.
@@ -37,15 +38,17 @@ DESCRIPTIONS: dict[str, str] = {
     "calculator": "rule 5: survivor, but plays the damage the engine expects",
     "forecaster": "rule 6: plays each option a turn ahead, keeps what the win model rates best",
     "strategist": "rule 7: forecaster, but rates each option by the foe's best reply",
+    "nash": "rule 8: draws from the mixed strategy of the simultaneous game, a turn deep",
 }
 
 DEFAULT_OPPONENT = "forecaster"  # beats every bot but strategist, head to head
 # The bots that play with a win probability model, and can be given another one.
-MODEL_BOTS: dict[str, Callable[[WinModel], Bot]] = {
-    "forecaster": Forecaster,
-    "strategist": Strategist,
+MODEL_BOTS: dict[str, Callable[[WinModel, int], Bot]] = {
+    "forecaster": lambda model, seed: Forecaster(model),
+    "strategist": lambda model, seed: Strategist(model),
+    "nash": lambda model, seed: Nash(model, seed=seed),
 }
-WITH_MODEL = "|".join(MODEL_BOTS)  # for help texts: forecaster|strategist:MODEL.npz
+WITH_MODEL = "|".join(MODEL_BOTS)  # for help texts: forecaster|strategist|nash:MODEL.npz
 
 
 def factory(spec: str) -> BotFactory:
@@ -54,7 +57,7 @@ def factory(spec: str) -> BotFactory:
     if not model:
         return BOTS[name]
     path, make = str(Path(model).resolve()), MODEL_BOTS[name]
-    return lambda seed: make(_load(path))
+    return lambda seed: make(_load(path), seed)
 
 
 @cache

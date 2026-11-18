@@ -9,7 +9,8 @@ on its own.
 | `include/search/game.hpp` | The rules and the catalog loaded once; a random battle from a seed; a random playout to the end; the benchmark's positions |
 | `include/search/features.hpp` | The 249 features of a position, the same as `trainerlab.learning.features`, bit for bit |
 | `include/search/estimate.hpp` | The bots' damage and speed estimate, the same as `trainerlab.game.estimate` |
-| `include/search/forecaster.hpp` | Rules 6 and 7, and the win model: the same decisions as the Python version they replaced |
+| `include/search/forecaster.hpp` | Rules 6 to 8, and the win model; 6 and 7 make the same decisions as their former Python version |
+| `include/search/matrix_game.hpp` | The exact solution of a small zero-sum game (simplex): rule 8's mixed strategy |
 | `bench/bench.cpp` | `search_bench`: how fast the engine plays, through each of its APIs |
 | `tests/` | Catch2 tests |
 

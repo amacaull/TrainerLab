@@ -3,8 +3,8 @@ import pytest
 
 from trainerlab import _engine
 from trainerlab._engine import Action
-from trainerlab.bots.lookahead import Forecaster, Strategist
-from trainerlab.game.environment import BattleEnvironment
+from trainerlab.bots.lookahead import Forecaster, Nash, Strategist
+from trainerlab.game.environment import BattleEnvironment, random_team_pair
 from trainerlab.game.views import playable
 from trainerlab.learning.features import feature_names
 from trainerlab.learning.model import WinModel
@@ -103,3 +103,33 @@ def test_the_strategist_fears_the_reply_that_hurts_most() -> None:
     bot = Strategist(_model_valuing(my_hp_total=10.0))
 
     assert bot.choose_action(0, view, env.legal_actions(0)) == Action.move(0)
+
+
+def test_nash_plays_an_option_that_dominates_for_sure() -> None:
+    # Odds that only fall with the foe's HP: Seismic Toss is best whatever Excadrill replies.
+    env = BattleEnvironment(["Blissey", "Toxapex"], ["Excadrill"], seed=1)
+    bot = Nash(_model_valuing(foe_hp_total=-10.0), seed=5)
+    legal = env.legal_actions(0)
+
+    strategy = bot._search.nash_strategy(env.observe(0), 0, legal)
+
+    assert sum(strategy) == pytest.approx(1.0)
+    assert strategy[legal.index(Action.move(3))] == pytest.approx(1.0)
+    assert bot.choose_action(0, env.observe(0), legal) == Action.move(3)
+
+
+def test_nash_draws_from_its_mixed_strategy_with_its_own_seed() -> None:
+    # The opening of seed 25 is a real mixed game: two options, near half and half.
+    env = BattleEnvironment(*random_team_pair(25), seed=25)
+    view, legal = env.observe(0), env.legal_actions(0)
+    strategy = Nash()._search.nash_strategy(view, 0, legal)
+    mixed = {legal[i] for i, p in enumerate(strategy) if p > 0}
+    assert len(mixed) == 2 and sum(strategy) == pytest.approx(1.0)
+
+    def draws(seed: int) -> list[_engine.Action]:
+        bot = Nash(seed=seed)
+        return [bot.choose_action(0, view, legal) for _ in range(40)]
+
+    assert draws(1) == draws(1)
+    assert draws(1) != draws(2)
+    assert set(draws(1)) == mixed

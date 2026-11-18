@@ -20,12 +20,13 @@ struct WinModel {
   double predict(const float *features) const;
 };
 
-// Rules 6 and 7 in C++: the same choices as trainerlab.bots.lookahead, decision for decision.
+// Rules 6, 7 and 8 in C++; 6 and 7 make the same choices as their former Python version.
 //
 // For each option, the bot plays the turn on a copy of what it sees (each foe Pokemon not yet seen
 // filled with a copy of the foe's active), twice, on seeds turn x 2 and turn x 2 + 1, and rates the
 // positions reached with the model. The forecaster assumes the foe plays as rule 5; the strategist
-// rates each option by the foe's reply that leaves it the lowest odds.
+// rates each option by the foe's reply that leaves it the lowest odds; nash plays the mixed
+// strategy of the simultaneous game those odds define.
 class Forecaster {
 public:
   Forecaster(const Game &game, WinModel model);
@@ -35,6 +36,10 @@ public:
                    const std::vector<engine::Action> &legal) const;
   int chooseStrategistAction(const engine::BattleState &view, int side,
                              const std::vector<engine::Action> &legal) const;
+  // Rule 8: one probability per option in `legal`, the optimal mixed strategy of the zero-sum game
+  // whose payoffs are the odds after each pair (option, foe reply).
+  std::vector<double> nashStrategy(const engine::BattleState &view, int side,
+                                   const std::vector<engine::Action> &legal) const;
   // The index, in `options`, of the Pokemon sent in.
   int chooseReplacement(const engine::BattleState &view, int side,
                         const std::vector<int> &options) const;
@@ -50,6 +55,9 @@ private:
   double afterTurn(const engine::BattleState &state, int side, const engine::Action &action,
                    const engine::Action &foeAction) const;
   engine::BattleState playable(const engine::BattleState &view, int foe) const;
+  // The foe's moves, and its switches to Pokemon already seen: a stand-in is nothing to reason on.
+  std::vector<engine::Action> replies(const engine::BattleState &view,
+                                      const engine::BattleState &state, int foe) const;
 
   const Game &game_;
   WinModel model_;
