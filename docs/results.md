@@ -218,6 +218,38 @@ worse one, where `strategist` plays the safest. Kept in the code as a measured
 negative result, for the self-play of palier 6, where the foe learns to
 exploit.
 
+## What the bots do with their turns
+
+```bash
+trainerlab usage <bot> forecaster --pairs 200 --from 96000
+```
+
+How often each kind of move is played when it is among the bot's options
+(attacks, hazards, boosts, statuses, recovery, switches):
+
+| Kind | random | calculator | forecaster | strategist | nash |
+|---|---|---|---|---|---|
+| attack | 41 % | 93 % | 54 % | 60 % | 57 % |
+| **hazard** | **17 %** | 4 % | **6 %** | **8 %** | **8 %** |
+| boost | 17 % | 6 % | 23 % | 25 % | 19 % |
+| status | 16 % | 18 % | 23 % | 29 % | 27 % |
+| recovery | 19 % | 13 % | 27 % | 24 % | 22 % |
+| switch | 44 % | 1 % | 26 % | 17 % | 22 % |
+
+- **Hazards are the blind spot.** The bots that look ahead lay them two to
+  three times less often than the random bot. The shipped model weighs
+  Stealth Rock at nothing (rank 207 of 249): a hazard pays only when the foe
+  brings a Pokémon in, turns later, and its training games never showed it.
+- **Boosts, statuses and recovery are played a little more than at random**
+  by the bots that look ahead: the model gives them a small weight, enough for
+  one turn. Whether they come at the right moment, this does not say.
+- `calculator`'s statuses and recovery are an artefact: when every move is
+  expected to deal nothing, it plays the first in its list.
+
+Set before measuring rule 9: if a deeper search lays hazards clearly more
+often than `forecaster`'s 6 %, depth reveals what they are worth; if not,
+the limit is the evaluation.
+
 ## The models
 
 ```bash

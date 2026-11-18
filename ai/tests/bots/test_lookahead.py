@@ -3,7 +3,7 @@ import pytest
 
 from trainerlab import _engine
 from trainerlab._engine import Action
-from trainerlab.bots.lookahead import Forecaster, Nash, Strategist
+from trainerlab.bots.lookahead import Forecaster, Mcts, Nash, Strategist
 from trainerlab.game.environment import BattleEnvironment, random_team_pair
 from trainerlab.game.views import playable
 from trainerlab.learning.features import feature_names
@@ -133,3 +133,23 @@ def test_nash_draws_from_its_mixed_strategy_with_its_own_seed() -> None:
     assert draws(1) == draws(1)
     assert draws(1) != draws(2)
     assert set(draws(1)) == mixed
+
+
+def test_mcts_plays_a_legal_option_and_its_seed_fixes_its_decisions() -> None:
+    env = BattleEnvironment(*random_team_pair(25), seed=25)
+    view, legal = env.observe(0), env.legal_actions(0)
+
+    def decisions(seed: int) -> list[_engine.Action]:
+        bot = Mcts(seed=seed)
+        return [bot.choose_action(0, view, legal) for _ in range(3)]
+
+    assert all(choice in legal for choice in decisions(1))
+    assert decisions(1) == decisions(1)
+
+
+def test_mcts_finds_the_only_damage_when_damage_is_all_that_counts() -> None:
+    # Odds that only fall with the foe's HP: Blissey's Seismic Toss is its only damage.
+    env = BattleEnvironment(["Blissey", "Toxapex"], ["Excadrill"], seed=1)
+    bot = Mcts(_model_valuing(foe_hp_total=-10.0), seed=2)
+
+    assert bot.choose_action(0, env.observe(0), env.legal_actions(0)) == Action.move(3)

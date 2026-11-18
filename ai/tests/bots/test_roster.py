@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from trainerlab.bots.lookahead import Forecaster, Nash, Strategist
+from trainerlab.bots.lookahead import Forecaster, Mcts, Nash, Strategist
 from trainerlab.bots.roster import BOTS, bot_spec, factory, slug
 from trainerlab.learning.model import SHIPPED
 
@@ -54,3 +54,5 @@ def test_nash_takes_a_model_and_its_seed(tmp_path: Path) -> None:
 
     assert isinstance(factory(f"nash:{model}")(3), Nash)
     assert isinstance(factory("nash")(3), Nash)
+    assert isinstance(factory(f"mcts:{model}")(3), Mcts)
+    assert isinstance(factory("mcts")(3), Mcts)

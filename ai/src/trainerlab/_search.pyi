@@ -10,7 +10,7 @@ import typing
 __all__: list[str] = ['Forecaster', 'feature_names', 'features', 'init', 'openings']
 class Forecaster:
     """
-    Rules 6, 7 and 8 in C++, with the layers of a WinModel.
+    Rules 6 to 9 in C++, with the layers of a WinModel.
     """
     def __init__(self, weights: collections.abc.Sequence[typing.Annotated[numpy.typing.ArrayLike, numpy.float64]], biases: collections.abc.Sequence[typing.Annotated[numpy.typing.ArrayLike, numpy.float64]], mean: typing.Annotated[numpy.typing.ArrayLike, numpy.float64], std: typing.Annotated[numpy.typing.ArrayLike, numpy.float64]) -> None:
         ...
@@ -29,6 +29,10 @@ class Forecaster:
     def choose_strategist_action(self, view: trainerlab._engine.BattleState, side: typing.SupportsInt | typing.SupportsIndex, legal: collections.abc.Sequence[trainerlab._engine.Action]) -> int:
         """
         The index, in `legal`, of the strategist's choice (rule 7).
+        """
+    def mcts_action(self, view: trainerlab._engine.BattleState, side: typing.SupportsInt | typing.SupportsIndex, legal: collections.abc.Sequence[trainerlab._engine.Action], seed: typing.SupportsInt | typing.SupportsIndex) -> int:
+        """
+        Rule 9: the index, in `legal`, of the option a Monte Carlo tree search over simultaneous moves visits most; the same seed makes the same decision.
         """
     def nash_strategy(self, view: trainerlab._engine.BattleState, side: typing.SupportsInt | typing.SupportsIndex, legal: collections.abc.Sequence[trainerlab._engine.Action]) -> list[float]:
         """
