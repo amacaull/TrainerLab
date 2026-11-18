@@ -137,7 +137,8 @@ Adam from a fixed seed. `--model network` adds a hidden layer of 64 units,
 
 For the networks of palier 6, `learning/encoding.py` reads a position as one
 vector per Pokémon (153 numbers and 7 catalog ids each, twelve slots), the
-field (17) and a mask of the ten options; computed in C++.
+field (17) and a mask of the ten options; computed in C++. `learning/env.py` plays
+hundreds of battles at once for self-play, both sides chosen by the caller.
 
 ## Known limitations
 

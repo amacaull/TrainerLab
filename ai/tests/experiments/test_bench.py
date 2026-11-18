@@ -26,6 +26,7 @@ def test_every_line_is_measured() -> None:
         "decisions",
         "decisions",
         "decisions",
+        "steps",
         "calls",
     ] + ["positions"] * 2
     assert all(line.per_second > 0 for line in lines)
@@ -35,5 +36,5 @@ def test_the_command_prints_one_line_each() -> None:
     shown: list[str] = []
 
     assert command.main(["--seconds", "0.001"], write=shown.append) == 0
-    assert len(shown) == 7
+    assert len(shown) == 8
     assert shown[1].startswith("forecaster decision (rule 6)")

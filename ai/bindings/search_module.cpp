@@ -6,6 +6,7 @@
 #include "search/forecaster.hpp"
 #include "search/game.hpp"
 #include "search/mcts.hpp"
+#include "search/vec_env.hpp"
 
 #include "engine/ffi/convert.hpp"
 #include "engine/ffi/ffi.hpp"
@@ -168,6 +169,51 @@ PYBIND11_MODULE(_search, m) {
         return out;
       },
       py::arg("legal"), "1 for each legal option: moves 0-3 by slot, then switches 4-9.");
+
+  py::class_<search::VecEnv>(
+      m, "VecEnv",
+      "Many battles at once, both sides played by the caller; a battle that ends starts again.")
+      .def(py::init([](int count, uint64_t seed, int max_turns) {
+             return search::VecEnv(loaded(), count, seed, max_turns);
+           }),
+           py::arg("count"), py::arg("seed"), py::arg("max_turns") = 1000)
+      .def_property_readonly("count", &search::VecEnv::count)
+      .def_property_readonly("finished", &search::VecEnv::finished,
+                             "Battles finished since the start.")
+      .def(
+          "observe",
+          [](const search::VecEnv &env) {
+            const search::Encoding &e = loaded().encoding();
+            const auto n = static_cast<py::ssize_t>(env.count());
+            const auto slots = static_cast<py::ssize_t>(search::Encoding::kSlots);
+            py::array_t<float> pokemon(
+                {n, py::ssize_t{2}, slots, static_cast<py::ssize_t>(e.pokemonNames().size())});
+            py::array_t<int32_t> ids(
+                {n, py::ssize_t{2}, slots, static_cast<py::ssize_t>(search::Encoding::kIds)});
+            py::array_t<float> field(
+                {n, py::ssize_t{2}, static_cast<py::ssize_t>(e.fieldNames().size())});
+            py::array_t<float> mask(
+                {n, py::ssize_t{2}, static_cast<py::ssize_t>(search::Encoding::kActions)});
+            env.observe(pokemon.mutable_data(), ids.mutable_data(), field.mutable_data(),
+                        mask.mutable_data());
+            return py::make_tuple(pokemon, ids, field, mask);
+          },
+          "(pokemon[N, 2, 12, P], ids[N, 2, 12, 7], field[N, 2, F], mask[N, 2, 10]), per "
+          "battle and side.")
+      .def(
+          "step",
+          [](search::VecEnv &env,
+             const py::array_t<int32_t, py::array::c_style | py::array::forcecast> &actions) {
+            const auto n = static_cast<py::ssize_t>(env.count());
+            if (actions.size() != 2 * n)
+              throw std::invalid_argument("VecEnv.step: one action per battle and side");
+            py::array_t<float> rewards({n, py::ssize_t{2}});
+            py::array_t<uint8_t> done(n);
+            env.step(actions.data(), rewards.mutable_data(), done.mutable_data());
+            return py::make_tuple(rewards, done.attr("astype")("bool"));
+          },
+          py::arg("actions"),
+          "Plays actions[N, 2]; (rewards[N, 2], done[N]). A side with no decision is ignored.");
 
   m.def(
       "openings", [](int count, int turns) { return search::openings(loaded(), count, turns); },
