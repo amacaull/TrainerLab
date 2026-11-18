@@ -47,3 +47,28 @@ pipeline), a fifth allocating and freeing (events carry names as strings),
 and a fifth in the walker of draws, which allocated two vectors per draw. The
 walker now keeps a draw's outcomes on the stack, with the same arithmetic:
 `expected_damage` is about 30 % faster, and its golden digest is unchanged.
+
+## The engine's hot paths
+
+Three changes inside the engine, each guarded by the golden tests (the same
+battles and the same expected damage, bit for bit):
+
+- a species' ability is resolved to its index once, by the loader, instead of
+  being looked up by name, through a string hash, at every hit;
+- `expected_damage` clears one event log between sequences of draws instead of
+  building a new one each time;
+- the catalog lookups (`moveByIndex`, `speciesByIndex`) are inline.
+
+Measured with callgrind on the 64 positions (instructions, so free of the
+machine's noise), `expected_damage` does **2.7 times less work** than before
+5.2 (98 million instructions against 266). On this Linux machine:
+
+| Line | Before 5.2 | Now |
+|---|---|---|
+| expected damage (C++) | 31 700 calls/s | 92 000 calls/s |
+| features of a position (C++) | 1 900 positions/s | 5 300 positions/s |
+| random playout, C++ API | 490 000 turns/s | 762 000 turns/s |
+| forecaster decision (Python) | 99 decisions/s | 226 decisions/s |
+
+The reference duel is unchanged (828 / 1 / 171): the bots play the same
+moves, twice as fast.
