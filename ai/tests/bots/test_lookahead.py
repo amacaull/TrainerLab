@@ -3,7 +3,7 @@ import pytest
 
 from trainerlab import _engine
 from trainerlab._engine import Action
-from trainerlab.bots.lookahead import Forecaster, Strategist, replies
+from trainerlab.bots.lookahead import Forecaster, Strategist
 from trainerlab.game.environment import BattleEnvironment
 from trainerlab.game.views import playable
 from trainerlab.learning.features import feature_names
@@ -103,16 +103,3 @@ def test_the_strategist_fears_the_reply_that_hurts_most() -> None:
     bot = Strategist(_model_valuing(my_hp_total=10.0))
 
     assert bot.choose_action(0, view, env.legal_actions(0)) == Action.move(0)
-
-
-def test_the_foe_replies_are_its_moves_and_its_switches_to_pokemon_seen() -> None:
-    env = BattleEnvironment(["Blissey"], ["Snorlax", "Gyarados", "KommoO"], seed=1)
-    view = env.observe(0)
-    assert all(a.kind == _engine.ACTION_MOVE for a in replies(view, playable(view, 1), 1))
-
-    gyarados = _engine.make_combatant(_engine.find_species_id("Gyarados"))
-    gyarados.revealed = 1
-    view.set_pokemon(1, 1, gyarados)
-    switches = [a for a in replies(view, playable(view, 1), 1) if a.kind == _engine.ACTION_SWITCH]
-
-    assert switches == [Action.switch(1)]

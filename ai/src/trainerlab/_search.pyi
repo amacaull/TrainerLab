@@ -2,11 +2,38 @@
 TrainerLab search: the C++ side of the AI.
 """
 from __future__ import annotations
+import collections.abc
 import numpy
 import numpy.typing
 import trainerlab._engine
 import typing
-__all__: list[str] = ['feature_names', 'features', 'init', 'openings']
+__all__: list[str] = ['Forecaster', 'feature_names', 'features', 'init', 'openings']
+class Forecaster:
+    """
+    Rules 6 and 7 in C++, with the layers of a WinModel: the same choices as trainerlab.bots.lookahead.
+    """
+    def __init__(self, weights: collections.abc.Sequence[typing.Annotated[numpy.typing.ArrayLike, numpy.float64]], biases: collections.abc.Sequence[typing.Annotated[numpy.typing.ArrayLike, numpy.float64]], mean: typing.Annotated[numpy.typing.ArrayLike, numpy.float64], std: typing.Annotated[numpy.typing.ArrayLike, numpy.float64]) -> None:
+        ...
+    def calculator_action(self, view: trainerlab._engine.BattleState, side: typing.SupportsInt | typing.SupportsIndex, legal: collections.abc.Sequence[trainerlab._engine.Action]) -> trainerlab._engine.Action:
+        """
+        What rule 5 plays from this view: the foe the forecaster assumes.
+        """
+    def choose_action(self, view: trainerlab._engine.BattleState, side: typing.SupportsInt | typing.SupportsIndex, legal: collections.abc.Sequence[trainerlab._engine.Action]) -> int:
+        """
+        The index, in `legal`, of the forecaster's choice (rule 6).
+        """
+    def choose_replacement(self, view: trainerlab._engine.BattleState, side: typing.SupportsInt | typing.SupportsIndex, options: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex]) -> int:
+        """
+        The index, in `options`, of the Pokemon sent in.
+        """
+    def choose_strategist_action(self, view: trainerlab._engine.BattleState, side: typing.SupportsInt | typing.SupportsIndex, legal: collections.abc.Sequence[trainerlab._engine.Action]) -> int:
+        """
+        The index, in `legal`, of the strategist's choice (rule 7).
+        """
+    def odds(self, state: trainerlab._engine.BattleState, side: typing.SupportsInt | typing.SupportsIndex) -> float:
+        """
+        The probability of winning from this position, as the model sees it.
+        """
 def feature_names() -> list[str]:
     """
     The name of each column of features(), in order.

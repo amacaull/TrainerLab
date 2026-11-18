@@ -11,7 +11,6 @@ using engine::BattleState;
 constexpr std::array kStatuses{"burn", "poison", "toxic", "paralysis", "sleep", "freeze"};
 constexpr std::array kStages{"atk", "def", "spa", "spd", "spe", "accuracy", "evasion"};
 constexpr std::array kWeathers{"rain", "sun", "sand", "snow", "strong_winds"};
-constexpr int kSpeedStage = static_cast<int>(engine::StatIndex::Spe);
 
 // The columns before the two sides, then each side's block: the offsets of features.py.
 constexpr int kReplacement = 0, kTurn = 1, kMyFaster = 2, kMyBestDamage = 3, kFoeBestDamage = 4;
@@ -28,16 +27,12 @@ constexpr int kStealthRock = kAlive + 3, kSpikes = kAlive + 4, kToxicSpikes = kA
 constexpr int kAuroraVeil = kAlive + 6;
 constexpr int kActiveIs = kAuroraVeil + 1; // one column per species, then the HP of each species
 
-double staged(int value, int stage) {
-  return stage >= 0 ? static_cast<double>(value * (2 + stage)) / 2
-                    : static_cast<double>(value * 2) / (2 - stage);
-}
-
 size_t at(int i) { return static_cast<size_t>(i); }
 } // namespace
 
-Features::Features(const engine::DataLoader &data, const engine::BattleEngine &rules)
-    : rules_(rules), species_(data.speciesCount()), choiceScarf_(data.findItemId("ChoiceScarf")) {
+Features::Features(const engine::DataLoader &data, const engine::BattleEngine &rules,
+                   const Estimate &estimate)
+    : rules_(rules), estimate_(estimate), species_(data.speciesCount()) {
   names_ = {"replacement", "turn", "my_faster", "my_best_damage", "foe_best_damage"};
   for (const char *w : kWeathers)
     names_.push_back(std::string("weather_") + w);
@@ -56,14 +51,6 @@ Features::Features(const engine::DataLoader &data, const engine::BattleEngine &r
     for (int i = 0; i < species_; ++i)
       names_.push_back(p + "_hp_of_" + data.speciesByIndex(i).id);
   }
-}
-
-double Features::effectiveSpeed(const BattlePokemon &pokemon) const {
-  double speed = staged(pokemon.stats.speed, pokemon.stat_stages[at(kSpeedStage)]);
-  if (pokemon.item_id == choiceScarf_ && pokemon.item_id != engine::kNoItem &&
-      !pokemon.item_consumed)
-    speed *= 1.5;
-  return pokemon.status == engine::Status::Paralysis ? speed / 2 : speed;
 }
 
 double Features::bestDamage(const BattleState &view, int side) const {
@@ -91,7 +78,7 @@ void Features::compute(const BattleState &view, int side, float *out) const {
 
   set(kReplacement, me.isFainted());
   set(kTurn, view.turn / 100.0);
-  const double lead = effectiveSpeed(me) - effectiveSpeed(foe);
+  const double lead = estimate_.effectiveSpeed(me) - estimate_.effectiveSpeed(foe);
   set(kMyFaster, lead > 0 ? 1.0 : lead < 0 ? 0.0 : 0.5);
   set(kMyBestDamage, bestDamage(view, side));
   set(kFoeBestDamage, bestDamage(view, 1 - side));
