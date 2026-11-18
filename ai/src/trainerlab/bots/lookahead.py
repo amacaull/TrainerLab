@@ -1,4 +1,4 @@
-"""Rules 6 and 7: look one turn ahead, and play what the win probability model rates best.
+"""Rules 6 to 8: look one turn ahead, and play what the win probability model rates best.
 
 For each of its options, the bot plays the turn on a copy of what it sees, the foe playing what
 rule 5 would play, then asks the model how likely it is to win from the position reached. A
@@ -14,6 +14,7 @@ measured in docs/results.md, rebuilt by
       --out ai/src/trainerlab/learning/models/win-logistic.npz
 """
 
+import random
 from functools import cache
 
 from trainerlab import _engine, _search
@@ -61,6 +62,26 @@ class Strategist(Forecaster):
         self, side: int, view: _engine.BattleState, legal: list[_engine.Action]
     ) -> _engine.Action:
         return legal[self._search.choose_strategist_action(view, side, legal)]
+
+
+class Nash(Forecaster):
+    """Rule 8: neither guesses the foe nor fears its worst reply alone. Both sides choose at once:
+    the odds after every pair (option, reply) make a zero-sum game, and the bot draws its option
+    from that game's optimal mixed strategy, so that no foe can read it. One turn deep, like
+    rules 6 and 7; the replies are those of rule 7.
+
+    The draw uses the bot's own seed: the same seed plays the same battle.
+    """
+
+    def __init__(self, model: WinModel | None = None, *, seed: int = 0) -> None:
+        super().__init__(model)
+        self._rng = random.Random(seed)
+
+    def choose_action(
+        self, side: int, view: _engine.BattleState, legal: list[_engine.Action]
+    ) -> _engine.Action:
+        strategy = self._search.nash_strategy(view, side, legal)
+        return self._rng.choices(legal, weights=strategy)[0]
 
 
 @cache

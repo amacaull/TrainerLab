@@ -10,7 +10,7 @@ import typing
 __all__: list[str] = ['Forecaster', 'feature_names', 'features', 'init', 'openings']
 class Forecaster:
     """
-    Rules 6 and 7 in C++, with the layers of a WinModel: the same choices as trainerlab.bots.lookahead.
+    Rules 6, 7 and 8 in C++, with the layers of a WinModel.
     """
     def __init__(self, weights: collections.abc.Sequence[typing.Annotated[numpy.typing.ArrayLike, numpy.float64]], biases: collections.abc.Sequence[typing.Annotated[numpy.typing.ArrayLike, numpy.float64]], mean: typing.Annotated[numpy.typing.ArrayLike, numpy.float64], std: typing.Annotated[numpy.typing.ArrayLike, numpy.float64]) -> None:
         ...
@@ -29,6 +29,10 @@ class Forecaster:
     def choose_strategist_action(self, view: trainerlab._engine.BattleState, side: typing.SupportsInt | typing.SupportsIndex, legal: collections.abc.Sequence[trainerlab._engine.Action]) -> int:
         """
         The index, in `legal`, of the strategist's choice (rule 7).
+        """
+    def nash_strategy(self, view: trainerlab._engine.BattleState, side: typing.SupportsInt | typing.SupportsIndex, legal: collections.abc.Sequence[trainerlab._engine.Action]) -> list[float]:
+        """
+        Rule 8: one probability per option in `legal`, the optimal mixed strategy of the simultaneous game the odds define.
         """
     def odds(self, state: trainerlab._engine.BattleState, side: typing.SupportsInt | typing.SupportsIndex) -> float:
         """

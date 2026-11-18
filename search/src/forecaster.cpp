@@ -1,5 +1,7 @@
 #include "search/forecaster.hpp"
 
+#include "search/matrix_game.hpp"
+
 #include "engine/core/observation.hpp"
 #include "engine/core/rng.hpp"
 #include "engine/ffi/ffi.hpp"
@@ -143,19 +145,13 @@ int Forecaster::chooseAction(const BattleState &view, int side,
 
 int Forecaster::chooseStrategistAction(const BattleState &view, int side,
                                        const std::vector<Action> &legal) const {
-  const int foe = 1 - side;
-  const BattleState state = playable(view, foe);
-  // The foe's moves, and its switches to Pokemon already seen: a stand-in is nothing to reason on.
-  std::vector<Action> replies;
-  for (const Action &reply : game_.rules().legalActions(state, foe))
-    if (isMove(reply) || !view.teams[at(foe)][at(indexOf(reply))].isEmpty())
-      replies.push_back(reply);
-
+  const BattleState state = playable(view, 1 - side);
+  const std::vector<Action> foeReplies = replies(view, state, 1 - side);
   int best = 0;
   double bestValue = -1.0;
   for (size_t i = 0; i < legal.size(); ++i) {
     double worst = 2.0;
-    for (const Action &reply : replies) {
+    for (const Action &reply : foeReplies) {
       worst = std::min(worst, afterTurn(state, side, legal[i], reply));
       if (worst <= bestValue)
         break; // already no better than the best option: its worst case is lower
@@ -164,6 +160,26 @@ int Forecaster::chooseStrategistAction(const BattleState &view, int side,
       best = static_cast<int>(i), bestValue = worst;
   }
   return best;
+}
+
+std::vector<Action> Forecaster::replies(const BattleState &view, const BattleState &state,
+                                        int foe) const {
+  std::vector<Action> found;
+  for (const Action &reply : game_.rules().legalActions(state, foe))
+    if (isMove(reply) || !view.teams[at(foe)][at(indexOf(reply))].isEmpty())
+      found.push_back(reply);
+  return found;
+}
+
+std::vector<double> Forecaster::nashStrategy(const BattleState &view, int side,
+                                             const std::vector<Action> &legal) const {
+  const BattleState state = playable(view, 1 - side);
+  const std::vector<Action> foeReplies = replies(view, state, 1 - side);
+  std::vector<std::vector<double>> payoff(legal.size(), std::vector<double>(foeReplies.size()));
+  for (size_t i = 0; i < legal.size(); ++i)
+    for (size_t j = 0; j < foeReplies.size(); ++j)
+      payoff[i][j] = afterTurn(state, side, legal[i], foeReplies[j]);
+  return solveMatrixGame(payoff).strategy;
 }
 
 int Forecaster::chooseReplacement(const BattleState &view, int side,

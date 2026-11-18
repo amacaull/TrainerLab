@@ -75,10 +75,8 @@ PYBIND11_MODULE(_search, m) {
       "What `side` saw in `view`, its own observe(), as float32: the same values as "
       "trainerlab.learning.features.features.");
 
-  py::class_<search::Forecaster>(
-      m, "Forecaster",
-      "Rules 6 and 7 in C++, with the layers of a WinModel: the same choices as "
-      "trainerlab.bots.lookahead.")
+  py::class_<search::Forecaster>(m, "Forecaster",
+                                 "Rules 6, 7 and 8 in C++, with the layers of a WinModel.")
       .def(py::init([](const std::vector<py::array_t<double>> &weights,
                        const std::vector<py::array_t<double>> &biases,
                        const py::array_t<double> &mean, const py::array_t<double> &std) {
@@ -108,6 +106,15 @@ PYBIND11_MODULE(_search, m) {
           },
           py::arg("view"), py::arg("side"), py::arg("legal"),
           "The index, in `legal`, of the strategist's choice (rule 7).")
+      .def(
+          "nash_strategy",
+          [](const search::Forecaster &f, const engine::BattleState &view, int side,
+             const std::vector<engine::ffi::FfiAction> &legal) {
+            return f.nashStrategy(view, side, toActions(legal));
+          },
+          py::arg("view"), py::arg("side"), py::arg("legal"),
+          "Rule 8: one probability per option in `legal`, the optimal mixed strategy of the "
+          "simultaneous game the odds define.")
       .def("choose_replacement", &search::Forecaster::chooseReplacement, py::arg("view"),
            py::arg("side"), py::arg("options"), "The index, in `options`, of the Pokemon sent in.")
       .def("odds", &search::Forecaster::odds, py::arg("state"), py::arg("side"),

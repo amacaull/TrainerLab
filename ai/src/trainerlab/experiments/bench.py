@@ -11,7 +11,7 @@ from itertools import count, cycle
 
 from trainerlab import _engine, _search
 from trainerlab.bots.baseline import RandomBot
-from trainerlab.bots.lookahead import Forecaster
+from trainerlab.bots.lookahead import Forecaster, Nash
 from trainerlab.game.battle import play_battle
 from trainerlab.game.environment import DATA_DIR, BattleEnvironment, random_team_pair
 from trainerlab.learning.features import features
@@ -66,6 +66,13 @@ def measure(seconds: float) -> list[Line]:
         forecaster.choose_action(0, _engine.observe(state, 0), _engine.legal_actions(state, 0))
         return 1
 
+    nash = Nash()
+
+    def nash_decision() -> int:
+        state = next(next_state)
+        nash.choose_action(0, _engine.observe(state, 0), _engine.legal_actions(state, 0))
+        return 1
+
     def damage() -> int:
         _engine.expected_damage(next(next_view), 0, 0)
         return 1
@@ -81,6 +88,7 @@ def measure(seconds: float) -> list[Line]:
     return [
         Line("random playout, Python loop", "turns", rate(playout, seconds)),
         Line("forecaster decision (rule 6)", "decisions", rate(decision, seconds)),
+        Line("nash decision (rule 8)", "decisions", rate(nash_decision, seconds)),
         Line("expected damage, first move", "calls", rate(damage, seconds)),
         Line("features of a position, Python", "positions", rate(python_features, seconds)),
         Line("features of a position, C++", "positions", rate(cpp_features, seconds)),
