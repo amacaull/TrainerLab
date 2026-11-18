@@ -51,7 +51,9 @@ inline BattlePokemon buildLoadout(const DataLoader &data, const std::string &spe
 // Test-only: each test case owns its DataLoader, so nothing leaks. The const_cast is confined here.
 inline void overrideAbility(DataLoader &data, const std::string &speciesId,
                             const std::string &ability) {
-  const_cast<Species &>(data.speciesByIndex(data.findSpeciesId(speciesId))).ability = ability;
+  Species &sp = const_cast<Species &>(data.speciesByIndex(data.findSpeciesId(speciesId)));
+  sp.ability = ability;
+  sp.abilityId = ability.empty() ? -1 : data.findAbilityId(ability);
 }
 
 inline void overrideWeight(DataLoader &data, const std::string &speciesId, double kg) {

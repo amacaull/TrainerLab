@@ -219,7 +219,7 @@ const Ability *abilityByName(std::string_view name) {
 const Ability *abilityOf(const DataLoader &data, const BattlePokemon &p) {
   if (p.isEmpty())
     return nullptr;
-  return abilityByName(data.speciesByIndex(p.species_id).ability);
+  return abilityByIndex(data.speciesByIndex(p.species_id).abilityId);
 }
 
 void abilityHpCheck(BattleState &state, const DataLoader &data, const CombatantRef &who,

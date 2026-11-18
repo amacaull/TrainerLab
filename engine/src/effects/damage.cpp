@@ -201,7 +201,7 @@ void DamageEffect::apply(EffectContext &ctx) const {
 
   float abilityMul = atkAbility ? atkAbility->damageMultiplier(move, attacker) : 1.0f;
 
-  const Ability *defAbility = abilityByName(defenderSp.ability);
+  const Ability *defAbility = abilityByIndex(defenderSp.abilityId);
   float defAbilityMul = defAbility ? defAbility->incomingDamageMultiplier(move) : 1.0f;
 
   float critMul = crit ? 1.5f : 1.0f;
@@ -260,7 +260,7 @@ void DamageEffect::apply(EffectContext &ctx) const {
 
   // Contact punishment fires even if the holder goes down (canon).
   if (ctx.lastDamageDealt > 0) {
-    if (const Ability *hitAbility = abilityByName(defenderSp.ability))
+    if (const Ability *hitAbility = abilityByIndex(defenderSp.abilityId))
       hitAbility->onDamagingHit(ctx, ctx.target, ctx.user, move.makesContact);
   }
 

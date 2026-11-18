@@ -158,7 +158,7 @@ void performSwitch(BattleState &state, const DataLoader &data, int side, int new
     return;
 
   const Species &sp = data.speciesByIndex(state.active(side).species_id);
-  if (const Ability *ability = abilityByName(sp.ability)) {
+  if (const Ability *ability = abilityByIndex(sp.abilityId)) {
     AbilityContext ctx{state, data, events, inRef};
     ability->onSwitchIn(ctx);
   }
@@ -167,7 +167,7 @@ void performSwitch(BattleState &state, const DataLoader &data, int side, int new
 bool isGrounded(const Species &sp) {
   if (sp.type1 == Type::Flying || sp.type2 == Type::Flying)
     return false;
-  const Ability *ab = abilityByName(sp.ability);
+  const Ability *ab = abilityByIndex(sp.abilityId);
   return !(ab && std::string_view(ab->name()) == "Levitate");
 }
 } // namespace engine
