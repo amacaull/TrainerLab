@@ -4,8 +4,8 @@
 //   search_bench            # about 2 s per line
 //   search_bench 0.2        # seconds per line
 //
-// Every line plays from the same positions: the start of 64 random battles, played 3 random turns
-// on. A line reports how many times per second it does its one thing.
+// Every line plays from the same 64 positions as `trainerlab bench` (search::openings): random
+// battles, 3 random turns in. A line reports how many times per second it does its one thing.
 
 #include "search/game.hpp"
 
@@ -22,8 +22,7 @@
 namespace {
 using Clock = std::chrono::steady_clock;
 
-constexpr int kPositions = 64;
-constexpr int kOpeningTurns = 3;
+constexpr int kPositions = 64; // trainerlab bench plays the same ones
 
 // Calls `step` (which returns how many units it did) until `seconds` have passed; units per second.
 double rate(double seconds, const std::function<long()> &step) {
@@ -74,13 +73,7 @@ int main(int argc, char **argv) {
   const search::Game game(TRAINERLAB_DATA_DIR);
   const engine::BattleEngine &rules = game.rules();
 
-  std::vector<engine::BattleState> positions;
-  for (int i = 0; i < kPositions; ++i) {
-    engine::BattleState state = game.randomBattle(static_cast<uint64_t>(i));
-    search::playRandomly(game, state, static_cast<uint64_t>(i), kOpeningTurns);
-    if (!state.isOver() && !state.active(0).isFainted() && !state.active(1).isFainted())
-      positions.push_back(state);
-  }
+  const std::vector<engine::BattleState> positions = search::openings(game, kPositions);
   std::printf("%zu positions, %.1f s per line\n\n", positions.size(), seconds);
 
   size_t next = 0;
@@ -114,9 +107,20 @@ int main(int argc, char **argv) {
          const engine::BattleState view = engine::observe(position(), 0);
          return static_cast<long>(view.turn >= 0);
        }));
+  std::vector<engine::BattleState> views;
+  for (const engine::BattleState &state : positions)
+    views.push_back(engine::observe(state, 0));
+  auto view = [&]() -> const engine::BattleState & {
+    next = (next + 1) % views.size();
+    return views[next];
+  };
   line("expected damage, first move", "calls", rate(seconds, [&] {
-         const engine::BattleState &state = position();
-         return static_cast<long>(rules.expectedDamage(state, 0, 0).max >= 0);
+         return static_cast<long>(rules.expectedDamage(view(), 0, 0).max >= 0);
+       }));
+  std::vector<float> row(game.features().names().size());
+  line("features of a position", "positions", rate(seconds, [&] {
+         game.features().compute(view(), 0, row.data());
+         return 1L;
        }));
   return 0;
 }

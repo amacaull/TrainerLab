@@ -3,9 +3,11 @@
 #include "engine/core/battle_state.hpp"
 #include "engine/core/data_loader.hpp"
 #include "engine/core/engine.hpp"
+#include "search/features.hpp"
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace search {
 // The rules and the catalog, loaded once, for the search to play on.
@@ -19,6 +21,7 @@ public:
   explicit Game(const std::string &dataDir);
 
   const engine::BattleEngine &rules() const { return rules_; }
+  const Features &features() const { return features_; }
 
   // Two random legal teams of six, the same ones for the same seed, started with this seed.
   engine::BattleState randomBattle(uint64_t seed) const;
@@ -26,6 +29,7 @@ public:
 private:
   engine::DataLoader data_;
   engine::BattleEngine rules_{data_};
+  Features features_{data_, rules_};
 };
 
 // How a battle played to its end came out.
@@ -39,4 +43,8 @@ struct Outcome {
 // The same seed plays the same battle.
 Outcome playRandomly(const Game &game, engine::BattleState &state, uint64_t seed,
                      int maxTurns = 1000);
+
+// Random battles from seeds 0, 1, 2…, each played `turns` random turns on, keeping those where both
+// actives stand: the positions of the benchmark, the same in C++ and in Python.
+std::vector<engine::BattleState> openings(const Game &game, int count, int turns = 3);
 } // namespace search

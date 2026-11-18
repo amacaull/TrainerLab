@@ -1,8 +1,7 @@
 """How fast the bots play from Python: the reference the C++ search is measured against.
 
-Every line repeats one thing for a few seconds, on positions like those of `search_bench` in C++:
-random battles, played a few random turns on. The teams differ, so only the orders of magnitude
-compare.
+Every line repeats one thing for a few seconds, on the 64 positions of `search_bench` in C++
+(`_search.openings`): random battles, 3 random turns in, seen by side 0.
 """
 
 import time
@@ -10,14 +9,14 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from itertools import count, cycle
 
-from trainerlab import _engine
+from trainerlab import _engine, _search
 from trainerlab.bots.baseline import RandomBot
 from trainerlab.bots.lookahead import Forecaster
 from trainerlab.game.battle import play_battle
-from trainerlab.game.environment import BattleEnvironment, random_team_pair
+from trainerlab.game.environment import DATA_DIR, BattleEnvironment, random_team_pair
+from trainerlab.learning.features import features
 
-POSITIONS = 16
-OPENING_TURNS = 3
+POSITIONS = 64  # search_bench plays the same ones
 
 
 @dataclass(frozen=True)
@@ -40,22 +39,18 @@ def rate(
             return units / elapsed
 
 
-def positions(how_many: int = POSITIONS) -> list[BattleEnvironment]:
-    """Random battles, a few random turns in, with both actives standing."""
-    found = []
-    for seed in count():
-        env = BattleEnvironment(*random_team_pair(seed), seed=seed, max_turns=OPENING_TURNS)
-        play_battle(env, RandomBot(seed=2 * seed), RandomBot(seed=2 * seed + 1))
-        if env.legal_actions(0) and env.legal_actions(1):  # neither active fainted
-            found.append(env)
-        if len(found) == how_many:
-            return found
-    raise AssertionError("unreachable")  # pragma: no cover
+def positions(how_many: int = POSITIONS) -> list[_engine.BattleState]:
+    """The positions of the benchmark: the same as in C++, built by the same function."""
+    _engine.engine_init(str(DATA_DIR))  # each binding holds its own copy of the engine
+    _search.init(str(DATA_DIR))
+    return _search.openings(how_many)
 
 
 def measure(seconds: float) -> list[Line]:
     """Each line, measured for `seconds`."""
-    envs = cycle(positions())
+    states = positions()
+    views = [_engine.observe(state, 0) for state in states]
+    next_state, next_view = cycle(states), cycle(views)
     seeds = count()
 
     def playout() -> int:
@@ -67,16 +62,26 @@ def measure(seconds: float) -> list[Line]:
     forecaster = Forecaster()
 
     def decision() -> int:
-        env = next(envs)
-        forecaster.choose_action(0, env.observe(0), env.legal_actions(0))
+        state = next(next_state)
+        forecaster.choose_action(0, _engine.observe(state, 0), _engine.legal_actions(state, 0))
         return 1
 
     def damage() -> int:
-        _engine.expected_damage(next(envs).observe(0), 0, 0)
+        _engine.expected_damage(next(next_view), 0, 0)
+        return 1
+
+    def python_features() -> int:
+        features(next(next_view), 0)
+        return 1
+
+    def cpp_features() -> int:
+        _search.features(next(next_view), 0)
         return 1
 
     return [
         Line("random playout, Python loop", "turns", rate(playout, seconds)),
         Line("forecaster decision (rule 6)", "decisions", rate(decision, seconds)),
         Line("expected damage, first move", "calls", rate(damage, seconds)),
+        Line("features of a position, Python", "positions", rate(python_features, seconds)),
+        Line("features of a position, C++", "positions", rate(cpp_features, seconds)),
     ]

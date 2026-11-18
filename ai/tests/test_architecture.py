@@ -7,7 +7,7 @@ import pytest
 
 PACKAGE = Path(__file__).resolve().parents[1] / "src" / "trainerlab"
 
-# What each domain may import from the package, besides itself and the engine binding.
+# What each domain may import from the package, besides itself and the two bindings (C++).
 ALLOWED = {
     "game": set(),
     "learning": {"game"},
@@ -33,7 +33,7 @@ def _domains_imported(module: Path) -> set[str]:
                 domains.add(parts[1])
             elif name == "trainerlab" and isinstance(node, ast.ImportFrom):
                 domains.update(alias.name for alias in node.names)
-    return domains - {"_engine"}
+    return domains - {"_engine", "_search"}
 
 
 @pytest.mark.parametrize("domain", sorted(ALLOWED))
