@@ -7,7 +7,7 @@ import numpy
 import numpy.typing
 import trainerlab._engine
 import typing
-__all__: list[str] = ['Forecaster', 'action_mask', 'encode', 'encoding_names', 'feature_names', 'features', 'init', 'openings']
+__all__: list[str] = ['Forecaster', 'VecEnv', 'action_mask', 'encode', 'encoding_names', 'feature_names', 'features', 'init', 'openings']
 class Forecaster:
     """
     Rules 6 to 9 in C++, with the layers of a WinModel.
@@ -41,6 +41,28 @@ class Forecaster:
     def odds(self, state: trainerlab._engine.BattleState, side: typing.SupportsInt | typing.SupportsIndex) -> float:
         """
         The probability of winning from this position, as the model sees it.
+        """
+class VecEnv:
+    """
+    Many battles at once, both sides played by the caller; a battle that ends starts again.
+    """
+    def __init__(self, count: typing.SupportsInt | typing.SupportsIndex, seed: typing.SupportsInt | typing.SupportsIndex, max_turns: typing.SupportsInt | typing.SupportsIndex = 1000) -> None:
+        ...
+    def observe(self) -> tuple[numpy.typing.NDArray[numpy.float32], numpy.typing.NDArray[numpy.int32], numpy.typing.NDArray[numpy.float32], numpy.typing.NDArray[numpy.float32]]:
+        """
+        (pokemon[N, 2, 12, P], ids[N, 2, 12, 7], field[N, 2, F], mask[N, 2, 10]), per battle and side.
+        """
+    def step(self, actions: typing.Annotated[numpy.typing.ArrayLike, numpy.int32]) -> tuple[numpy.typing.NDArray[numpy.float32], typing.Any]:
+        """
+        Plays actions[N, 2]; (rewards[N, 2], done[N]). A side with no decision is ignored.
+        """
+    @property
+    def count(self) -> int:
+        ...
+    @property
+    def finished(self) -> int:
+        """
+        Battles finished since the start.
         """
 def action_mask(legal: collections.abc.Sequence[trainerlab._engine.Action]) -> numpy.typing.NDArray[numpy.float32]:
     """

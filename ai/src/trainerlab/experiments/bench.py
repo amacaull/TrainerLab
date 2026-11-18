@@ -9,11 +9,14 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from itertools import count, cycle
 
+import numpy as np
+
 from trainerlab import _engine, _search
 from trainerlab.bots.baseline import RandomBot
 from trainerlab.bots.lookahead import Forecaster, Mcts, Nash
 from trainerlab.game.battle import play_battle
 from trainerlab.game.environment import DATA_DIR, BattleEnvironment, random_team_pair
+from trainerlab.learning.env import VecEnv, random_actions
 from trainerlab.learning.features import features
 
 POSITIONS = 64  # search_bench plays the same ones
@@ -80,6 +83,12 @@ def measure(seconds: float) -> list[Line]:
         mcts.choose_action(0, _engine.observe(state, 0), _engine.legal_actions(state, 0))
         return 1
 
+    env, rng = VecEnv(256, seed=1), np.random.default_rng(0)
+
+    def env_step() -> int:
+        env.step(random_actions(env.observe().mask, rng))
+        return env.battles
+
     def damage() -> int:
         _engine.expected_damage(next(next_view), 0, 0)
         return 1
@@ -97,6 +106,7 @@ def measure(seconds: float) -> list[Line]:
         Line("forecaster decision (rule 6)", "decisions", rate(decision, seconds)),
         Line("nash decision (rule 8)", "decisions", rate(nash_decision, seconds)),
         Line("mcts decision (rule 9)", "decisions", rate(mcts_decision, seconds)),
+        Line("vector env, 256 battles: observe + step", "steps", rate(env_step, seconds)),
         Line("expected damage, first move", "calls", rate(damage, seconds)),
         Line("features of a position, Python", "positions", rate(python_features, seconds)),
         Line("features of a position, C++", "positions", rate(cpp_features, seconds)),

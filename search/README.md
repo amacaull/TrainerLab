@@ -13,6 +13,7 @@ on its own.
 | `include/search/matrix_game.hpp` | The exact solution of a small zero-sum game (simplex): rule 8's mixed strategy |
 | `include/search/mcts.hpp` | Rule 9: a Monte Carlo tree search over simultaneous moves (decoupled UCT), with guessed teams for the foe's unseen Pokémon |
 | `include/search/encoding.hpp` | A position for a network: one vector per Pokémon, the field, the legal options (palier 6) |
+| `include/search/vec_env.hpp` | Many battles at once for self-play: observe both sides, step, rewards, a battle that ends starts again |
 | `bench/bench.cpp` | `search_bench`: how fast the engine plays, through each of its APIs |
 | `tests/` | Catch2 tests |
 

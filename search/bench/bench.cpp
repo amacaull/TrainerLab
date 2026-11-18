@@ -8,6 +8,7 @@
 // battles, 3 random turns in. A line reports how many times per second it does its one thing.
 
 #include "search/game.hpp"
+#include "search/vec_env.hpp"
 
 #include "engine/core/observation.hpp"
 #include "engine/ffi/ffi.hpp"
@@ -125,6 +126,29 @@ int main(int argc, char **argv) {
          encoding.encode(view(), 0, slots.data(), ids.data(), fieldRow.data());
          return 1L;
        }));
+  {
+    constexpr int kBattles = 256;
+    search::VecEnv env(game, kBattles, 1);
+    const size_t sides = 2 * kBattles;
+    std::vector<float> envPokemon(sides * slots.size()), envField(sides * fieldRow.size());
+    std::vector<int32_t> envIds(sides * ids.size());
+    std::vector<float> envMask(sides * search::Encoding::kActions), rewards(sides);
+    std::vector<uint8_t> done(kBattles);
+    std::vector<int32_t> actions(sides);
+    std::mt19937_64 pick(1);
+    line("vector env, 256 battles: observe + step", "steps", rate(seconds, [&] {
+           env.observe(envPokemon.data(), envIds.data(), envField.data(), envMask.data());
+           for (size_t k = 0; k < sides; ++k) {
+             int legal[search::Encoding::kActions], n = 0;
+             for (int o = 0; o < search::Encoding::kActions; ++o)
+               if (envMask[k * search::Encoding::kActions + static_cast<size_t>(o)] == 1.0f)
+                 legal[n++] = o;
+             actions[k] = n ? legal[pick() % static_cast<uint64_t>(n)] : 0;
+           }
+           env.step(actions.data(), rewards.data(), done.data());
+           return static_cast<long>(kBattles);
+         }));
+  }
   std::vector<float> row(game.features().names().size());
   line("features of a position", "positions", rate(seconds, [&] {
          game.features().compute(view(), 0, row.data());
