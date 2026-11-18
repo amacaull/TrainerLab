@@ -14,7 +14,7 @@ from collections.abc import Callable
 from typing import NamedTuple
 
 from trainerlab.bots.roster import BOTS, DESCRIPTIONS
-from trainerlab.commands import audit, bench, dataset, duel, play, train, watch
+from trainerlab.commands import audit, bench, dataset, duel, play, train, usage, watch
 from trainerlab.commands.console import stdout
 from trainerlab.commands.menu import menu
 from trainerlab.terminal.human import Ask
@@ -44,6 +44,7 @@ COMMANDS: dict[str, Command] = {
     "audit": Command("count the mistakes a program can spot in a bot", lambda a, _: audit.main(a)),
     "dataset": Command("turn battles into a dataset to learn from", lambda a, _: dataset.main(a)),
     "train": Command("fit a win probability model on a dataset", lambda a, _: train.main(a)),
+    "usage": Command("count the kinds of moves a bot plays", lambda a, _: usage.main(a)),
     "bots": Command("list the bots and what each one does", _list_bots),
     "bench": Command("measure how fast the bots play", lambda a, _: bench.main(a)),
 }

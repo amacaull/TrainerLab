@@ -194,6 +194,30 @@ it exploits a foe it can predict, whereas `strategist` guards against
 replies those foes never play and lets chances go. Exploiting a known foe or
 guarding against an unknown one: neither dominates.
 
+## Rule 8: a mixed strategy, measured negative
+
+```bash
+trainerlab duel nash strategist --pairs 5000 --from 80000
+trainerlab duel nash forecaster --pairs 5000 --from 85000
+trainerlab duel nash calculator --pairs 5000 --from 90000
+```
+
+| Duel | Score | 95 % interval | Record (W / D / L) | strategist, other seeds |
+|---|---|---|---|---|
+| nash vs strategist | **0.487** | [0.478, 0.497] | 4858 / 31 / 5111 | |
+| nash vs forecaster | 0.533 | [0.524, 0.543] | 5311 / 46 / 4643 | 0.548 |
+| nash vs calculator | 0.717 | [0.709, 0.726] | 7150 / 49 / 2801 | 0.739 |
+
+**Mixing does not pay against these bots.** `nash` loses to `strategist`, and
+does no better against the others. Being unpredictable only matters against a
+foe that exploits a predictable one, and none of these bots does:
+`strategist` assumes the worst reply, `forecaster` assumes `calculator`. What
+is left is the cost: the odds of each cell are a noisy estimate (one model,
+two turns), and between options that look alike the mix sometimes plays the
+worse one, where `strategist` plays the safest. Kept in the code as a measured
+negative result, for the self-play of palier 6, where the foe learns to
+exploit.
+
 ## The models
 
 ```bash

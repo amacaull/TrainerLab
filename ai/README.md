@@ -36,6 +36,7 @@ lists the commands, `trainerlab duel --help` the options of one.
 | `duel BOT_A BOT_B` | bot A's score against bot B, with its 95 % interval |
 | `watch BOT_A BOT_B --losses` / `--seed N --side S` | the battles A lost, or one replayed with what each bot saw |
 | `audit BOT_A BOT_B` | the mistakes of bot A that a program can spot |
+| `usage BOT_A BOT_B` | the kinds of moves bot A plays (attacks, hazards, boosts, statuses…), and how often each was an option |
 | `dataset BOT_A BOT_B` | every decision of the battles, as a learning dataset (`.npz`) |
 | `train DATASET…` | a win probability model, fitted and scored on unseen battles |
 | `bench` | how fast the bots play from Python (the C++ counterpart: `search_bench`) |
