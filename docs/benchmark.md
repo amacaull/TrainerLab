@@ -36,8 +36,15 @@ The 249 features are computed in C++ too (`search/src/features.cpp`), value
 for value the same as in Python, bit for bit on more than a thousand positions
 (a test).
 
-On this Linux machine, the features of a position cost about the same in C++
-as in Python (about 2000 a second): **both spend nearly all their time in the
+On the Mac, from Python and from C++ on the same 64 positions:
+
+| Line | Per second |
+|---|---|
+| expected damage, C++ / Python | 21 056 / 20 707 calls |
+| features of a position, C++ / Python | 2 759 / 2 534 positions |
+| forecaster decision (rule 6) | 222 decisions |
+
+The features of a position cost about the same in C++ as in Python: **both spend nearly all their time in the
 eight `expected_damage` calls** a position needs. Porting the features alone
 gains nothing; the cost is `expected_damage`.
 
@@ -61,14 +68,32 @@ battles and the same expected damage, bit for bit):
 
 Measured with callgrind on the 64 positions (instructions, so free of the
 machine's noise), `expected_damage` does **2.7 times less work** than before
-5.2 (98 million instructions against 266). On this Linux machine:
+5.2 (98 million instructions against 266). On the Mac:
 
-| Line | Before 5.2 | Now |
+| Line | 5.2 | Now |
 |---|---|---|
-| expected damage (C++) | 31 700 calls/s | 92 000 calls/s |
-| features of a position (C++) | 1 900 positions/s | 5 300 positions/s |
-| random playout, C++ API | 490 000 turns/s | 762 000 turns/s |
-| forecaster decision (Python) | 99 decisions/s | 226 decisions/s |
+| expected damage (C++) | 21 056 calls/s | 51 378 calls/s |
+| features of a position (C++) | 2 719 positions/s | 6 875 positions/s |
+| random playout, C++ API | 907 676 turns/s | 1 357 306 turns/s |
+| forecaster decision | 222 decisions/s | 446 decisions/s |
 
 The reference duel is unchanged (828 / 1 / 171): the bots play the same
 moves, twice as fast.
+
+## 5.3: rules 6 and 7 in C++
+
+`forecaster` and `strategist` now decide in one call to C++
+(`search/src/forecaster.cpp`): the turns played ahead, the foe's move as rule
+5 plays it (with the bots' damage estimate, `search/src/estimate.cpp`), the
+features and the model. The Python bot only hands over its view.
+
+They make the same decisions as the Python version they replaced, kept by the
+tests as the reference: every one of more than 2000 decisions checked, and the
+reference duel unchanged (828 / 1 / 171). The odds themselves differ in the
+last bit (numpy and C++ add the 249 terms in different orders), never enough
+to change a choice on these decisions.
+
+On this Linux machine, the reference duel (500 pairs) takes 44 s, against
+2 min 05 s before 5.2. A decision is now dominated by the features of the
+positions it rates: about 18 positions per decision, each with 8
+`expected_damage` calls. That is where the next gain lies.
