@@ -3,6 +3,7 @@
 #include "engine/core/battle_state.hpp"
 #include "engine/core/data_loader.hpp"
 #include "engine/core/engine.hpp"
+#include "search/encoding.hpp"
 #include "search/estimate.hpp"
 #include "search/features.hpp"
 
@@ -25,6 +26,7 @@ public:
   const engine::BattleEngine &rules() const { return rules_; }
   const Estimate &estimate() const { return estimate_; }
   const Features &features() const { return features_; }
+  const Encoding &encoding() const { return encoding_; }
 
   // Two random legal teams of six, the same ones for the same seed, started with this seed.
   engine::BattleState randomBattle(uint64_t seed) const;
@@ -34,6 +36,7 @@ private:
   engine::BattleEngine rules_{data_};
   Estimate estimate_{data_};
   Features features_{data_, rules_, estimate_};
+  Encoding encoding_{data_};
 };
 
 // How a battle played to its end came out.
