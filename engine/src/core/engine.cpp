@@ -48,7 +48,7 @@ int actionPriority(const Action &a, const DataLoader &data, const BattlePokemon 
   int moveId = user.move_ids[static_cast<size_t>(useMove.moveIndex)];
   const Move &move = data.moveByIndex(moveId);
   int boost = 0;
-  if (const Ability *ability = abilityByName(data.speciesByIndex(user.species_id).ability))
+  if (const Ability *ability = abilityByIndex(data.speciesByIndex(user.species_id).abilityId))
     boost = ability->priorityBoost(move);
   return move.priority + boost;
 }
@@ -568,7 +568,9 @@ DamageOutlook BattleEngine::expectedDamage(const BattleState &state, int side,
   const Action action = UseMove{moveIndex};
   const std::optional<Action> foeAction = anAttack(state, data_, foeSide);
 
-  // The HP the foe has lost once the move is over, on one sequence of draws.
+  // The HP the foe has lost once the move is over, on one sequence of draws. The event log is
+  // cleared, not rebuilt: its memory serves every sequence.
+  EventLog events;
   auto lost = [&](RNG &rng) {
     BattleState scratch = state;
     BattlePokemon &user = scratch.active(side);
@@ -576,7 +578,7 @@ DamageOutlook BattleEngine::expectedDamage(const BattleState &state, int side,
     if (user.charging_move_id == kNoMove && canUseAnyMove(user) && moveId != kNoMove &&
         data_.moveByIndex(moveId).twoTurn != TwoTurn::None)
       user.charging_move_id = moveId; // straight to the release
-    EventLog events;
+    events.clear();
     executeAction(scratch, side, action, foeAction ? &*foeAction : nullptr, false, rng, events);
     const int hpAfter =
         scratch.teams[static_cast<size_t>(foeSide)][static_cast<size_t>(foeIndex)].currentHp;
@@ -618,7 +620,7 @@ EventLog BattleEngine::startBattle(BattleState &state, RNG &rng) const {
   for (int side : {first, 1 - first}) {
     CombatantRef ref{side, state.activeIndex[static_cast<size_t>(side)]};
     const Species &sp = data_.speciesByIndex(state.active(side).species_id);
-    if (const Ability *ability = abilityByName(sp.ability)) {
+    if (const Ability *ability = abilityByIndex(sp.abilityId)) {
       AbilityContext ctx{state, data_, events, ref};
       ability->onSwitchIn(ctx);
     }

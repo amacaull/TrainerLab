@@ -32,6 +32,7 @@ struct Species {
   Type type1 = Type::Normal;
   Type type2 = Type::Normal;
   std::string ability;
+  int abilityId = -1; // the ability's catalog index, resolved once by the loader: -1 for none
   std::vector<std::string> movepool;
 
   std::string nature = "Serious";

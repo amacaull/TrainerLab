@@ -24,8 +24,17 @@ public:
 
   const TypeChart &typeChart() const { return typeChart_; }
 
-  const Move &moveByIndex(int id) const;
-  const Species &speciesByIndex(int id) const;
+  // Inline: called a dozen times per simulated hit. Out of range throws std::out_of_range.
+  const Move &moveByIndex(int id) const {
+    if (!isValidMoveId(id))
+      throwInvalidId("move", id);
+    return moves_[static_cast<size_t>(id)];
+  }
+  const Species &speciesByIndex(int id) const {
+    if (!isValidSpeciesId(id))
+      throwInvalidId("species", id);
+    return species_[static_cast<size_t>(id)];
+  }
 
   // -1 on a miss, never throws: probing is legitimate for FFI callers.
   int findMoveId(const std::string &name) const;
@@ -42,6 +51,7 @@ public:
   bool isValidAbilityId(int id) const;
 
 private:
+  [[noreturn]] static void throwInvalidId(const char *what, int id);
   void loadTypes(const std::string &path);
   void loadMoves(const std::string &dir);
   void loadSpecies(const std::string &dir);

@@ -429,7 +429,7 @@ void DataLoader::loadSpecies(const std::string &dir) {
     species_.push_back(std::move(s));
   }
 
-  for (const auto &sp : species_) {
+  for (auto &sp : species_) {
     for (const auto &mv : sp.movepool) {
       if (findMoveId(mv) < 0) {
         std::ostringstream oss;
@@ -442,19 +442,13 @@ void DataLoader::loadSpecies(const std::string &dir) {
       oss << "Species '" << sp.id << "' references unknown ability '" << sp.ability << "'";
       throw std::runtime_error(oss.str());
     }
+    // Looked up on every hit: a string hash there was a quarter of expected_damage.
+    sp.abilityId = sp.ability.empty() ? -1 : findAbilityIdByName(sp.ability);
   }
 }
 
-const Move &DataLoader::moveByIndex(int id) const {
-  if (!isValidMoveId(id))
-    throw std::out_of_range("Invalid move id: " + std::to_string(id));
-  return moves_[static_cast<size_t>(id)];
-}
-
-const Species &DataLoader::speciesByIndex(int id) const {
-  if (!isValidSpeciesId(id))
-    throw std::out_of_range("Invalid species id: " + std::to_string(id));
-  return species_[static_cast<size_t>(id)];
+void DataLoader::throwInvalidId(const char *what, int id) {
+  throw std::out_of_range(std::string("Invalid ") + what + " id: " + std::to_string(id));
 }
 
 int DataLoader::findMoveId(const std::string &name) const {
