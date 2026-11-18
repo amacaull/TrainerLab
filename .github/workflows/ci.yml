@@ -64,8 +64,9 @@ jobs:
           cache: pip
           cache-dependency-path: ai/pyproject.toml
 
+      # PyTorch for palier 6, the CPU build: the CUDA one is gigabytes the runner has no use for.
       - name: Install
-        run: pip install -e ".[dev]"
+        run: pip install -e ".[dev,rl]" --extra-index-url https://download.pytorch.org/whl/cpu
 
       - name: Lint
         run: |

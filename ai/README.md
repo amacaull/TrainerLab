@@ -13,7 +13,7 @@ compiles the engine and its binding).
 ```bash
 cd ai
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"                   # again after any engine change
+pip install -e ".[dev,rl]"                # again after any engine change; rl: PyTorch
 
 pytest --cov                              # every test, 100 % line and branch coverage required
 trainerlab                                # a menu: choose what to do, then each option
@@ -40,6 +40,8 @@ lists the commands, `trainerlab duel --help` the options of one.
 | `dataset BOT_A BOT_B` | every decision of the battles, as a learning dataset (`.npz`) |
 | `train DATASET…` | a win probability model, fitted and scored on unseen battles |
 | `bench` | how fast the bots play from Python (the C++ counterpart: `search_bench`) |
+| `imitate BOT_A BOT_B` | bot A's decisions, encoded for the network to learn from (`.npz`) |
+| `pretrain DATA…` | trains the policy and value network by imitation (`net.pt`) |
 
 Every command that plays battles takes `--pairs N` (pairs of two battles, sides
 swapped) and `--from SEED`, the seed of the first pair: `--pairs 5000 --from
@@ -75,6 +77,9 @@ make before moving, its move, its replacement. `calculator()` is
 `learning/models/win-logistic.npz`. Any command takes `forecaster:FILE.npz` to
 play with another model instead.
 
+`net:FILE.pt` plays a policy network alone, greedily, without any search: the network
+made by `trainerlab pretrain`. PyTorch comes with the `rl` extras; `pytest --cov` needs them.
+
 ## Method
 
 - **Paired battles.** A pair is two battles with the same seed and the same
@@ -96,6 +101,7 @@ play with another model instead.
 | `bots/` | Rules 1 to 5 (`rules`), rules 6 and 7 (`lookahead`), every bot by name (`roster`). |
 | `experiments/` | Duels (`tournament`), spreading pairs over the cores (`parallel`), the audit of mistakes (`audit`), the datasets (`dataset`). |
 | `terminal/` | A battle against a bot (`session`), a battle between bots told with what each saw (`commentary`), the human player, the text and the panels. |
+| `rl/` | Palier 6, with PyTorch: the policy and value network (`net`), the bot that plays it (`bot`), pre-training by imitation (`train`). |
 | `commands/` | `trainerlab`: the dispatch, the menu, and one thin module per mode that reads the options, calls the domain and prints the result. |
 
 Each package imports only those above it in the table (`terminal/`, only

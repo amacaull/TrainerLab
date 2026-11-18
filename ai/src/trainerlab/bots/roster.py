@@ -52,15 +52,25 @@ MODEL_BOTS: dict[str, Callable[[WinModel, int], Bot]] = {
     "mcts": lambda model, seed: Mcts(model, seed=seed),
 }
 WITH_MODEL = "|".join(MODEL_BOTS)  # for help texts: forecaster|...|mcts:MODEL.npz
+# A policy network alone, from a file made by `trainerlab pretrain` (needs the [rl] extras).
+NET = "net"
 
 
 def factory(spec: str) -> BotFactory:
     """The bot a name stands for: `forecaster:FILE.npz` plays with the model in that file."""
     name, _, model = spec.partition(":")
+    if name == NET:
+        return _net_bot(str(Path(model).resolve()))
     if not model:
         return BOTS[name]
     path, make = str(Path(model).resolve()), MODEL_BOTS[name]
     return lambda seed: make(_load(path), seed)
+
+
+def _net_bot(path: str) -> BotFactory:
+    from trainerlab.rl.bot import NetBot  # here: PyTorch is loaded only for this bot
+
+    return lambda seed: NetBot(Path(path))
 
 
 @cache
@@ -71,10 +81,16 @@ def _load(path: str) -> WinModel:
 def bot_spec(text: str) -> str:
     """Checks a bot's name on the command line (argparse type)."""
     name, _, model = text.partition(":")
+    if name == NET:
+        if not model.endswith(".pt"):
+            raise argparse.ArgumentTypeError(f"{NET} plays with a network: {NET}:FILE.pt")
+        if not Path(model).is_file():
+            raise argparse.ArgumentTypeError(f"no such network: {model}")
+        return text
     if name not in BOTS or (model and name not in MODEL_BOTS):
         names = ", ".join(BOTS)
         raise argparse.ArgumentTypeError(
-            f"unknown bot {text!r}: one of {names}, or {WITH_MODEL}:MODEL.npz"
+            f"unknown bot {text!r}: one of {names}, {WITH_MODEL}:MODEL.npz or {NET}:FILE.pt"
         )
     if model and not Path(model).is_file():
         raise argparse.ArgumentTypeError(f"no such model: {model}")

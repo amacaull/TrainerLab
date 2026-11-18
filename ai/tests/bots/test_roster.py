@@ -56,3 +56,13 @@ def test_nash_takes_a_model_and_its_seed(tmp_path: Path) -> None:
     assert isinstance(factory("nash")(3), Nash)
     assert isinstance(factory(f"mcts:{model}")(3), Mcts)
     assert isinstance(factory("mcts")(3), Mcts)
+
+
+def test_a_network_bot_needs_a_network_file(tmp_path: Path) -> None:
+    with pytest.raises(argparse.ArgumentTypeError, match="net:FILE.pt"):
+        bot_spec("net")
+    with pytest.raises(argparse.ArgumentTypeError, match="no such network"):
+        bot_spec("net:missing.pt")
+    network = tmp_path / "n.pt"
+    network.write_bytes(b"")
+    assert bot_spec(f"net:{network}") == f"net:{network}"
