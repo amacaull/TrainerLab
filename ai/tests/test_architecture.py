@@ -11,10 +11,11 @@ PACKAGE = Path(__file__).resolve().parents[1] / "src" / "trainerlab"
 ALLOWED = {
     "game": set(),
     "learning": {"game"},
-    "bots": {"game", "learning"},
+    "rl": {"game", "learning"},
+    "bots": {"game", "learning", "rl"},
     "experiments": {"game", "learning", "bots"},
     "terminal": {"game"},
-    "commands": {"game", "learning", "bots", "experiments", "terminal"},
+    "commands": {"game", "learning", "rl", "bots", "experiments", "terminal"},
 }
 
 

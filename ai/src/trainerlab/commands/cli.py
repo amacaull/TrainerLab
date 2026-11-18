@@ -14,7 +14,18 @@ from collections.abc import Callable
 from typing import NamedTuple
 
 from trainerlab.bots.roster import BOTS, DESCRIPTIONS
-from trainerlab.commands import audit, bench, dataset, duel, play, train, usage, watch
+from trainerlab.commands import (
+    audit,
+    bench,
+    dataset,
+    duel,
+    imitate,
+    play,
+    pretrain,
+    train,
+    usage,
+    watch,
+)
 from trainerlab.commands.console import stdout
 from trainerlab.commands.menu import menu
 from trainerlab.terminal.human import Ask
@@ -47,11 +58,17 @@ COMMANDS: dict[str, Command] = {
     "usage": Command("count the kinds of moves a bot plays", lambda a, _: usage.main(a)),
     "bots": Command("list the bots and what each one does", _list_bots),
     "bench": Command("measure how fast the bots play", lambda a, _: bench.main(a)),
+    "imitate": Command("encode a bot's decisions for the network", lambda a, _: imitate.main(a)),
+    "pretrain": Command("train the network by imitation", lambda a, _: pretrain.main(a)),
 }
 
 
-# The modes of the menu: every command but the list of bots and the benchmark.
-MODES = [(name, c.summary) for name, c in COMMANDS.items() if name not in ("bots", "bench")]
+# The modes of the menu: every command but the list of bots, the benchmark and palier 6's.
+MODES = [
+    (name, c.summary)
+    for name, c in COMMANDS.items()
+    if name not in ("bots", "bench", "imitate", "pretrain")
+]
 
 
 def main(argv: list[str] | None = None, ask: Ask = input, write: Write = stdout) -> int:

@@ -15,6 +15,7 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 *.npz
+*.pt
 !ai/src/trainerlab/learning/models/*.npz
 
 # Editors and OS
