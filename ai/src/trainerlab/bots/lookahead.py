@@ -1,4 +1,4 @@
-"""Rules 6 to 8: look one turn ahead, and play what the win probability model rates best.
+"""Rules 6 to 9: look ahead, and play what the win probability model rates best.
 
 For each of its options, the bot plays the turn on a copy of what it sees, the foe playing what
 rule 5 would play, then asks the model how likely it is to win from the position reached. A
@@ -82,6 +82,27 @@ class Nash(Forecaster):
     ) -> _engine.Action:
         strategy = self._search.nash_strategy(view, side, legal)
         return self._rng.choices(legal, weights=strategy)[0]
+
+
+class Mcts(Forecaster):
+    """Rule 9: a Monte Carlo tree search over simultaneous moves, three turns deep.
+
+    Each node keeps, for each side, the statistics of its own options; both pick by UCB1 and the
+    pair leads to the next node. The foe's unseen Pokemon are guessed as legal teams; the model
+    rates where a simulation stops. It plays the option the search visited most. The settings
+    (200 simulations, 3 turns, 8 guesses) were fixed before measuring: search/include/search/
+    mcts.hpp. Replacements are rule 6's.
+    """
+
+    def __init__(self, model: WinModel | None = None, *, seed: int = 0) -> None:
+        super().__init__(model)
+        self._rng = random.Random(seed)
+
+    def choose_action(
+        self, side: int, view: _engine.BattleState, legal: list[_engine.Action]
+    ) -> _engine.Action:
+        seed = self._rng.getrandbits(63)
+        return legal[self._search.mcts_action(view, side, legal, seed)]
 
 
 @cache

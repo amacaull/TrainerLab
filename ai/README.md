@@ -65,12 +65,13 @@ replays the same battle; `--log FILE` keeps it as text.
 | `forecaster` | **Rule 6.** Plays each option a turn ahead on a copy of what it sees, the foe playing as rule 5, and keeps the one the win probability model rates best. |
 | `strategist` | **Rule 7.** Rule 6, but rates each option by the foe's best reply (minimax, one turn deep). |
 | `nash` | **Rule 8.** Both sides choose at once: the odds after every pair (option, reply) make a zero-sum game, and it draws its option from that game's optimal mixed strategy. |
+| `mcts` | **Rule 9.** A Monte Carlo tree search over simultaneous moves, three turns deep, guessing the foe's unseen Pokémon as legal teams; the model rates where each simulation stops. |
 
 Rules 1 to 5 are each three choices assembled in a `RuleBot`: a switch it may
 make before moving, its move, its replacement. `calculator()` is
 `RuleBot(move=most_expected_damage, replacement=best_matchup, switch=escape)`.
 
-`forecaster`, `strategist` and `nash` play with the logistic regression shipped in
+`forecaster`, `strategist`, `nash` and `mcts` play with the logistic regression shipped in
 `learning/models/win-logistic.npz`. Any command takes `forecaster:FILE.npz` to
 play with another model instead.
 

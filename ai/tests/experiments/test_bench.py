@@ -21,9 +21,13 @@ def test_the_positions_are_battles_under_way_with_both_actives_standing() -> Non
 def test_every_line_is_measured() -> None:
     lines = measure(0.001)
 
-    assert [line.unit for line in lines] == ["turns", "decisions", "decisions", "calls"] + [
-        "positions"
-    ] * 2
+    assert [line.unit for line in lines] == [
+        "turns",
+        "decisions",
+        "decisions",
+        "decisions",
+        "calls",
+    ] + ["positions"] * 2
     assert all(line.per_second > 0 for line in lines)
 
 
@@ -31,5 +35,5 @@ def test_the_command_prints_one_line_each() -> None:
     shown: list[str] = []
 
     assert command.main(["--seconds", "0.001"], write=shown.append) == 0
-    assert len(shown) == 6
+    assert len(shown) == 7
     assert shown[1].startswith("forecaster decision (rule 6)")
