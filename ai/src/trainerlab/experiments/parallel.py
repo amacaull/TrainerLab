@@ -52,8 +52,10 @@ class Progress:
         clock: Callable[[], float] = time.monotonic,
         *,
         colour: bool = False,
+        unit: str = "pairs",
     ) -> None:
         self._total, self._write, self._clock = total, write, clock
+        self._unit = unit
         self.colour = colour
         self._start = clock()
         self._width = 0  # the longest line so far, as seen: a shorter one must cover all of it
@@ -65,7 +67,7 @@ class Progress:
             when = f"about {_duration(left)} left"
         else:
             when = "estimating the time left"
-        text = f" {done}/{self._total} pairs ({share} %), {when}"
+        text = f" {done}/{self._total} {self._unit} ({share} %), {when}"
         filled = self.WIDTH * done // self._total
         seen = 2 + self.WIDTH + len(text)
         self._width = max(self._width, seen)
@@ -89,9 +91,9 @@ def _duration(seconds: float) -> str:
     return f"{minutes} min {secs:02d} s" if minutes else f"{secs} s"
 
 
-def progress_on_terminal(total: int) -> Progress | None:
+def progress_on_terminal(total: int, unit: str = "pairs") -> Progress | None:
     """A progress line when someone watches the terminal, none in a pipe or a log file."""
-    return Progress(total, colour=True) if sys.stderr.isatty() else None
+    return Progress(total, colour=True, unit=unit) if sys.stderr.isatty() else None
 
 
 def run(

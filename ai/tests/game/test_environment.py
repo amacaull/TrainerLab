@@ -4,7 +4,7 @@ import pytest
 from teams import TEAM0, TEAM1
 
 from trainerlab._engine import Action, ActionError, TeamError
-from trainerlab.game.environment import BattleEnvironment
+from trainerlab.game.environment import BattleEnvironment, random_team_pair
 
 EventRecord = tuple[int, int, int, int, int, int, float, int]
 
@@ -258,3 +258,17 @@ def test_a_full_battle_between_random_players_ends_with_a_result(seed: int) -> N
             env.play_turn(rng.choice(env.legal_actions(0)), rng.choice(env.legal_actions(1)))
 
     assert env.winner() in (0, 1, None)
+
+
+def test_a_snapshot_resumed_with_the_same_seed_plays_on_alike() -> None:
+    env = BattleEnvironment(*random_team_pair(7), seed=7)
+    env.play_turn(env.legal_actions(0)[0], env.legal_actions(1)[0])
+    snapshot = env.snapshot()
+    resumed = BattleEnvironment.resume(snapshot, seed=7)
+    snapshot.turn = 99  # the snapshot is a copy: changing it changes neither battle
+
+    assert resumed.turn == env.turn == 1
+    a0, a1 = env.legal_actions(0)[0], env.legal_actions(1)[0]
+    assert resumed.legal_actions(0) == env.legal_actions(0)
+    assert [e.kind for e in resumed.play_turn(a0, a1)] == [e.kind for e in env.play_turn(a0, a1)]
+    assert resumed.observe(0).active(0).current_hp == env.observe(0).active(0).current_hp

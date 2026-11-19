@@ -1,5 +1,6 @@
 """The referee of a battle: owns the real state and enforces the rules of the game."""
 
+import copy
 import random
 from pathlib import Path
 
@@ -24,6 +25,22 @@ class BattleEnvironment:
         self._seed = seed
         self._max_turns = max_turns
         self._opening_events = _engine.start_battle(self._state, seed)
+
+    @classmethod
+    def resume(
+        cls, state: _engine.BattleState, *, seed: int, max_turns: int = 1000
+    ) -> "BattleEnvironment":
+        """A battle going on from a copy of this state, its turns rolled from this seed."""
+        env = cls.__new__(cls)
+        env._state = copy.copy(state)
+        env._seed = seed
+        env._max_turns = max_turns
+        env._opening_events = []
+        return env
+
+    def snapshot(self) -> _engine.BattleState:
+        """A copy of the real state, all of it: to resume the battle from this point."""
+        return copy.copy(self._state)
 
     @property
     def opening_events(self) -> list[_engine.Event]:

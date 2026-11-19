@@ -79,3 +79,9 @@ def test_no_progress_line_outside_a_terminal(monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setattr("sys.stderr.isatty", lambda: True)
     progress = parallel.progress_on_terminal(10)
     assert isinstance(progress, parallel.Progress) and progress.colour
+
+
+def test_progress_can_count_other_things_than_pairs() -> None:
+    shown: list[str] = []
+    parallel.Progress(4, shown.append, lambda: 0.0, unit="blunders").update(0)
+    assert " 0/4 blunders (0 %)" in shown[0]

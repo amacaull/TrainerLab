@@ -28,6 +28,7 @@ from trainerlab.commands import (
     teams,
     train,
     usage,
+    verify,
     watch,
 )
 from trainerlab.commands.console import stdout
@@ -59,6 +60,7 @@ COMMANDS: dict[str, Command] = {
     "audit": Command("count the mistakes a program can spot in a bot", lambda a, _: audit.main(a)),
     "dataset": Command("turn battles into a dataset to learn from", lambda a, _: dataset.main(a)),
     "train": Command("fit a win probability model on a dataset", lambda a, _: train.main(a)),
+    "verify": Command("play a judge's worst blunders out", lambda a, _: verify.main(a)),
     "judge": Command(
         "rate each decision of a bot with a deeper search", lambda a, _: judge.main(a)
     ),
@@ -78,7 +80,17 @@ MODES = [
     (name, c.summary)
     for name, c in COMMANDS.items()
     if name
-    not in ("bots", "bench", "imitate", "pretrain", "selfplay", "alphazero", "teams", "judge")
+    not in (
+        "bots",
+        "bench",
+        "imitate",
+        "pretrain",
+        "selfplay",
+        "alphazero",
+        "teams",
+        "judge",
+        "verify",
+    )
 ]
 
 
