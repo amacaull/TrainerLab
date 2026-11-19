@@ -43,6 +43,7 @@ lists the commands, `trainerlab duel --help` the options of one.
 | `imitate BOT_A BOT_B` | bot A's decisions, encoded for the network to learn from (`.npz`) |
 | `pretrain DATA…` | trains the policy and value network by imitation (`net.pt`) |
 | `selfplay NET.pt` | improves the network by self-play with PPO (`selfplay.pt`, rule 10), measured against forecaster along the way |
+| `alphazero NET.pt` | improves the network with its own search, as AlphaZero: rule 11 plays itself on every core, the network learns its search's choices and the results; measured against rule 11 along the way |
 
 Every command that plays battles takes `--pairs N` (pairs of two battles, sides
 swapped) and `--from SEED`, the seed of the first pair: `--pairs 5000 --from
@@ -69,8 +70,9 @@ replays the same battle; `--log FILE` keeps it as text.
 | `strategist` | **Rule 7.** Rule 6, but rates each option by the foe's best reply (minimax, one turn deep). |
 | `nash` | **Rule 8.** Both sides choose at once: the odds after every pair (option, reply) make a zero-sum game, and it draws its option from that game's optimal mixed strategy. |
 | `mcts` | **Rule 9.** A Monte Carlo tree search over simultaneous moves, three turns deep, guessing the foe's unseen Pokémon as legal teams; the model rates where each simulation stops. |
-| `selfplay` | **Rule 10.** A policy network trained by imitation of `forecaster`, then by self-play with PPO; plays its best option without any search. The strongest bot (needs the `rl` extras). |
+| `selfplay` | **Rule 10.** A policy network trained by imitation of `forecaster`, then by self-play with PPO; plays its best option without any search (needs the `rl` extras). |
 | `planner` | **Rule 11.** Rule 9's tree search over simultaneous moves, guided by rule 10's network: its policy gives each option a prior, its value rates each new position (PUCT, as in AlphaZero); both run in C++. |
+| `alphazero` | **Rule 12.** Rule 11, with a network trained on its own search: rule 11 played itself, the network learned the search's choices and the results, 20 times over (`trainerlab alphazero`). The strongest bot. |
 
 Rules 1 to 5 are each three choices assembled in a `RuleBot`: a switch it may
 make before moving, its move, its replacement. `calculator()` is
@@ -81,7 +83,8 @@ make before moving, its move, its replacement. `calculator()` is
 play with another model instead.
 
 `net:FILE.pt` plays a policy network alone, greedily, without any search: the network
-made by `trainerlab pretrain`. PyTorch comes with the `rl` extras; `pytest --cov` needs them.
+made by `trainerlab pretrain`; `plan:FILE.pt` is rule 11's search guided by the network in that
+file (`trainerlab alphazero`). PyTorch comes with the `rl` extras; `pytest --cov` needs them.
 
 ## Method
 

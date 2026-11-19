@@ -8,6 +8,7 @@
 #include "search/mcts.hpp"
 #include "search/network.hpp"
 #include "search/planner.hpp"
+#include "search/self_play.hpp"
 #include "search/vec_env.hpp"
 
 #include "engine/ffi/convert.hpp"
@@ -17,10 +18,12 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace py = pybind11;
@@ -220,8 +223,8 @@ PYBIND11_MODULE(_search, m) {
 
   py::class_<search::Network>(
       m, "Network", "The policy and value network of trainerlab.rl.net, evaluated in C++.")
-      .def(py::init([](const std::map<std::string, py::array_t<float, py::array::c_style |
-                                                                       py::array::forcecast>>
+      .def(py::init([](const std::map<std::string,
+                                      py::array_t<float, py::array::c_style | py::array::forcecast>>
                            &weights) {
              std::map<std::string, search::Network::Tensor> tensors;
              for (const auto &[name, array] : weights) {
@@ -255,7 +258,51 @@ PYBIND11_MODULE(_search, m) {
           },
           py::arg("view"), py::arg("side"), py::arg("legal"), py::arg("seed"),
           "Rule 11: the index, in `legal`, of the option a tree search guided by this network "
-          "visits most; the same seed makes the same decision.");
+          "visits most; the same seed makes the same decision.")
+      .def(
+          "self_play",
+          [](const search::Network &net, int games, uint64_t seed, int threads, int simulations,
+             int worlds, double noise, int max_turns) {
+            search::SelfPlaySettings settings;
+            settings.planner.simulations = simulations;
+            settings.planner.worlds = worlds;
+            settings.planner.noise = noise;
+            settings.maxTurns = max_turns;
+            search::SelfPlayData data;
+            {
+              const py::gil_scoped_release free; // the threads run without Python
+              data = search::selfPlay(loaded(), net, settings, games, seed, threads);
+            }
+            const search::Encoding &e = loaded().encoding();
+            const auto rows = static_cast<py::ssize_t>(data.rows());
+            const auto p = static_cast<py::ssize_t>(e.pokemonNames().size());
+            const auto f = static_cast<py::ssize_t>(e.fieldNames().size());
+            constexpr py::ssize_t slots = search::Encoding::kSlots, ids = search::Encoding::kIds;
+            constexpr py::ssize_t actions = search::Encoding::kActions;
+            auto array = [](const auto &values, std::vector<py::ssize_t> shape) {
+              using T = typename std::decay_t<decltype(values)>::value_type;
+              py::array_t<T> out(shape);
+              std::copy(values.begin(), values.end(), out.mutable_data());
+              return out;
+            };
+            py::dict out;
+            out["pokemon"] = array(data.pokemon, {rows, slots, p});
+            out["ids"] = array(data.ids, {rows, slots, ids});
+            out["field"] = array(data.field, {rows, f});
+            out["mask"] = array(data.mask, {rows, actions});
+            out["policy"] = array(data.policy, {rows, actions});
+            out["result"] = array(data.result, {rows});
+            out["game"] = array(data.game, {rows});
+            out["turns"] = array(data.turns, {static_cast<py::ssize_t>(data.turns.size())});
+            out["winner"] = array(data.winner, {static_cast<py::ssize_t>(data.winner.size())});
+            return out;
+          },
+          py::arg("games"), py::arg("seed"), py::arg("threads"), py::arg("simulations") = 200,
+          py::arg("worlds") = 8, py::arg("noise") = 0.25, py::arg("max_turns") = 1000,
+          "The AlphaZero loop's games (search/include/search/self_play.hpp): rule 11 against "
+          "itself, with noise at the root; per decision the encoding, the mask, the share of "
+          "visits per option (policy) and the result for that side; per battle its turns and "
+          "winner (-1 for a draw).");
 
   m.def(
       "openings", [](int count, int turns) { return search::openings(loaded(), count, turns); },

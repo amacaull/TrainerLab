@@ -15,6 +15,7 @@ from typing import NamedTuple
 
 from trainerlab.bots.roster import BOTS, DESCRIPTIONS
 from trainerlab.commands import (
+    alphazero,
     audit,
     bench,
     dataset,
@@ -62,6 +63,7 @@ COMMANDS: dict[str, Command] = {
     "imitate": Command("encode a bot's decisions for the network", lambda a, _: imitate.main(a)),
     "pretrain": Command("train the network by imitation", lambda a, _: pretrain.main(a)),
     "selfplay": Command("improve the network by self-play", lambda a, _: selfplay.main(a)),
+    "alphazero": Command("improve the network with its own search", lambda a, _: alphazero.main(a)),
 }
 
 
@@ -69,7 +71,7 @@ COMMANDS: dict[str, Command] = {
 MODES = [
     (name, c.summary)
     for name, c in COMMANDS.items()
-    if name not in ("bots", "bench", "imitate", "pretrain", "selfplay")
+    if name not in ("bots", "bench", "imitate", "pretrain", "selfplay", "alphazero")
 ]
 
 
@@ -94,6 +96,6 @@ def main(argv: list[str] | None = None, ask: Ask = input, write: Write = stdout)
 
 def _usage() -> str:
     lines = ["usage: trainerlab [COMMAND [OPTIONS]]", "", "With no command, a menu asks for all."]
-    lines += [f"  {name:<8} {command.summary}" for name, command in COMMANDS.items()]
+    lines += [f"  {name:<9} {command.summary}" for name, command in COMMANDS.items()]
     lines += ["", "trainerlab COMMAND --help shows the options of a command."]
     return "\n".join(lines) + "\n"

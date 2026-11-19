@@ -2,7 +2,7 @@ import numpy as np
 import torch
 
 from trainerlab import _engine, _search
-from trainerlab.bots.roster import SELFPLAY, factory
+from trainerlab.bots.roster import ALPHAZERO, SELFPLAY, factory
 from trainerlab.game.environment import BattleEnvironment, random_team_pair
 from trainerlab.rl.net import PolicyValueNet
 from trainerlab.rl.planner import Planner, cpp_network
@@ -55,3 +55,14 @@ def test_the_planner_replaces_with_the_network_s_favourite_among_the_options() -
     assert isinstance(bot, Planner)
     assert bot.choose_replacement(0, view, [2]) == 2
     assert bot.choose_replacement(0, view, [1, 2]) in (1, 2)
+
+
+def test_plan_searches_with_the_network_of_a_file() -> None:
+    bot = factory(f"plan:{SELFPLAY}")(3)
+
+    assert isinstance(bot, Planner)
+
+
+def test_alphazero_is_the_planner_with_rule_12_s_network() -> None:
+    assert ALPHAZERO.is_file()
+    assert isinstance(factory("alphazero")(0), Planner)

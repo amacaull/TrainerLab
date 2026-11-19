@@ -67,7 +67,7 @@ def test_a_wrong_answer_is_asked_again() -> None:
 
     assert command == ["duel", "hitter", "random", "--pairs", "2", "--from", "7"]
     assert shown.count("Type a number from 1 to 7.") == 2  # the mode: 0, 9
-    assert shown.count("Type a number from 1 to 12.") == 2  # bot A: empty (no default), genius
+    assert shown.count("Type a number from 1 to 13.") == 2  # bot A: empty (no default), genius
     assert shown.count("Invalid answer, try again.") == 3
 
 
@@ -184,7 +184,8 @@ def test_help_and_an_unknown_command() -> None:
     shown: list[str] = []
     assert main(["--help"], write=shown.append) == 0
     assert shown[0].startswith("usage: trainerlab [COMMAND [OPTIONS]]")
-    assert "  dataset  turn battles into a dataset to learn from" in shown[0]
+    assert "  dataset   turn battles into a dataset to learn from" in shown[0]
+    assert "  alphazero improve the network with its own search" in shown[0]
 
     shown.clear()
     assert main(["fight"], write=shown.append) == 2
