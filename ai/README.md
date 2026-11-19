@@ -42,6 +42,7 @@ lists the commands, `trainerlab duel --help` the options of one.
 | `bench` | how fast the bots play from Python (the C++ counterpart: `search_bench`) |
 | `imitate BOT_A BOT_B` | bot A's decisions, encoded for the network to learn from (`.npz`) |
 | `pretrain DATA…` | trains the policy and value network by imitation (`net.pt`) |
+| `selfplay NET.pt` | improves the network by self-play with PPO (`selfplay.pt`, rule 10), measured against forecaster along the way |
 
 Every command that plays battles takes `--pairs N` (pairs of two battles, sides
 swapped) and `--from SEED`, the seed of the first pair: `--pairs 5000 --from
@@ -101,7 +102,7 @@ made by `trainerlab pretrain`. PyTorch comes with the `rl` extras; `pytest --cov
 | `bots/` | Rules 1 to 5 (`rules`), rules 6 and 7 (`lookahead`), every bot by name (`roster`). |
 | `experiments/` | Duels (`tournament`), spreading pairs over the cores (`parallel`), the audit of mistakes (`audit`), the datasets (`dataset`). |
 | `terminal/` | A battle against a bot (`session`), a battle between bots told with what each saw (`commentary`), the human player, the text and the panels. |
-| `rl/` | Palier 6, with PyTorch: the policy and value network (`net`), the bot that plays it (`bot`), pre-training by imitation (`train`). |
+| `rl/` | Palier 6, with PyTorch: the policy and value network (`net`), the bot that plays it (`bot`), pre-training by imitation (`train`), self-play with PPO (`ppo`). |
 | `commands/` | `trainerlab`: the dispatch, the menu, and one thin module per mode that reads the options, calls the domain and prints the result. |
 
 Each package imports only those above it in the table (`terminal/`, only
