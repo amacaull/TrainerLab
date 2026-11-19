@@ -455,3 +455,46 @@ Its use of moves is nearly rule 10's (hazards 17 %, boosts 13 %, switches 25 %
 of the times they are options): the search starts from the network's policy
 and stays close to it. It wins by choosing better when to play each kind of
 move, not by playing other kinds.
+
+### Rule 12: the network trained on its own search (6.5c)
+
+`alphazero` is rule 11 with a better network, trained by the AlphaZero loop
+(`trainerlab alphazero`, `search/src/self_play.cpp`). Each iteration, rule 11
+plays 1000 battles against itself on every core: both sides search what they
+see, with noise at the root (a quarter of the prior), and play an option drawn
+in proportion to its visits. Each decision leaves the share of visits each
+option got and the battle's result for that side; the network then learns to
+put its policy where the search went and its value on the result, from the
+decisions of the last 4 iterations (learning rate 1e-4, 2 passes). Settings
+fixed before measuring: 20 iterations from rule 10's network, the last one
+measured, never the best of the follow-up duels.
+
+```bash
+trainerlab alphazero ai/src/trainerlab/rl/models/selfplay.pt --iterations 20 --out runs/alphazero.pt
+trainerlab duel plan:runs/alphazero.pt planner --pairs 2000 --from 180000
+```
+
+| Duel | Score | 95 % interval | Record (W / D / L) |
+|---|---|---|---|
+| **rule 12 vs rule 11** | **0.578** | [0.562, 0.593] | 2305 / 12 / 1683 |
+
+**The loop adds 8 points to the search**, in 2 hours on the Mac (20 000
+battles, 1.2 million decisions). The follow-up duels against rule 11 (100
+pairs after each iteration, all on the same seeds) rose from 0.555 to about
+0.59 within two iterations, then held: the gain comes early, as the network
+learns what its search chooses. The value loss fell all along (0.573 to
+0.500), the network calling the winner better and better; the policy loss rose
+slightly after the fourth iteration (1.39 to 1.48), as the targets moved with
+the network that guides the search.
+
+Read battle by battle (`trainerlab watch`, four battles against rule 11), the
+bot is strong in tactics: it switches into immunities and resistances, uses
+priority to finish, knows which foe has lost its item (it avoids Poltergeist
+against one), sets up behind an immunity against a foe locked into its move
+by a Choice item, lays Stealth Rock, and plays Destiny Bond and Disguise for
+what they are. It is weak in strategy: it boosts in front of a Pokémon that
+can phaze it or knock it out the next turn, trades its boosted attacker into a
+visible Destiny Bond, leaves a boosted threat alive when a knock-out is there,
+and spends the Pokémon that could stop the foe's last one. A revealed foe is
+seen whole (each species has one fixed set): these are failures to foresee the
+foe's move and to weigh the long run, not missing information.

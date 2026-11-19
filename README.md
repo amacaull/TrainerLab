@@ -5,10 +5,11 @@
 A Pokémon-style battle engine in C++20, and AI agents that play it, written
 and measured in Python.
 
-> **Status: work in progress.** The engine is complete and tested. Eleven bots
-> are measured, the best of them a tree search guided by a network trained by
-> self-play; play against any of them with `trainerlab play`, or `trainerlab`
-> for a menu. Next: the network learning from its own search (AlphaZero-style).
+> **Status: version 1.** The engine is complete and tested. Twelve bots are
+> measured, the best of them a tree search guided by a network trained on its
+> own search, as AlphaZero; play against any of them with `trainerlab play`, or
+> `trainerlab` for a menu. Next: measuring its strategic mistakes, a network
+> that sees how the Pokémon relate, then teams built by the AI itself.
 
 ## Results so far
 
@@ -26,6 +27,7 @@ command.
 | `strategist` (rule 7): + rates each option by the foe's best reply | forecaster | **0.548** | [0.538, 0.558] |
 | rule 10: a network trained by self-play, no search | forecaster | **0.672** | [0.663, 0.681] |
 | rule 11: a tree search guided by that network | rule 10 | **0.763** | [0.750, 0.776] |
+| rule 12: that search, its network trained on its own search (AlphaZero) | rule 11 | **0.578** | [0.562, 0.593] |
 
 `forecaster` beats every earlier bot; `strategist` beats it head to head but
 does worse against every other bot. Tree searches (Nash, MCTS) brought nothing:
@@ -34,14 +36,16 @@ that learned the worth of a position by playing millions of games against
 itself beats `forecaster` and `strategist` by 17 points, without any search, and
 is the first bot that looks ahead to lay hazards as often as chance does. And a
 tree search guided by that network (rule 11) beats it by 26 more points: once
-the positions are judged well, search pays.
+the positions are judged well, search pays. Trained on its own search, as
+AlphaZero, the network lifts that search by 8 more points (rule 12): strong in
+tactics, still weak in long-term strategy.
 
 ## Where to look
 
 | | |
 |---|---|
 | [`engine/`](engine/) | The battle engine: stateless, deterministic, 309 tests. [README](engine/README.md), [API](engine/docs/api.md). |
-| [`search/`](search/) | The C++ side of the AI: playouts and benchmark now, search next. [README](search/README.md). |
+| [`search/`](search/) | The C++ side of the AI: the tree searches, the network and self-play. [README](search/README.md). |
 | [`ai/`](ai/) | The bots, the command `trainerlab`, the tournaments and the learning. [README](ai/README.md). |
 | [`docs/results.md`](docs/results.md) | Every duel and every model, negative results included. |
 | [`docs/benchmark.md`](docs/benchmark.md) | How fast the engine and the bots play, from Python and from C++. |
