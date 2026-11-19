@@ -6,6 +6,8 @@
 #include "search/forecaster.hpp"
 #include "search/game.hpp"
 #include "search/mcts.hpp"
+#include "search/network.hpp"
+#include "search/planner.hpp"
 #include "search/vec_env.hpp"
 
 #include "engine/ffi/convert.hpp"
@@ -15,6 +17,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <map>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -214,6 +217,45 @@ PYBIND11_MODULE(_search, m) {
           },
           py::arg("actions"),
           "Plays actions[N, 2]; (rewards[N, 2], done[N]). A side with no decision is ignored.");
+
+  py::class_<search::Network>(
+      m, "Network", "The policy and value network of trainerlab.rl.net, evaluated in C++.")
+      .def(py::init([](const std::map<std::string, py::array_t<float, py::array::c_style |
+                                                                       py::array::forcecast>>
+                           &weights) {
+             std::map<std::string, search::Network::Tensor> tensors;
+             for (const auto &[name, array] : weights) {
+               search::Network::Tensor t;
+               for (py::ssize_t d = 0; d < array.ndim(); ++d)
+                 t.shape.push_back(static_cast<int>(array.shape(d)));
+               t.values.assign(array.data(), array.data() + array.size());
+               tensors.emplace(name, std::move(t));
+             }
+             return search::Network(loaded().encoding(), tensors);
+           }),
+           py::arg("weights"), "The weights by their PyTorch names (state_dict).")
+      .def(
+          "evaluate",
+          [](const search::Network &net, const engine::BattleState &view, int side,
+             const py::array_t<float, py::array::c_style | py::array::forcecast> &mask) {
+            if (mask.size() != search::Encoding::kActions)
+              throw std::invalid_argument("Network.evaluate: a mask of 10 options");
+            const search::Network::Output out = net.evaluate(view, side, mask.data());
+            py::array_t<float> logits(search::Encoding::kActions);
+            std::copy(out.logits.begin(), out.logits.end(), logits.mutable_data());
+            return py::make_tuple(logits, out.value);
+          },
+          py::arg("view"), py::arg("side"), py::arg("mask"),
+          "(logits[10], value) for what `side` sees in `view`, its own observe().")
+      .def(
+          "plan_action",
+          [](const search::Network &net, const engine::BattleState &view, int side,
+             const std::vector<engine::ffi::FfiAction> &legal, uint64_t seed) {
+            return search::Planner(loaded(), net).chooseAction(view, side, toActions(legal), seed);
+          },
+          py::arg("view"), py::arg("side"), py::arg("legal"), py::arg("seed"),
+          "Rule 11: the index, in `legal`, of the option a tree search guided by this network "
+          "visits most; the same seed makes the same decision.");
 
   m.def(
       "openings", [](int count, int turns) { return search::openings(loaded(), count, turns); },

@@ -14,6 +14,8 @@ on its own.
 | `include/search/mcts.hpp` | Rule 9: a Monte Carlo tree search over simultaneous moves (decoupled UCT), with guessed teams for the foe's unseen Pokémon |
 | `include/search/encoding.hpp` | A position for a network: one vector per Pokémon, the field, the legal options (palier 6) |
 | `include/search/vec_env.hpp` | Many battles at once for self-play: observe both sides, step, rewards, a battle that ends starts again |
+| `include/search/network.hpp` | The policy and value network of `trainerlab.rl.net`, evaluated in C++ from its PyTorch weights |
+| `include/search/planner.hpp` | Rule 11: the tree search over simultaneous moves guided by the network (PUCT) |
 | `bench/bench.cpp` | `search_bench`: how fast the engine plays, through each of its APIs |
 | `tests/` | Catch2 tests |
 

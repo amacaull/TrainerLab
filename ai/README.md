@@ -70,6 +70,7 @@ replays the same battle; `--log FILE` keeps it as text.
 | `nash` | **Rule 8.** Both sides choose at once: the odds after every pair (option, reply) make a zero-sum game, and it draws its option from that game's optimal mixed strategy. |
 | `mcts` | **Rule 9.** A Monte Carlo tree search over simultaneous moves, three turns deep, guessing the foe's unseen Pokémon as legal teams; the model rates where each simulation stops. |
 | `selfplay` | **Rule 10.** A policy network trained by imitation of `forecaster`, then by self-play with PPO; plays its best option without any search. The strongest bot (needs the `rl` extras). |
+| `planner` | **Rule 11.** Rule 9's tree search over simultaneous moves, guided by rule 10's network: its policy gives each option a prior, its value rates each new position (PUCT, as in AlphaZero); both run in C++. |
 
 Rules 1 to 5 are each three choices assembled in a `RuleBot`: a switch it may
 make before moving, its move, its replacement. `calculator()` is
@@ -103,7 +104,7 @@ made by `trainerlab pretrain`. PyTorch comes with the `rl` extras; `pytest --cov
 | `bots/` | Rules 1 to 5 (`rules`), rules 6 and 7 (`lookahead`), every bot by name (`roster`). |
 | `experiments/` | Duels (`tournament`), spreading pairs over the cores (`parallel`), the audit of mistakes (`audit`), the datasets (`dataset`). |
 | `terminal/` | A battle against a bot (`session`), a battle between bots told with what each saw (`commentary`), the human player, the text and the panels. |
-| `rl/` | Palier 6, with PyTorch: the policy and value network (`net`), the bot that plays it (`bot`), pre-training by imitation (`train`), self-play with PPO (`ppo`). |
+| `rl/` | Palier 6, with PyTorch: the policy and value network (`net`), the bot that plays it (`bot`), pre-training by imitation (`train`), self-play with PPO (`ppo`), the search it guides (`planner`). |
 | `commands/` | `trainerlab`: the dispatch, the menu, and one thin module per mode that reads the options, calls the domain and prints the result. |
 
 Each package imports only those above it in the table (`terminal/`, only
