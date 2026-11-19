@@ -66,16 +66,25 @@ void Planner::replaceFainted(BattleState &state, engine::RNG &dice) const {
 }
 
 double Planner::expand(const BattleState &state, Node &node, int root) const {
-  // Both sides' policies; the value is the mean of what each side's network expects, for root.
+  // Both sides' policies, in one batch; the value is the mean of what each side's network
+  // expects, for root.
+  std::array<std::array<float, Encoding::kActions>, 2> masks{};
+  const std::array<BattleState, 2> views{engine::observe(state, 0), engine::observe(state, 1)};
+  std::array<Network::Query, 2> queries{};
+  for (int side : {0, 1}) {
+    Encoding::mask(game_.rules().legalActions(state, side), masks[at(side)].data());
+    queries[at(side)] = {&views[at(side)], side, masks[at(side)].data()};
+  }
+  std::array<Network::Output, 2> outputs{};
+  network_.evaluate(queries, outputs.data());
+
   double value = 0.0;
   for (int side : {0, 1}) {
-    std::array<float, Encoding::kActions> mask{};
-    Encoding::mask(game_.rules().legalActions(state, side), mask.data());
-    const Network::Output out = network_.evaluate(engine::observe(state, side), side, mask.data());
+    const Network::Output &out = outputs[at(side)];
     const float top = *std::max_element(out.logits.begin(), out.logits.end());
     double total = 0.0;
     for (int a = 0; a < Encoding::kActions; ++a) {
-      const double p = mask[at(a)] == 1.0f ? std::exp(out.logits[at(a)] - top) : 0.0;
+      const double p = masks[at(side)][at(a)] == 1.0f ? std::exp(out.logits[at(a)] - top) : 0.0;
       node.prior[at(side)][at(a)] = p;
       total += p;
     }

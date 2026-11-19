@@ -116,3 +116,39 @@ starting again at once (`search/src/vec_env.cpp`). With random legal actions,
 on this Linux machine, one core: about 217 000 battle steps a second in C++,
 193 000 from Python (`learning/env.py`), some 3000 battles a second. The
 environment will not be the bottleneck of self-play: the network will.
+
+## 6.5b: the network in batches
+
+Rule 11 spends nearly all its time in the network: two evaluations per
+simulation, some 400 per decision. Three changes, in
+`search/src/network.cpp`:
+
+- **batches**: each layer reads its weights once for all the rows of a batch
+  (the 12 Pokémon of a position, its 4 moves, its 6 switches, and both sides
+  of a tree node) instead of once per row;
+- **blocks sized for the registers**: 4 rows times 16 outputs kept in the 32
+  NEON registers of the M4 (times 8 in SSE's 16 on x86), with vectors of four
+  floats whose `+` and `*` are never fused;
+- **computed once**: a foe not seen yet, or an empty place, always gives the
+  network the same input; its output is computed when the network is built.
+
+Each output still sums its inputs in order, one by one: a position gets the
+same numbers alone or in any batch (a test), on the Mac and on Linux. Against
+the version measured in rule 11, the logits move by at most 2e-5 and 239 of
+240 decisions are the same (the other was a near tie): the bot is the same.
+
+On the Mac (`search_bench`, random weights of the network's shapes, which
+cost the same as trained ones; the planner timed from Python with
+`selfplay.pt`):
+
+| Line | Before | Now |
+|---|---|---|
+| planner decision, 200 simulations (rule 11) | 81.5 ms | **22.4 ms** |
+| network evaluation | | 28 470 positions/s |
+| network evaluation, batches of 16 | | 35 394 positions/s |
+
+**The planner is 3.6 times faster** (1.8 on this Linux machine, whose SSE
+blocks are half as wide). Larger batches gain little more: the network is now
+limited by its arithmetic, not by reading its weights. Batching simulations of
+one tree together would change the search for some 25 %; playing several games
+at once, one per core, is the next lever.
