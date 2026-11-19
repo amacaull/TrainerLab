@@ -76,9 +76,9 @@ class Network:
         """
         (logits[10], value) for what `side` sees in `view`, its own observe().
         """
-    def plan_action(self, view: trainerlab._engine.BattleState, side: typing.SupportsInt | typing.SupportsIndex, legal: collections.abc.Sequence[trainerlab._engine.Action], seed: typing.SupportsInt | typing.SupportsIndex) -> int:
+    def plan_action(self, view: trainerlab._engine.BattleState, side: typing.SupportsInt | typing.SupportsIndex, legal: collections.abc.Sequence[trainerlab._engine.Action], seed: typing.SupportsInt | typing.SupportsIndex, simulations: typing.SupportsInt | typing.SupportsIndex = 200) -> int:
         """
-        Rule 11: the index, in `legal`, of the option a tree search guided by this network visits most; the same seed makes the same decision.
+        Rule 11: the index, in `legal`, of the option a tree search guided by this network visits most, after `simulations` simulations; the same seed makes the same decision.
         """
     def self_play(self, games: typing.SupportsInt | typing.SupportsIndex, seed: typing.SupportsInt | typing.SupportsIndex, threads: typing.SupportsInt | typing.SupportsIndex, simulations: typing.SupportsInt | typing.SupportsIndex = 200, worlds: typing.SupportsInt | typing.SupportsIndex = 8, noise: typing.SupportsFloat | typing.SupportsIndex = 0.25, max_turns: typing.SupportsInt | typing.SupportsIndex = 1000) -> dict:
         """

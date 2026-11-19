@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 import torch
 
 from trainerlab import _engine, _search
@@ -66,3 +67,16 @@ def test_plan_searches_with_the_network_of_a_file() -> None:
 def test_alphazero_is_the_planner_with_rule_12_s_network() -> None:
     assert ALPHAZERO.is_file()
     assert isinstance(factory("alphazero")(0), Planner)
+
+
+def test_a_search_bot_searches_as_many_simulations_as_asked() -> None:
+    deep, plan = factory("alphazero@8")(0), factory(f"plan:{SELFPLAY}@4")(0)
+    assert isinstance(deep, Planner) and isinstance(plan, Planner)
+    assert deep._simulations == 8 and plan._simulations == 4
+    assert factory("alphazero")(0)._simulations == 200  # type: ignore[attr-defined]
+
+    env = BattleEnvironment(*random_team_pair(25), seed=25)
+    view, legal = env.observe(0), env.legal_actions(0)
+    assert plan.choose_action(0, view, legal) in legal
+    with pytest.raises(ValueError, match="at least one simulation"):
+        plan.network.plan_action(view, 0, legal, 1, 0)
