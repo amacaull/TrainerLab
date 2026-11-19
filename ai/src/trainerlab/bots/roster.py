@@ -69,10 +69,18 @@ WITH_MODEL = "|".join(MODEL_BOTS)  # for help texts: forecaster|...|mcts:MODEL.n
 NET = "net"
 # Rule 11's search guided by the network in a file (`trainerlab alphazero`; needs [rl]).
 PLAN = "plan"
+# The bots that search a tree with a network, by the network they search with. Any of them, and
+# plan:FILE.pt, takes @N to search N simulations per decision instead of 200: alphazero@800.
+SEARCHERS = {"planner": SELFPLAY, "alphazero": ALPHAZERO}
 
 
 def factory(spec: str) -> BotFactory:
     """The bot a name stands for: `forecaster:FILE.npz` plays with the model in that file."""
+    base, simulations = _depth(spec)
+    if simulations is not None:
+        name, _, model = base.partition(":")
+        path = str(Path(model).resolve()) if name == PLAN else str(SEARCHERS[name])
+        return lambda seed: _planner(path, seed, simulations)
     name, _, model = spec.partition(":")
     if name == NET:
         return _net_bot(str(Path(model).resolve()))
@@ -91,10 +99,16 @@ def _net_bot(path: str) -> BotFactory:
     return lambda seed: NetBot(Path(path))
 
 
-def _planner(path: str, seed: int) -> Bot:
-    from trainerlab.rl.planner import Planner  # here: PyTorch is loaded only for this bot
+def _planner(path: str, seed: int, simulations: int | None = None) -> Bot:
+    from trainerlab.rl.planner import SIMULATIONS, Planner  # PyTorch, only for this bot
 
-    return Planner(Path(path), seed=seed)
+    return Planner(Path(path), seed=seed, simulations=simulations or SIMULATIONS)
+
+
+def _depth(spec: str) -> tuple[str, int | None]:
+    """A search bot's name and its number of simulations: alphazero@800 -> (alphazero, 800)."""
+    base, at, count = spec.rpartition("@")
+    return (base, int(count)) if at else (spec, None)
 
 
 @cache
@@ -104,6 +118,16 @@ def _load(path: str) -> WinModel:
 
 def bot_spec(text: str) -> str:
     """Checks a bot's name on the command line (argparse type)."""
+    if "@" in text:
+        base, _, count = text.rpartition("@")
+        searcher = base in SEARCHERS or base.startswith(f"{PLAN}:")
+        if not searcher or not count.isdigit() or int(count) < 2:
+            raise argparse.ArgumentTypeError(
+                f"{text!r}: @N, N simulations of 2 or more, goes after a search bot "
+                f"({', '.join(SEARCHERS)} or {PLAN}:FILE.pt)"
+            )
+        bot_spec(base)
+        return text
     name, _, model = text.partition(":")
     if name in (NET, PLAN):
         if not model.endswith(".pt"):
@@ -124,5 +148,7 @@ def bot_spec(text: str) -> str:
 
 def slug(spec: str) -> str:
     """A bot's name fit for a file name: forecaster:models/gen2.npz -> forecaster-gen2."""
-    name, _, model = spec.partition(":")
-    return f"{name}-{Path(model).stem}" if model else name
+    base, simulations = _depth(spec)
+    name, _, model = base.partition(":")
+    name = f"{name}-{Path(model).stem}" if model else name
+    return f"{name}-{simulations}" if simulations is not None else name

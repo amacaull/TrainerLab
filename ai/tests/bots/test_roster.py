@@ -69,3 +69,18 @@ def test_a_network_bot_needs_a_network_file(tmp_path: Path) -> None:
     assert bot_spec(f"plan:{network}") == f"plan:{network}"
     with pytest.raises(argparse.ArgumentTypeError, match="plan:FILE.pt"):
         bot_spec("plan:model.npz")
+
+
+def test_a_search_bot_takes_its_number_of_simulations(tmp_path: Path) -> None:
+    network = tmp_path / "n.pt"
+    network.write_bytes(b"")
+    assert bot_spec("alphazero@800") == "alphazero@800"
+    assert bot_spec("planner@50") == "planner@50"
+    assert bot_spec(f"plan:{network}@800") == f"plan:{network}@800"
+    for wrong in ("hitter@800", "alphazero@1", "alphazero@many", "net:n.pt@800"):
+        with pytest.raises(argparse.ArgumentTypeError, match="@N, N simulations"):
+            bot_spec(wrong)
+    with pytest.raises(argparse.ArgumentTypeError, match="no such network"):
+        bot_spec("plan:missing.pt@800")
+    assert slug("alphazero@800") == "alphazero-800"
+    assert slug("plan:runs/az.pt@800") == "plan-az-800"

@@ -253,12 +253,18 @@ PYBIND11_MODULE(_search, m) {
       .def(
           "plan_action",
           [](const search::Network &net, const engine::BattleState &view, int side,
-             const std::vector<engine::ffi::FfiAction> &legal, uint64_t seed) {
-            return search::Planner(loaded(), net).chooseAction(view, side, toActions(legal), seed);
+             const std::vector<engine::ffi::FfiAction> &legal, uint64_t seed, int simulations) {
+            if (simulations < 1)
+              throw std::invalid_argument("plan_action: at least one simulation");
+            search::PlannerSettings settings;
+            settings.simulations = simulations;
+            return search::Planner(loaded(), net, settings)
+                .chooseAction(view, side, toActions(legal), seed);
           },
           py::arg("view"), py::arg("side"), py::arg("legal"), py::arg("seed"),
+          py::arg("simulations") = 200,
           "Rule 11: the index, in `legal`, of the option a tree search guided by this network "
-          "visits most; the same seed makes the same decision.")
+          "visits most, after `simulations` simulations; the same seed makes the same decision.")
       .def(
           "self_play",
           [](const search::Network &net, int games, uint64_t seed, int threads, int simulations,

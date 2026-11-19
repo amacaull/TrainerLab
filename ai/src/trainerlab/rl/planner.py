@@ -31,18 +31,23 @@ def to_cpp(net: PolicyValueNet) -> _search.Network:
     return _search.Network({name: t.detach().cpu().numpy() for name, t in weights.items()})
 
 
-class Planner:
-    """Searches 200 simulations per decision (search/include/search/planner.hpp), and plays the
-    option visited most. Replacements are the network's favourite switch, without search."""
+SIMULATIONS = 200  # rule 11's, fixed before measuring
 
-    def __init__(self, path: Path, *, seed: int = 0) -> None:
+
+class Planner:
+    """Searches `simulations` simulations per decision (search/include/search/planner.hpp), and
+    plays the option visited most. Replacements are the network's favourite switch, no search."""
+
+    def __init__(self, path: Path, *, seed: int = 0, simulations: int = SIMULATIONS) -> None:
         self.network = cpp_network(path)
         self._rng = random.Random(seed)
+        self._simulations = simulations
 
     def choose_action(
         self, side: int, view: _engine.BattleState, legal: list[_engine.Action]
     ) -> _engine.Action:
-        return legal[self.network.plan_action(view, side, legal, self._rng.getrandbits(63))]
+        seed = self._rng.getrandbits(63)
+        return legal[self.network.plan_action(view, side, legal, seed, self._simulations)]
 
     def choose_replacement(self, side: int, view: _engine.BattleState, options: list[int]) -> int:
         mask = np.zeros(ACTIONS, dtype=np.float32)
