@@ -16,6 +16,10 @@ from trainerlab.game.pairs import BotFactory
 from trainerlab.game.player import Bot
 from trainerlab.learning.model import WinModel
 
+# Rule 10's network, shipped with the package: trainerlab selfplay net.pt --updates 3000
+# (docs/results.md). Loaded with PyTorch only when the bot plays.
+SELFPLAY = Path(__file__).resolve().parents[1] / "rl" / "models" / "selfplay.pt"
+
 BOTS: dict[str, BotFactory] = {
     "random": lambda seed: RandomBot(seed=seed),
     "hitter": lambda seed: hitter(),  # rule 1
@@ -27,6 +31,7 @@ BOTS: dict[str, BotFactory] = {
     "strategist": lambda seed: Strategist(),  # rule 7
     "nash": lambda seed: Nash(seed=seed),  # rule 8
     "mcts": lambda seed: Mcts(seed=seed),  # rule 9
+    "selfplay": lambda seed: _net_bot(str(SELFPLAY))(seed),  # rule 10, needs [rl]
 }
 
 # One line each, shown by the menu and by `trainerlab bots`.
@@ -41,6 +46,7 @@ DESCRIPTIONS: dict[str, str] = {
     "strategist": "rule 7: forecaster, but rates each option by the foe's best reply",
     "nash": "rule 8: draws from the mixed strategy of the simultaneous game, a turn deep",
     "mcts": "rule 9: a tree search over simultaneous moves, three turns deep",
+    "selfplay": "rule 10: a network trained by self-play, plays without search",
 }
 
 DEFAULT_OPPONENT = "forecaster"  # beats every bot but strategist, head to head

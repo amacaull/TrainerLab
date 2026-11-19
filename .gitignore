@@ -17,6 +17,7 @@ __pycache__/
 *.npz
 *.pt
 !ai/src/trainerlab/learning/models/*.npz
+!ai/src/trainerlab/rl/models/*.pt
 
 # Editors and OS
 .vscode/

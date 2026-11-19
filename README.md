@@ -5,11 +5,10 @@
 A Pokémon-style battle engine in C++20, and AI agents that play it, written
 and measured in Python.
 
-> **Status: work in progress.** The engine is complete and tested. Seven bots
-> are measured, the best of them with a learned win model; you can play
-> against them in the terminal with `trainerlab play`, or `trainerlab` for a
-> menu. Next: search (simultaneous-move Nash, MCTS), then reinforcement
-> learning.
+> **Status: work in progress.** The engine is complete and tested. Ten bots
+> are measured, the best of them a network trained by self-play; play against
+> any of them with `trainerlab play`, or `trainerlab` for a menu. Next: tree
+> search guided by the network (AlphaZero-style).
 
 ## Results so far
 
@@ -25,10 +24,14 @@ command.
 | `calculator` (rule 5): + the damage the engine expects | survivor | **0.631** | [0.621, 0.640] |
 | `forecaster` (rule 6): a turn ahead, rated by a learned win model | calculator | **0.844** | [0.837, 0.851] |
 | `strategist` (rule 7): + rates each option by the foe's best reply | forecaster | **0.548** | [0.538, 0.558] |
+| rule 10: a network trained by self-play, no search | forecaster | **0.672** | [0.663, 0.681] |
 
-`forecaster` beats every earlier bot. `strategist` beats it head to head but
-does worse against every other bot: guarding against the worst reply costs
-the chances a predictable foe leaves.
+`forecaster` beats every earlier bot; `strategist` beats it head to head but
+does worse against every other bot. Tree searches (Nash, MCTS) brought nothing:
+the limit was the win model judging the positions. Rule 10 lifts it: a network
+that learned the worth of a position by playing millions of games against
+itself beats `forecaster` and `strategist` by 17 points, without any search, and
+is the first bot that looks ahead to lay hazards as often as chance does.
 
 ## Where to look
 

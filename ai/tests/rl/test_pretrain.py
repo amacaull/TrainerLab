@@ -83,3 +83,10 @@ def test_the_rows_hold_what_the_bot_saw_chose_and_got(dataset: Path) -> None:
     assert rows["mask"][np.arange(n), rows["action"]].all()  # every choice was legal
     assert set(np.unique(rows["result"])) <= {-1.0, 0.0, 1.0}
     assert rows["pokemon"].dtype == np.float16
+
+
+def test_rule_10_ships_with_the_package_and_plays() -> None:
+    bot = factory("selfplay")(0)
+    assert isinstance(bot, NetBot)
+    env = BattleEnvironment(["Blissey", "Toxapex"], ["Excadrill", "Dragapult"], seed=2)
+    assert bot.choose_action(0, env.observe(0), env.legal_actions(0)) in env.legal_actions(0)

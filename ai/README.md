@@ -69,6 +69,7 @@ replays the same battle; `--log FILE` keeps it as text.
 | `strategist` | **Rule 7.** Rule 6, but rates each option by the foe's best reply (minimax, one turn deep). |
 | `nash` | **Rule 8.** Both sides choose at once: the odds after every pair (option, reply) make a zero-sum game, and it draws its option from that game's optimal mixed strategy. |
 | `mcts` | **Rule 9.** A Monte Carlo tree search over simultaneous moves, three turns deep, guessing the foe's unseen Pokémon as legal teams; the model rates where each simulation stops. |
+| `selfplay` | **Rule 10.** A policy network trained by imitation of `forecaster`, then by self-play with PPO; plays its best option without any search. The strongest bot (needs the `rl` extras). |
 
 Rules 1 to 5 are each three choices assembled in a `RuleBot`: a switch it may
 make before moving, its move, its replacement. `calculator()` is

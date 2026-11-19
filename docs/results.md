@@ -343,3 +343,86 @@ Two negative results:
 
 Both point to the same limit: the bot's search (one turn, a guessed foe), not
 its evaluation.
+
+## Palier 6: a network, by imitation, then by self-play
+
+### Imitation (6.3)
+
+```bash
+trainerlab imitate forecaster calculator --pairs 10000 --from 110000
+trainerlab imitate forecaster strategist --pairs 5000 --from 135000
+trainerlab pretrain imitate-forecaster-vs-*.npz --out net.pt
+```
+
+874 200 decisions of `forecaster`, 8 passes, 3 minutes on the Mac's GPU. On the
+battles held out (seeds multiple of 5), the network picks `forecaster`'s option
+**71.6 %** of the time (about 14 % at random among the options) and calls the
+winner 80 % of the time. Its value overfits: its test error rises along the
+passes (0.534 to 0.584) while the policy keeps improving.
+
+| Duel | Score | 95 % interval | Record (W / D / L) |
+|---|---|---|---|
+| net vs calculator | 0.721 | [0.712, 0.729] | 7189 / 33 / 2778 |
+| net vs forecaster | 0.387 | [0.378, 0.397] | 3856 / 32 / 6112 |
+
+Without any search, one evaluation per decision, the network beats
+`calculator` as clearly as `strategist` or `nash` do. It stays below the bot it
+copies: a copy at 72 % errs where looking ahead matters.
+
+### Self-play with PPO: rule 10 (6.4)
+
+```bash
+trainerlab selfplay net.pt --updates 3000 --out selfplay.pt
+```
+
+3000 updates, 87 million decisions, 2.76 million battles, 2 h 01 on the Mac.
+The follow-up measure against `forecaster` (200 pairs of seeds 150000 and up):
+
+| Update | 0 | 25 | 50 | 75 | 500 | 1000 | 1500 | 2000 | 2500 | 3000 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Score | 0.387 | 0.524 | 0.600 | 0.649 | 0.625 | 0.620 | 0.625 | 0.660 | 0.689 | 0.656 |
+
+Nearly everything is learned in the first 75 updates (about 2 million
+decisions, 3 minutes), then a long plateau that barely rises. The entropy of the
+policy falls from 0.76 to about 0.47 and stays there: it sharpened without
+freezing.
+
+```bash
+trainerlab duel net:selfplay.pt forecaster --pairs 5000 --from 155000
+trainerlab duel net:selfplay.pt strategist --pairs 5000 --from 160000
+trainerlab duel net:selfplay.pt net:net.pt --pairs 5000 --from 165000
+```
+
+| Duel | Score | 95 % interval | Record (W / D / L) |
+|---|---|---|---|
+| **rule 10 vs forecaster** | **0.672** | [0.663, 0.681] | 6709 / 28 / 3263 |
+| **rule 10 vs strategist** | **0.668** | [0.659, 0.677] | 6666 / 29 / 3305 |
+| rule 10 vs the imitation network | 0.765 | [0.757, 0.774] | 7648 / 14 / 2338 |
+
+**Rule 10 is the strongest bot by far**, without any search (shipped as the bot
+`selfplay`: `trainerlab play --against selfplay`): it beats
+`forecaster` and `strategist` by 17 points, where no search of rules 7 to 9 beat
+`forecaster` by more than 5. Self-play added 38 points to imitation.
+
+What it does with its turns (`trainerlab usage net:selfplay.pt forecaster
+--pairs 200 --from 96000`), against `forecaster` and the random bot:
+
+| Kind | random | forecaster | rule 10 |
+|---|---|---|---|
+| attack | 41 % | 54 % | 58 % |
+| **hazard** | 17 % | 6 % | **17 %** |
+| boost | 17 % | 23 % | 14 % |
+| status | 16 % | 23 % | 14 % |
+| recovery | 19 % | 27 % | 22 % |
+| switch | 44 % | 26 % | 25 % |
+
+**It lays hazards nearly three times as often as `forecaster`**: the first bot
+that looks ahead to use them as much as chance does. And not at random: over 60
+pairs against `calculator`, it lays them earlier (median turn 6, against 13 for
+`forecaster`), most often with five foes or more still standing (62 %, against
+52 %), and only 2 of its 24 Stealth Rocks were laid where one already was. It
+plays fewer boosts and statuses than `forecaster`, whose win model, judging a
+single turn ahead, likely overrated them.
+
+This confirms palier 5's diagnosis: the wall was the evaluation. Once the worth
+of a position is learned by playing, the level rises and hazards come back.
