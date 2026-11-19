@@ -11,6 +11,7 @@
 #include <cmath>
 #include <map>
 #include <memory>
+#include <random>
 #include <utility>
 #include <variant>
 
@@ -51,17 +52,21 @@ struct Planner::Node {
 Planner::Planner(const Game &game, const Network &network, PlannerSettings settings)
     : game_(game), network_(network), settings_(settings) {}
 
+int Planner::chooseReplacement(const BattleState &view, int side) const {
+  std::array<float, Encoding::kActions> mask{};
+  for (int index : engine::validSwitchTargets(view, side))
+    mask[at(kMoves + index)] = 1.0f;
+  const Network::Output out = network_.evaluate(view, side, mask.data());
+  const auto best = std::max_element(out.logits.begin(), out.logits.end());
+  return static_cast<int>(best - out.logits.begin()) - kMoves;
+}
+
 void Planner::replaceFainted(BattleState &state, engine::RNG &dice) const {
   while (!state.isOver() && (state.active(0).isFainted() || state.active(1).isFainted())) {
     const int first = game_.rules().fasterSide(state, dice);
     const int side = state.active(first).isFainted() ? first : 1 - first;
-    std::array<float, Encoding::kActions> mask{};
-    for (int index : engine::validSwitchTargets(state, side))
-      mask[at(kMoves + index)] = 1.0f;
-    const Network::Output out = network_.evaluate(engine::observe(state, side), side, mask.data());
-    const auto best = std::max_element(out.logits.begin(), out.logits.end());
     game_.rules().resolveReplacement(state, side,
-                                     static_cast<int>(best - out.logits.begin()) - kMoves);
+                                     chooseReplacement(engine::observe(state, side), side));
   }
 }
 
@@ -135,10 +140,14 @@ double Planner::simulate(BattleState &state, Node &node, int root, engine::RNG &
   return value;
 }
 
-int Planner::chooseAction(const BattleState &view, int side, const std::vector<Action> &legal,
-                          uint64_t seed) const {
-  if (legal.size() == 1)
-    return 0;
+std::array<int, Encoding::kActions> Planner::visits(const BattleState &view, int side,
+                                                    const std::vector<Action> &legal,
+                                                    uint64_t seed) const {
+  std::array<int, Encoding::kActions> counts{};
+  if (legal.size() == 1) {
+    counts[at(keyOf(legal[0]))] = 1;
+    return counts;
+  }
   const std::vector<BattleState> guesses =
       guessWorlds(game_, view, 1 - side, settings_.worlds, seed);
   Node root;
@@ -146,12 +155,40 @@ int Planner::chooseAction(const BattleState &view, int side, const std::vector<A
     BattleState state = guesses[at(i % settings_.worlds)];
     engine::MersenneRNG dice(seed * 1'000'003 + static_cast<uint64_t>(i));
     simulate(state, root, side, dice);
+    if (i == 0 && settings_.noise > 0.0)
+      addNoise(root.prior[at(side)], legal, seed);
   }
+  for (const Action &action : legal)
+    counts[at(keyOf(action))] = root.n[at(side)][at(keyOf(action))];
+  return counts;
+}
+
+void Planner::addNoise(std::array<double, Encoding::kActions> &prior,
+                       const std::vector<Action> &legal, uint64_t seed) const {
+  // A flat Dirichlet draw: independent exponentials, normalised. Alpha = 1 is AlphaZero's
+  // scaling (about 10 over the number of options) for the few options of a turn here.
+  std::mt19937_64 rng(seed ^ 0xD1B54A32D192ED03ULL);
+  std::array<double, Encoding::kActions> draw{};
+  double total = 0.0;
+  for (const Action &action : legal) {
+    const double u = static_cast<double>((rng() >> 11) + 1) * 0x1.0p-53; // in (0, 1]
+    draw[at(keyOf(action))] = -std::log(u);
+    total += draw[at(keyOf(action))];
+  }
+  for (const Action &action : legal) {
+    const size_t k = at(keyOf(action));
+    prior[k] = (1 - settings_.noise) * prior[k] + settings_.noise * draw[k] / total;
+  }
+}
+
+int Planner::chooseAction(const BattleState &view, int side, const std::vector<Action> &legal,
+                          uint64_t seed) const {
+  const std::array<int, Encoding::kActions> counts = visits(view, side, legal, seed);
   int best = 0, bestVisits = -1;
   for (size_t i = 0; i < legal.size(); ++i) {
-    const int visits = root.n[at(side)][at(keyOf(legal[i]))];
-    if (visits > bestVisits)
-      best = static_cast<int>(i), bestVisits = visits;
+    const int n = counts[at(keyOf(legal[i]))];
+    if (n > bestVisits)
+      best = static_cast<int>(i), bestVisits = n;
   }
   return best;
 }

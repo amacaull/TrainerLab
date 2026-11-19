@@ -66,3 +66,6 @@ def test_a_network_bot_needs_a_network_file(tmp_path: Path) -> None:
     network = tmp_path / "n.pt"
     network.write_bytes(b"")
     assert bot_spec(f"net:{network}") == f"net:{network}"
+    assert bot_spec(f"plan:{network}") == f"plan:{network}"
+    with pytest.raises(argparse.ArgumentTypeError, match="plan:FILE.pt"):
+        bot_spec("plan:model.npz")

@@ -71,3 +71,30 @@ TEST_CASE("a position gets the same numbers alone and in any batch") {
     CHECK(alone.value == batch[i].value);
   }
 }
+
+TEST_CASE("the planner's visits sit on the legal options; noise moves them") {
+  const search::Network net = smallNetwork();
+  const engine::BattleState state = search::openings(game(), 1)[0];
+  const engine::BattleState view = engine::observe(state, 0);
+  const auto legal = game().rules().legalActions(state, 0);
+  std::vector<float> mask(search::Encoding::kActions);
+  search::Encoding::mask(legal, mask.data());
+
+  const search::Planner plain(game(), net, {60, 4, 1.5, 0.0});
+  const search::Planner noisy(game(), net, {60, 4, 1.5, 0.9});
+  const auto counts = plain.visits(view, 0, legal, 5);
+  int total = 0;
+  for (size_t a = 0; a < counts.size(); ++a) {
+    CHECK((mask[a] == 1.0f || counts[a] == 0));
+    total += counts[a];
+  }
+  CHECK(total == 59); // the first simulation only expands the root
+  CHECK(noisy.visits(view, 0, legal, 5) != counts);
+  CHECK(plain.visits(view, 0, legal, 5) == counts);
+
+  const auto one = plain.visits(view, 0, {legal[0]}, 5); // nothing to search
+  int sum = 0;
+  for (int n : one)
+    sum += n;
+  CHECK(sum == 1);
+}

@@ -20,10 +20,15 @@ MOVES = 4
 
 def cpp_network(path: Path) -> _search.Network:
     """The network in this file, evaluated in C++."""
+    return to_cpp(PolicyValueNet.load(path))
+
+
+def to_cpp(net: PolicyValueNet) -> _search.Network:
+    """This network, wherever it lives, copied to C++."""
     _engine.engine_init(str(DATA_DIR))
     _search.init(str(DATA_DIR))
-    weights = PolicyValueNet.load(path).state_dict()
-    return _search.Network({name: tensor.numpy() for name, tensor in weights.items()})
+    weights = net.state_dict()
+    return _search.Network({name: t.detach().cpu().numpy() for name, t in weights.items()})
 
 
 class Planner:

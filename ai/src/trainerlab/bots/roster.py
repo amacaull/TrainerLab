@@ -19,6 +19,9 @@ from trainerlab.learning.model import WinModel
 # Rule 10's network, shipped with the package: trainerlab selfplay net.pt --updates 3000
 # (docs/results.md). Loaded with PyTorch only when the bot plays.
 SELFPLAY = Path(__file__).resolve().parents[1] / "rl" / "models" / "selfplay.pt"
+# Rule 12's network: rule 10's, improved by its own search, trainerlab alphazero selfplay.pt
+# --iterations 20 (docs/results.md).
+ALPHAZERO = SELFPLAY.with_name("alphazero.pt")
 
 BOTS: dict[str, BotFactory] = {
     "random": lambda seed: RandomBot(seed=seed),
@@ -33,6 +36,7 @@ BOTS: dict[str, BotFactory] = {
     "mcts": lambda seed: Mcts(seed=seed),  # rule 9
     "selfplay": lambda seed: _net_bot(str(SELFPLAY))(seed),  # rule 10, needs [rl]
     "planner": lambda seed: _planner(str(SELFPLAY), seed),  # rule 11, needs [rl]
+    "alphazero": lambda seed: _planner(str(ALPHAZERO), seed),  # rule 12, needs [rl]
 }
 
 # One line each, shown by the menu and by `trainerlab bots`.
@@ -49,6 +53,7 @@ DESCRIPTIONS: dict[str, str] = {
     "mcts": "rule 9: a tree search over simultaneous moves, three turns deep",
     "selfplay": "rule 10: a network trained by self-play, plays without search",
     "planner": "rule 11: a tree search over simultaneous moves guided by rule 10's network",
+    "alphazero": "rule 12: rule 11, its network trained on its own search (AlphaZero)",
 }
 
 DEFAULT_OPPONENT = "forecaster"  # beats every bot but strategist, head to head
@@ -62,6 +67,8 @@ MODEL_BOTS: dict[str, Callable[[WinModel, int], Bot]] = {
 WITH_MODEL = "|".join(MODEL_BOTS)  # for help texts: forecaster|...|mcts:MODEL.npz
 # A policy network alone, from a file made by `trainerlab pretrain` (needs the [rl] extras).
 NET = "net"
+# Rule 11's search guided by the network in a file (`trainerlab alphazero`; needs [rl]).
+PLAN = "plan"
 
 
 def factory(spec: str) -> BotFactory:
@@ -69,6 +76,9 @@ def factory(spec: str) -> BotFactory:
     name, _, model = spec.partition(":")
     if name == NET:
         return _net_bot(str(Path(model).resolve()))
+    if name == PLAN:
+        path = str(Path(model).resolve())
+        return lambda seed: _planner(path, seed)
     if not model:
         return BOTS[name]
     path, make = str(Path(model).resolve()), MODEL_BOTS[name]
@@ -95,16 +105,17 @@ def _load(path: str) -> WinModel:
 def bot_spec(text: str) -> str:
     """Checks a bot's name on the command line (argparse type)."""
     name, _, model = text.partition(":")
-    if name == NET:
+    if name in (NET, PLAN):
         if not model.endswith(".pt"):
-            raise argparse.ArgumentTypeError(f"{NET} plays with a network: {NET}:FILE.pt")
+            raise argparse.ArgumentTypeError(f"{name} plays with a network: {name}:FILE.pt")
         if not Path(model).is_file():
             raise argparse.ArgumentTypeError(f"no such network: {model}")
         return text
     if name not in BOTS or (model and name not in MODEL_BOTS):
         names = ", ".join(BOTS)
         raise argparse.ArgumentTypeError(
-            f"unknown bot {text!r}: one of {names}, {WITH_MODEL}:MODEL.npz or {NET}:FILE.pt"
+            f"unknown bot {text!r}: one of {names}, {WITH_MODEL}:MODEL.npz, {NET}:FILE.pt or "
+            f"{PLAN}:FILE.pt"
         )
     if model and not Path(model).is_file():
         raise argparse.ArgumentTypeError(f"no such model: {model}")
