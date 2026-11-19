@@ -13,7 +13,7 @@ ALLOWED = {
     "learning": {"game"},
     "rl": {"game", "learning"},
     "bots": {"game", "learning", "rl"},
-    "experiments": {"game", "learning", "bots"},
+    "experiments": {"game", "learning", "rl", "bots"},
     "terminal": {"game"},
     "commands": {"game", "learning", "rl", "bots", "experiments", "terminal"},
 }
