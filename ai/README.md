@@ -44,6 +44,7 @@ lists the commands, `trainerlab duel --help` the options of one.
 | `pretrain DATA…` | trains the policy and value network by imitation (`net.pt`) |
 | `selfplay NET.pt` | improves the network by self-play with PPO (`selfplay.pt`, rule 10), measured against forecaster along the way |
 | `alphazero NET.pt` | improves the network with its own search, as AlphaZero: rule 11 plays itself on every core, the network learns its search's choices and the results; measured against rule 11 along the way |
+| `teams BOT` | how much a team's composition decides battles: the bot plays itself, each matchup twice with dice of its own; the share of matchups won twice by the same team, each species' score, and how well the composition alone calls the winner |
 
 Every command that plays battles takes `--pairs N` (pairs of two battles, sides
 swapped) and `--from SEED`, the seed of the first pair: `--pairs 5000 --from
