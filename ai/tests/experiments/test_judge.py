@@ -12,7 +12,8 @@ from trainerlab import _engine
 from trainerlab.bots.roster import SELFPLAY, factory
 from trainerlab.commands import judge as command
 from trainerlab.experiments import judge
-from trainerlab.game.decisions import decisions
+from trainerlab.experiments.situations import SITUATIONS, flagged
+from trainerlab.game.decisions import Decision, decisions
 
 QUICK = {"SIMULATIONS": 60, "WORLDS": 2, "MIN_VISITS": 4}  # a small judge, for the tests
 
@@ -63,11 +64,53 @@ def test_the_judge_is_the_same_on_one_core_or_several() -> None:
     )
 
 
-def _judged(loss: float, outcome: str = "win", agree: bool = False) -> judge.Judged:
+def _judged(
+    loss: float, outcome: str = "win", agree: bool = False, situations: tuple[str, ...] = ()
+) -> judge.Judged:
     return judge.Judged(
         seed=1, a_side=0, turn=3, outcome=outcome, chosen=0, best=0 if agree else 1,
-        loss=loss, active="A", foe="B", chosen_label="x", best_label="y",
+        loss=loss, active="A", foe="B", chosen_label="x", best_label="y", situations=situations,
     )  # fmt: skip
+
+
+def test_each_judged_decision_carries_the_situations_spotted_in_it() -> None:
+    seeds = range(30000, 30002)
+    battles: dict[tuple[int, int], list[Decision]] = {}
+    for d in decisions(factory("random"), factory("hitter"), seeds=seeds):
+        battles.setdefault((d.seed, d.a_side), []).append(d)
+    expected = [
+        tuple(flagged(battle, i))
+        for battle in battles.values()
+        for i, d in enumerate(battle)
+        if d.by_a and d.kind == "action" and len(d.legal) > 1
+    ]
+
+    judged = judge.judge_block("random", "hitter", seeds)
+
+    assert [j.situations for j in judged] == expected
+    assert any(j.situations for j in judged)  # random walks into some
+
+
+def test_a_situation_is_a_mistake_only_where_the_judge_confirms_it() -> None:
+    rows = (
+        [_judged(0.08, situations=("ko-missed",))] * 24
+        + [_judged(0.01, situations=("ko-missed", "boost"))] * 6
+        + [_judged(0.01, situations=("boost",))] * 30
+        + [_judged(0.06, situations=("sacrifice",))] * 10
+        + [_judged(0.0, situations=("sacrifice",))] * 20
+        + [_judged(0.09, situations=("destiny-bond-trade",))] * 5
+    )
+
+    found = {c.name: c for c in judge.calibrate(rows)}
+
+    assert found["ko-missed"].cases == 30 and found["ko-missed"].confirmed == 0.8
+    assert found["ko-missed"].verdict == "mistake"  # half or more lose 5 points or more
+    assert found["boost"].cases == 36 and found["boost"].verdict == "style"  # under a fifth
+    assert found["sacrifice"].verdict == "mixed"
+    assert found["sacrifice"].mean_loss == pytest.approx(0.02)
+    assert found["destiny-bond-trade"].verdict == "too rare"  # under 30 cases
+    assert found["heal-high-hp-faster"].cases == 0
+    assert list(found) == list(SITUATIONS)
 
 
 def test_the_summary_counts_inaccuracies_and_blunders() -> None:
@@ -104,6 +147,8 @@ def test_the_command_reports_the_summary_and_the_worst_decisions(tmp_path: Path)
     assert text.startswith("random against hitter, seeds 30000-30000: ")
     assert "agrees with the judge on " in text
     assert "mean loss " in text and "blunders (10 points or more) " in text
+    assert "situations, as the judge rates them" in text
+    assert all(f"  {name} " in text for name in SITUATIONS)
     worst = [line for line in text.splitlines() if line.startswith("trainerlab watch ")]
     assert len(worst) == 3
     saved = np.load(out)

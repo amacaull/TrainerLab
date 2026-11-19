@@ -7,6 +7,9 @@ that the option the bot chose gets a value even when the network dislikes it. A 
 is what the judge's own choice is worth over the bot's, in points of the chance to win: the value
 of an option is the mean result in [-1, 1], so half of it. Settings fixed before measuring.
 
+Each judged decision also carries the situations a rule spots in it (experiments/situations.py):
+over many decisions, the judge says for each situation how often it is really a mistake.
+
 Only the turns with a choice are judged: a replacement after a knock-out is the network's
 favourite, without search, in rules 11 and 12. Needs PyTorch: pip install -e "ai/.[rl]".
 """
@@ -19,6 +22,7 @@ from pathlib import Path
 from trainerlab import _engine, _search
 from trainerlab.bots.roster import ALPHAZERO, factory
 from trainerlab.experiments import parallel
+from trainerlab.experiments.situations import SITUATIONS, flagged
 from trainerlab.game.decisions import Decision, decisions
 from trainerlab.rl.planner import cpp_network
 
@@ -44,6 +48,7 @@ class Judged:
     foe: str
     chosen_label: str
     best_label: str
+    situations: tuple[str, ...] = ()  # spotted in this decision, by experiments/situations.py
 
 
 @cache
@@ -51,7 +56,7 @@ def _network(path: str) -> _search.Network:
     return cpp_network(Path(path))
 
 
-def judge_decision(d: Decision) -> Judged:
+def judge_decision(d: Decision, situations: tuple[str, ...] = ()) -> Judged:
     """The judge's look at one turn of bot A with a choice."""
     network = _network(str(NETWORK))
     seed = (d.seed * 2 + d.a_side) * 1000 + d.turn
@@ -74,6 +79,7 @@ def judge_decision(d: Decision) -> Judged:
         foe=_engine.species_display_name(foe.species_id),
         chosen_label=_label(d, chosen),
         best_label=_label(d, best),
+        situations=situations,
     )
 
 
@@ -90,11 +96,21 @@ def _label(d: Decision, key: int) -> str:
 
 def judge_block(bot_a: str, bot_b: str, seeds: range) -> list[Judged]:
     """Every turn with a choice of bot A over these pairs, judged: a process of its own."""
-    return [
-        judge_decision(d)
-        for d in decisions(factory(bot_a), factory(bot_b), seeds=seeds)
-        if d.by_a and d.kind == "action" and len(d.legal) > 1
-    ]
+    judged: list[Judged] = []
+    battle: list[Decision] = []
+
+    def judge_battle() -> None:
+        for i, d in enumerate(battle):
+            if d.by_a and d.kind == "action" and len(d.legal) > 1:
+                judged.append(judge_decision(d, tuple(flagged(battle, i))))
+
+    for d in decisions(factory(bot_a), factory(bot_b), seeds=seeds):
+        if battle and (d.seed, d.a_side) != (battle[0].seed, battle[0].a_side):
+            judge_battle()
+            battle = []
+        battle.append(d)
+    judge_battle()
+    return judged
 
 
 def judge_on_cores(
@@ -131,3 +147,35 @@ def summarize(judged: list[Judged]) -> Summary:
         loss_in_won=mean([j.loss for j in judged if j.outcome == "win"]),
         loss_in_lost=mean([j.loss for j in judged if j.outcome == "loss"]),
     )
+
+
+MISTAKE, STYLE = 0.5, 0.2  # shares of cases losing INACCURACY or more
+FEWEST = 30  # cases below which a situation gets no verdict
+
+
+@dataclass(frozen=True)
+class Calibration:
+    name: str
+    cases: int
+    confirmed: float  # share of its cases losing INACCURACY or more, as the judge rates them
+    mean_loss: float
+    verdict: str  # mistake, mixed, style, or too rare
+
+
+def calibrate(judged: list[Judged]) -> list[Calibration]:
+    """For each situation, how often the judge finds it a mistake: in SITUATIONS' order."""
+    found = []
+    for name in SITUATIONS:
+        losses = [j.loss for j in judged if name in j.situations]
+        confirmed = sum(loss >= INACCURACY for loss in losses) / len(losses) if losses else 0.0
+        if len(losses) < FEWEST:
+            verdict = "too rare"
+        elif confirmed >= MISTAKE:
+            verdict = "mistake"
+        elif confirmed < STYLE:
+            verdict = "style"
+        else:
+            verdict = "mixed"
+        mean_loss = sum(losses) / len(losses) if losses else math.nan
+        found.append(Calibration(name, len(losses), confirmed, mean_loss, verdict))
+    return found

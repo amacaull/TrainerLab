@@ -46,7 +46,9 @@ def main(argv: list[str] | None = None, write: Write = stdout) -> int:
     columns: dict[str, Any] = {
         field: np.array([getattr(j, field) for j in judged])
         for field in judge.Judged.__dataclass_fields__
+        if field != "situations"
     }
+    columns["situations"] = np.array([",".join(j.situations) for j in judged])
     np.savez(args.out, **columns)
     s = judge.summarize(judged)
     write(
@@ -63,6 +65,15 @@ def main(argv: list[str] | None = None, write: Write = stdout) -> int:
         f"inaccuracies (5 points or more) {100 * s.inaccuracies:.1f} %, "
         f"blunders (10 points or more) {100 * s.blunders:.1f} %\n"
     )
+    write(
+        f"\nsituations, as the judge rates them (a mistake if half its cases lose 5 points or "
+        f"more, style under a fifth, no verdict under {judge.FEWEST} cases):\n"
+    )
+    write(f"  {'situation':<22}{'cases':>7}{'lose 5+':>9}{'mean loss':>11}  verdict\n")
+    for c in judge.calibrate(judged):
+        share = f"{100 * c.confirmed:.0f} %" if c.cases else "-"
+        mean = f"{100 * c.mean_loss:.2f}" if c.cases else "-"
+        write(f"  {c.name:<22}{c.cases:>7}{share:>9}{mean:>11}  {c.verdict}\n")
     write(f"\nthe {args.worst} worst decisions:\n")
     for j in sorted(judged, key=lambda j: -j.loss)[: args.worst]:
         write(
