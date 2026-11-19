@@ -426,3 +426,32 @@ single turn ahead, likely overrated them.
 
 This confirms palier 5's diagnosis: the wall was the evaluation. Once the worth
 of a position is learned by playing, the level rises and hazards come back.
+
+### Rule 11: the tree search, guided by the network (6.5)
+
+`planner` is rule 9's tree search over simultaneous moves, guided by rule 10's
+network: its policy gives each option a prior, its value rates each new
+position, both evaluated in C++ (PUCT, as in AlphaZero; 200 simulations,
+8 guessed teams, settings fixed before measuring). About 70 ms a decision,
+against 1 ms for the network alone; the duels were cut to 2000 pairs, decided
+before any result was seen.
+
+```bash
+trainerlab duel planner selfplay --pairs 2000 --from 170000
+trainerlab duel planner forecaster --pairs 2000 --from 175000
+```
+
+| Duel | Score | 95 % interval | Record (W / D / L) |
+|---|---|---|---|
+| **rule 11 vs rule 10** | **0.763** | [0.750, 0.776] | 3049 / 8 / 943 |
+| **rule 11 vs forecaster** | **0.787** | [0.774, 0.800] | 3143 / 13 / 844 |
+
+**The search adds 26 points to the network**, as much as self-play added to
+imitation, and `planner` is the strongest bot. The same kind of search lost to
+`forecaster` (rule 9, 0.489) when the win model rated its positions: the search
+was never useless, its evaluation held it back.
+
+Its use of moves is nearly rule 10's (hazards 17 %, boosts 13 %, switches 25 %
+of the times they are options): the search starts from the network's policy
+and stays close to it. It wins by choosing better when to play each kind of
+move, not by playing other kinds.
