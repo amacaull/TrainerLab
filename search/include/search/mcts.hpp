@@ -17,6 +17,11 @@ struct MctsSettings {
   double explore = 1.0; // the weight of the exploration bonus (UCB1)
 };
 
+// `count` guesses at the foe's team: each keeps every Pokemon already seen in `view` and fills the
+// unseen slots with species not seen, as a legal team. The seed fixes them.
+std::vector<engine::BattleState> guessWorlds(const Game &game, const engine::BattleState &view,
+                                             int foe, int count, uint64_t seed);
+
 // Rule 9: a Monte Carlo tree search over simultaneous moves.
 //
 // Both sides choose at once, so each node of the tree keeps, for each side, the statistics of its
@@ -45,8 +50,6 @@ private:
                   engine::RNG &dice) const;
   double rate(engine::BattleState &state, int root) const;
   void replaceFainted(engine::BattleState &state, engine::RNG &dice) const;
-  std::vector<engine::BattleState> worlds(const engine::BattleState &view, int foe,
-                                          uint64_t seed) const;
 
   const Game &game_;
   const Forecaster &evaluator_;

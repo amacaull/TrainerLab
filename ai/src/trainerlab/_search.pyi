@@ -7,7 +7,7 @@ import numpy
 import numpy.typing
 import trainerlab._engine
 import typing
-__all__: list[str] = ['Forecaster', 'VecEnv', 'action_mask', 'encode', 'encoding_names', 'feature_names', 'features', 'init', 'openings']
+__all__: list[str] = ['Forecaster', 'Network', 'VecEnv', 'action_mask', 'encode', 'encoding_names', 'feature_names', 'features', 'init', 'openings']
 class Forecaster:
     """
     Rules 6 to 9 in C++, with the layers of a WinModel.
@@ -63,6 +63,22 @@ class VecEnv:
     def finished(self) -> int:
         """
         Battles finished since the start.
+        """
+class Network:
+    """
+    The policy and value network of trainerlab.rl.net, evaluated in C++.
+    """
+    def __init__(self, weights: collections.abc.Mapping[str, typing.Annotated[numpy.typing.ArrayLike, numpy.float32]]) -> None:
+        """
+        The weights by their PyTorch names (state_dict).
+        """
+    def evaluate(self, view: trainerlab._engine.BattleState, side: typing.SupportsInt | typing.SupportsIndex, mask: typing.Annotated[numpy.typing.ArrayLike, numpy.float32]) -> tuple[numpy.typing.NDArray[numpy.float32], float]:
+        """
+        (logits[10], value) for what `side` sees in `view`, its own observe().
+        """
+    def plan_action(self, view: trainerlab._engine.BattleState, side: typing.SupportsInt | typing.SupportsIndex, legal: collections.abc.Sequence[trainerlab._engine.Action], seed: typing.SupportsInt | typing.SupportsIndex) -> int:
+        """
+        Rule 11: the index, in `legal`, of the option a tree search guided by this network visits most; the same seed makes the same decision.
         """
 def action_mask(legal: collections.abc.Sequence[trainerlab._engine.Action]) -> numpy.typing.NDArray[numpy.float32]:
     """

@@ -32,6 +32,7 @@ BOTS: dict[str, BotFactory] = {
     "nash": lambda seed: Nash(seed=seed),  # rule 8
     "mcts": lambda seed: Mcts(seed=seed),  # rule 9
     "selfplay": lambda seed: _net_bot(str(SELFPLAY))(seed),  # rule 10, needs [rl]
+    "planner": lambda seed: _planner(str(SELFPLAY), seed),  # rule 11, needs [rl]
 }
 
 # One line each, shown by the menu and by `trainerlab bots`.
@@ -47,6 +48,7 @@ DESCRIPTIONS: dict[str, str] = {
     "nash": "rule 8: draws from the mixed strategy of the simultaneous game, a turn deep",
     "mcts": "rule 9: a tree search over simultaneous moves, three turns deep",
     "selfplay": "rule 10: a network trained by self-play, plays without search",
+    "planner": "rule 11: a tree search over simultaneous moves guided by rule 10's network",
 }
 
 DEFAULT_OPPONENT = "forecaster"  # beats every bot but strategist, head to head
@@ -77,6 +79,12 @@ def _net_bot(path: str) -> BotFactory:
     from trainerlab.rl.bot import NetBot  # here: PyTorch is loaded only for this bot
 
     return lambda seed: NetBot(Path(path))
+
+
+def _planner(path: str, seed: int) -> Bot:
+    from trainerlab.rl.planner import Planner  # here: PyTorch is loaded only for this bot
+
+    return Planner(Path(path), seed=seed)
 
 
 @cache

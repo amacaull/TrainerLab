@@ -1,0 +1,149 @@
+#include "search/planner.hpp"
+
+#include "search/encoding.hpp"
+#include "search/mcts.hpp"
+
+#include "engine/core/observation.hpp"
+#include "engine/core/switching.hpp"
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <map>
+#include <memory>
+#include <utility>
+#include <variant>
+
+namespace search {
+namespace {
+using engine::Action;
+using engine::BattleState;
+
+constexpr int kMoves = engine::kMaxMovesPerPokemon;
+
+size_t at(int i) { return static_cast<size_t>(i); }
+
+// An option's place among the ten: a move by its slot, a switch by 4 + its team index.
+int keyOf(const Action &action) {
+  return std::holds_alternative<engine::UseMove>(action)
+             ? std::get<engine::UseMove>(action).moveIndex
+             : kMoves + std::get<engine::SwitchAction>(action).teamIndex;
+}
+
+// The result for `root` of a battle that is over: 1, -1, or 0 for a draw.
+double endValue(const BattleState &state, int root) {
+  const bool lost = state.sideHasLost(root), won = state.sideHasLost(1 - root);
+  return lost == won ? 0.0 : (won ? 1.0 : -1.0);
+}
+} // namespace
+
+// Per side, the prior, visits and summed value (for that side) of each of the ten options.
+struct Planner::Node {
+  bool expanded = false;
+  int visits = 0;
+  double value = 0.0; // the network's value, for the root
+  std::array<std::array<double, Encoding::kActions>, 2> prior{};
+  std::array<std::array<int, Encoding::kActions>, 2> n{};
+  std::array<std::array<double, Encoding::kActions>, 2> w{};
+  std::map<std::pair<int, int>, std::unique_ptr<Node>> children;
+};
+
+Planner::Planner(const Game &game, const Network &network, PlannerSettings settings)
+    : game_(game), network_(network), settings_(settings) {}
+
+void Planner::replaceFainted(BattleState &state, engine::RNG &dice) const {
+  while (!state.isOver() && (state.active(0).isFainted() || state.active(1).isFainted())) {
+    const int first = game_.rules().fasterSide(state, dice);
+    const int side = state.active(first).isFainted() ? first : 1 - first;
+    std::array<float, Encoding::kActions> mask{};
+    for (int index : engine::validSwitchTargets(state, side))
+      mask[at(kMoves + index)] = 1.0f;
+    const Network::Output out = network_.evaluate(engine::observe(state, side), side, mask.data());
+    const auto best = std::max_element(out.logits.begin(), out.logits.end());
+    game_.rules().resolveReplacement(state, side,
+                                     static_cast<int>(best - out.logits.begin()) - kMoves);
+  }
+}
+
+double Planner::expand(const BattleState &state, Node &node, int root) const {
+  // Both sides' policies; the value is the mean of what each side's network expects, for root.
+  double value = 0.0;
+  for (int side : {0, 1}) {
+    std::array<float, Encoding::kActions> mask{};
+    Encoding::mask(game_.rules().legalActions(state, side), mask.data());
+    const Network::Output out = network_.evaluate(engine::observe(state, side), side, mask.data());
+    const float top = *std::max_element(out.logits.begin(), out.logits.end());
+    double total = 0.0;
+    for (int a = 0; a < Encoding::kActions; ++a) {
+      const double p = mask[at(a)] == 1.0f ? std::exp(out.logits[at(a)] - top) : 0.0;
+      node.prior[at(side)][at(a)] = p;
+      total += p;
+    }
+    for (double &p : node.prior[at(side)])
+      p /= total;
+    value += (side == root ? out.value : -out.value) / 2;
+  }
+  node.expanded = true;
+  node.value = value;
+  return value;
+}
+
+double Planner::simulate(BattleState &state, Node &node, int root, engine::RNG &dice) const {
+  replaceFainted(state, dice);
+  if (state.isOver())
+    return endValue(state, root);
+  if (!node.expanded)
+    return expand(state, node, root);
+
+  std::array<Action, 2> chosen{engine::UseMove{0}, engine::UseMove{0}};
+  std::array<int, 2> keys{};
+  const double sqrtVisits = std::sqrt(static_cast<double>(std::max(node.visits, 1)));
+  for (int side : {0, 1}) {
+    const double own = side == root ? node.value : -node.value;
+    double best = -1e18;
+    for (const Action &action : game_.rules().legalActions(state, side)) {
+      const int k = keyOf(action);
+      const int visits = node.n[at(side)][at(k)];
+      const double q = visits ? node.w[at(side)][at(k)] / visits : own;
+      const double score =
+          q + settings_.explore * node.prior[at(side)][at(k)] * sqrtVisits / (1 + visits);
+      if (score > best)
+        best = score, chosen[at(side)] = action, keys[at(side)] = k;
+    }
+  }
+
+  std::unique_ptr<Node> &child = node.children[{keys[0], keys[1]}];
+  if (child == nullptr)
+    child = std::make_unique<Node>();
+  game_.rules().resolveTurn(state, chosen[0], chosen[1], dice);
+  const double value = simulate(state, *child, root, dice);
+
+  ++node.visits;
+  for (int side : {0, 1}) {
+    ++node.n[at(side)][at(keys[at(side)])];
+    node.w[at(side)][at(keys[at(side)])] += side == root ? value : -value;
+  }
+  return value;
+}
+
+int Planner::chooseAction(const BattleState &view, int side, const std::vector<Action> &legal,
+                          uint64_t seed) const {
+  if (legal.size() == 1)
+    return 0;
+  const std::vector<BattleState> guesses =
+      guessWorlds(game_, view, 1 - side, settings_.worlds, seed);
+  Node root;
+  for (int i = 0; i < settings_.simulations; ++i) {
+    BattleState state = guesses[at(i % settings_.worlds)];
+    engine::MersenneRNG dice(seed * 1'000'003 + static_cast<uint64_t>(i));
+    simulate(state, root, side, dice);
+  }
+  int best = 0, bestVisits = -1;
+  for (size_t i = 0; i < legal.size(); ++i) {
+    const int visits = root.n[at(side)][at(keyOf(legal[i]))];
+    if (visits > bestVisits)
+      best = static_cast<int>(i), bestVisits = visits;
+  }
+  return best;
+}
+} // namespace search

@@ -60,8 +60,9 @@ struct Mcts::Node {
 Mcts::Mcts(const Game &game, const Forecaster &evaluator, MctsSettings settings)
     : game_(game), evaluator_(evaluator), settings_(settings) {}
 
-std::vector<BattleState> Mcts::worlds(const BattleState &view, int foe, uint64_t seed) const {
-  const engine::DataLoader &data = game_.data();
+std::vector<BattleState> guessWorlds(const Game &game, const BattleState &view, int foe, int count,
+                                     uint64_t seed) {
+  const engine::DataLoader &data = game.data();
   std::vector<int> hidden, unseen;
   std::vector<bool> seen(at(data.speciesCount()), false);
   for (int i = 0; i < view.team_size[at(foe)]; ++i) {
@@ -77,7 +78,7 @@ std::vector<BattleState> Mcts::worlds(const BattleState &view, int foe, uint64_t
 
   std::mt19937_64 rng(seed);
   std::vector<BattleState> found;
-  for (int w = 0; w < settings_.worlds; ++w) {
+  for (int w = 0; w < count; ++w) {
     BattleState world = view;
     bool legal = false;
     for (int attempt = 0; attempt < kDrawsPerWorld && !legal; ++attempt) {
@@ -169,7 +170,8 @@ int Mcts::chooseAction(const BattleState &view, int side, const std::vector<Acti
                        uint64_t seed) const {
   if (legal.size() == 1)
     return 0;
-  const std::vector<BattleState> guesses = worlds(view, 1 - side, seed);
+  const std::vector<BattleState> guesses =
+      guessWorlds(game_, view, 1 - side, settings_.worlds, seed);
   Node root;
   for (int i = 0; i < settings_.iterations; ++i) {
     BattleState state = guesses[at(i % settings_.worlds)];
