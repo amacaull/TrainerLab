@@ -102,7 +102,8 @@ double Planner::expand(const BattleState &state, Node &node, int root) const {
   return value;
 }
 
-double Planner::simulate(BattleState &state, Node &node, int root, engine::RNG &dice) const {
+double Planner::simulate(BattleState &state, Node &node, int root, engine::RNG &dice,
+                         bool atRoot) const {
   replaceFainted(state, dice);
   if (state.isOver())
     return endValue(state, root);
@@ -114,13 +115,16 @@ double Planner::simulate(BattleState &state, Node &node, int root, engine::RNG &
   const double sqrtVisits = std::sqrt(static_cast<double>(std::max(node.visits, 1)));
   for (int side : {0, 1}) {
     const double own = side == root ? node.value : -node.value;
+    const bool judged = atRoot && side == root && settings_.minRootVisits > 0;
     double best = -1e18;
     for (const Action &action : game_.rules().legalActions(state, side)) {
       const int k = keyOf(action);
       const int visits = node.n[at(side)][at(k)];
       const double q = visits ? node.w[at(side)][at(k)] / visits : own;
-      const double score =
+      double score =
           q + settings_.explore * node.prior[at(side)][at(k)] * sqrtVisits / (1 + visits);
+      if (judged && visits < settings_.minRootVisits)
+        score = 1e9 - visits; // the least tried first, until each has its minimum
       if (score > best)
         best = score, chosen[at(side)] = action, keys[at(side)] = k;
     }
@@ -130,7 +134,7 @@ double Planner::simulate(BattleState &state, Node &node, int root, engine::RNG &
   if (child == nullptr)
     child = std::make_unique<Node>();
   game_.rules().resolveTurn(state, chosen[0], chosen[1], dice);
-  const double value = simulate(state, *child, root, dice);
+  const double value = simulate(state, *child, root, dice, false);
 
   ++node.visits;
   for (int side : {0, 1}) {
@@ -143,10 +147,15 @@ double Planner::simulate(BattleState &state, Node &node, int root, engine::RNG &
 std::array<int, Encoding::kActions> Planner::visits(const BattleState &view, int side,
                                                     const std::vector<Action> &legal,
                                                     uint64_t seed) const {
-  std::array<int, Encoding::kActions> counts{};
+  return analyse(view, side, legal, seed).visits;
+}
+
+Planner::Analysis Planner::analyse(const BattleState &view, int side,
+                                   const std::vector<Action> &legal, uint64_t seed) const {
+  Analysis analysis;
   if (legal.size() == 1) {
-    counts[at(keyOf(legal[0]))] = 1;
-    return counts;
+    analysis.visits[at(keyOf(legal[0]))] = 1;
+    return analysis;
   }
   const std::vector<BattleState> guesses =
       guessWorlds(game_, view, 1 - side, settings_.worlds, seed);
@@ -154,13 +163,16 @@ std::array<int, Encoding::kActions> Planner::visits(const BattleState &view, int
   for (int i = 0; i < settings_.simulations; ++i) {
     BattleState state = guesses[at(i % settings_.worlds)];
     engine::MersenneRNG dice(seed * 1'000'003 + static_cast<uint64_t>(i));
-    simulate(state, root, side, dice);
+    simulate(state, root, side, dice, true);
     if (i == 0 && settings_.noise > 0.0)
       addNoise(root.prior[at(side)], legal, seed);
   }
-  for (const Action &action : legal)
-    counts[at(keyOf(action))] = root.n[at(side)][at(keyOf(action))];
-  return counts;
+  for (const Action &action : legal) {
+    const size_t k = at(keyOf(action));
+    analysis.visits[k] = root.n[at(side)][k];
+    analysis.value[k] = analysis.visits[k] ? root.w[at(side)][k] / analysis.visits[k] : 0.0;
+  }
+  return analysis;
 }
 
 void Planner::addNoise(std::array<double, Encoding::kActions> &prior,

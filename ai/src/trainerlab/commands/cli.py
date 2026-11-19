@@ -21,6 +21,7 @@ from trainerlab.commands import (
     dataset,
     duel,
     imitate,
+    judge,
     play,
     pretrain,
     selfplay,
@@ -58,6 +59,9 @@ COMMANDS: dict[str, Command] = {
     "audit": Command("count the mistakes a program can spot in a bot", lambda a, _: audit.main(a)),
     "dataset": Command("turn battles into a dataset to learn from", lambda a, _: dataset.main(a)),
     "train": Command("fit a win probability model on a dataset", lambda a, _: train.main(a)),
+    "judge": Command(
+        "rate each decision of a bot with a deeper search", lambda a, _: judge.main(a)
+    ),
     "usage": Command("count the kinds of moves a bot plays", lambda a, _: usage.main(a)),
     "bots": Command("list the bots and what each one does", _list_bots),
     "bench": Command("measure how fast the bots play", lambda a, _: bench.main(a)),
@@ -73,7 +77,8 @@ COMMANDS: dict[str, Command] = {
 MODES = [
     (name, c.summary)
     for name, c in COMMANDS.items()
-    if name not in ("bots", "bench", "imitate", "pretrain", "selfplay", "alphazero", "teams")
+    if name
+    not in ("bots", "bench", "imitate", "pretrain", "selfplay", "alphazero", "teams", "judge")
 ]
 
 

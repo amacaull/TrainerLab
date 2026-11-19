@@ -98,3 +98,28 @@ TEST_CASE("the planner's visits sit on the legal options; noise moves them") {
     sum += n;
   CHECK(sum == 1);
 }
+
+TEST_CASE("the planner's analysis gives each option its visits and its mean value for the side") {
+  const search::Network net = smallNetwork();
+  const engine::BattleState state = search::openings(game(), 2)[1];
+  const engine::BattleState view = engine::observe(state, 0);
+  const auto legal = game().rules().legalActions(state, 0);
+  std::vector<float> mask(search::Encoding::kActions);
+  search::Encoding::mask(legal, mask.data());
+
+  const search::Planner plain(game(), net, {80, 4, 1.5, 0.0});
+  const auto analysis = plain.analyse(view, 0, legal, 3);
+  CHECK(analysis.visits == plain.visits(view, 0, legal, 3));
+  for (size_t a = 0; a < mask.size(); ++a) {
+    CHECK(analysis.value[a] >= -1.0);
+    CHECK(analysis.value[a] <= 1.0);
+    if (analysis.visits[a] == 0)
+      CHECK(analysis.value[a] == 0.0);
+  }
+
+  // A judge: every legal option visited at least 20 times, whatever its prior.
+  const search::Planner judge(game(), net, {300, 4, 1.5, 0.0, 20});
+  const auto judged = judge.analyse(view, 0, legal, 3);
+  for (size_t a = 0; a < mask.size(); ++a)
+    CHECK((mask[a] == 1.0f ? judged.visits[a] >= 20 : judged.visits[a] == 0));
+}

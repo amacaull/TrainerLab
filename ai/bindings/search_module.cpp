@@ -266,6 +266,32 @@ PYBIND11_MODULE(_search, m) {
           "Rule 11: the index, in `legal`, of the option a tree search guided by this network "
           "visits most, after `simulations` simulations; the same seed makes the same decision.")
       .def(
+          "judge",
+          [](const search::Network &net, const engine::BattleState &view, int side,
+             const std::vector<engine::ffi::FfiAction> &legal, uint64_t seed, int simulations,
+             int worlds, int min_visits) {
+            search::PlannerSettings settings;
+            settings.simulations = simulations;
+            settings.worlds = worlds;
+            settings.minRootVisits = min_visits;
+            search::Planner::Analysis analysis;
+            {
+              const py::gil_scoped_release free;
+              analysis = search::Planner(loaded(), net, settings)
+                             .analyse(view, side, toActions(legal), seed);
+            }
+            py::array_t<int32_t> visits(search::Encoding::kActions);
+            py::array_t<double> value(search::Encoding::kActions);
+            std::copy(analysis.visits.begin(), analysis.visits.end(), visits.mutable_data());
+            std::copy(analysis.value.begin(), analysis.value.end(), value.mutable_data());
+            return py::make_tuple(visits, value);
+          },
+          py::arg("view"), py::arg("side"), py::arg("legal"), py::arg("seed"),
+          py::arg("simulations"), py::arg("worlds"), py::arg("min_visits"),
+          "A judge's look at a decision: (visits[10], value[10]) per option of `side` at the root "
+          "of a search that tries every legal option at least `min_visits` times; the value is "
+          "the mean result for `side`, in [-1, 1].")
+      .def(
           "self_play",
           [](const search::Network &net, int games, uint64_t seed, int threads, int simulations,
              int worlds, double noise, int max_turns) {
