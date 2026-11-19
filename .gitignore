@@ -25,3 +25,6 @@ __pycache__/
 .DS_Store
 .envrc
 .coverage
+
+# Measurement outputs (datasets, models, logs)
+runs/
