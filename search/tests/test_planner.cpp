@@ -1,12 +1,12 @@
 #include "search/planner.hpp"
 
+#include "random_network.hpp"
+
 #include "engine/core/observation.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
 #include <cmath>
-#include <map>
-#include <string>
 #include <vector>
 
 namespace {
@@ -15,46 +15,7 @@ const search::Game &game() {
   return instance;
 }
 
-// A network of the right shapes, with small fixed weights: enough to search with.
-search::Network smallNetwork() {
-  const auto &e = game().encoding();
-  const int p = static_cast<int>(e.pokemonNames().size());
-  const int f = static_cast<int>(e.fieldNames().size());
-  const auto &data = game().data();
-  const int emb = 16, hidden = 128, trunk = 256;
-  const int moveWidth = 27;
-  std::map<std::string, search::Network::Tensor> w;
-  unsigned state = 1;
-  auto tensor = [&](const std::string &name, std::vector<int> shape) {
-    search::Network::Tensor t{shape, {}};
-    size_t size = 1;
-    for (int d : shape)
-      size *= static_cast<size_t>(d);
-    for (size_t i = 0; i < size; ++i) {
-      state = state * 1664525u + 1013904223u;
-      t.values.push_back(static_cast<float>((state >> 8) % 2001) / 1000.0f / 50.0f - 0.02f);
-    }
-    w[name] = t;
-  };
-  auto linear = [&](const std::string &name, int in, int out) {
-    tensor(name + ".weight", {out, in});
-    tensor(name + ".bias", {out});
-  };
-  tensor("species.weight", {data.speciesCount() + 1, emb});
-  tensor("ability.weight", {46, emb});
-  tensor("item.weight", {14, emb});
-  tensor("move.weight", {data.moveCount() + 1, emb});
-  linear("pokemon.0", p + 7 * emb, hidden);
-  linear("pokemon.2", hidden, hidden);
-  linear("trunk.0", 4 * hidden + f, trunk);
-  linear("trunk.2", trunk, trunk);
-  linear("moves.0", trunk + emb + moveWidth, hidden);
-  linear("moves.2", hidden, 1);
-  linear("switch.0", trunk + hidden, hidden);
-  linear("switch.2", hidden, 1);
-  linear("value", trunk, 1);
-  return search::Network(game().encoding(), w);
-}
+search::Network smallNetwork() { return search::testing::randomNetwork(game()); }
 } // namespace
 
 TEST_CASE("the network masks illegal options and values within -1 and 1") {
@@ -83,5 +44,30 @@ TEST_CASE("the planner plays a legal option, the same for the same seed") {
     const int choice = planner.chooseAction(view, 0, legal, 9);
     CHECK(static_cast<size_t>(choice) < legal.size());
     CHECK(planner.chooseAction(view, 0, legal, 9) == choice);
+  }
+}
+
+TEST_CASE("a position gets the same numbers alone and in any batch") {
+  const search::Network net = smallNetwork();
+  const std::vector<engine::BattleState> states = search::openings(game(), 9);
+  std::vector<engine::BattleState> views;
+  std::vector<std::vector<float>> masks;
+  std::vector<search::Network::Query> queries;
+  for (size_t i = 0; i < states.size(); ++i) {
+    const int side = static_cast<int>(i % 2);
+    views.push_back(engine::observe(states[i], side));
+    std::vector<float> mask(search::Encoding::kActions);
+    search::Encoding::mask(game().rules().legalActions(states[i], side), mask.data());
+    masks.push_back(mask);
+  }
+  for (size_t i = 0; i < states.size(); ++i)
+    queries.push_back({&views[i], static_cast<int>(i % 2), masks[i].data()});
+
+  std::vector<search::Network::Output> batch(queries.size());
+  net.evaluate(queries, batch.data());
+  for (size_t i = 0; i < queries.size(); ++i) {
+    const auto alone = net.evaluate(views[i], queries[i].side, masks[i].data());
+    CHECK(alone.logits == batch[i].logits); // bit for bit
+    CHECK(alone.value == batch[i].value);
   }
 }

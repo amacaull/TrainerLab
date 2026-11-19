@@ -8,6 +8,7 @@
 // battles, 3 random turns in. A line reports how many times per second it does its one thing.
 
 #include "search/game.hpp"
+#include "search/planner.hpp"
 #include "search/vec_env.hpp"
 
 #include "engine/core/observation.hpp"
@@ -18,7 +19,10 @@
 #include <cstdlib>
 #include <functional>
 #include <random>
+#include <string>
 #include <vector>
+
+#include "../tests/random_network.hpp"
 
 namespace {
 using Clock = std::chrono::steady_clock;
@@ -154,5 +158,38 @@ int main(int argc, char **argv) {
          game.features().compute(view(), 0, row.data());
          return 1L;
        }));
+  {
+    // Palier 6.5: random weights of the network's shapes, as fast as trained ones.
+    const search::Network network = search::testing::randomNetwork(game);
+    std::vector<std::vector<float>> masks;
+    for (const engine::BattleState &state : positions) {
+      std::vector<float> mask(search::Encoding::kActions);
+      search::Encoding::mask(rules.legalActions(state, 0), mask.data());
+      masks.push_back(mask);
+    }
+    line("network evaluation (palier 6.5)", "positions", rate(seconds, [&] {
+           const engine::BattleState &v = view();
+           return static_cast<long>(network.evaluate(v, 0, masks[next].data()).value < 2.0f);
+         }));
+    for (int size : {2, 16}) {
+      std::vector<search::Network::Query> batch(static_cast<size_t>(size));
+      std::vector<search::Network::Output> outputs(batch.size());
+      const std::string what = "network evaluation, batches of " + std::to_string(size);
+      line(what.c_str(), "positions", rate(seconds, [&] {
+             for (auto &query : batch) {
+               const engine::BattleState &v = view();
+               query = {&v, 0, masks[next].data()};
+             }
+             network.evaluate(batch, outputs.data());
+             return static_cast<long>(size);
+           }));
+    }
+    const search::Planner planner(game, network);
+    line("planner decision, 200 simulations (rule 11)", "decisions", rate(seconds, [&] {
+           const engine::BattleState &v = view();
+           const auto legal = rules.legalActions(positions[next], 0);
+           return static_cast<long>(planner.chooseAction(v, 0, legal, ++seed) >= 0);
+         }));
+  }
   return 0;
 }
