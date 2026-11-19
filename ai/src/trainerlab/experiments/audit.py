@@ -5,12 +5,18 @@ that needs no judgement: a move that fails, a move into an immunity, a fixed-dam
 left unplayed, a choice made while every move is estimated at zero. This counts them over many
 battles, to check that what the hand analysis found on a few losses holds at scale, and whether
 each mistake comes with losing.
+
+The strategic checks (palier 7.2) count what reading rule 12's battles found: boosts that come to
+nothing, a Destiny Bond walked into, a sure knock-out left unplayed. They read a decision with the
+rest of its battle, to see what came after.
 """
 
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 
 from trainerlab import _engine
+from trainerlab.bots.roster import factory
+from trainerlab.experiments import parallel
 from trainerlab.game import estimate
 from trainerlab.game.decisions import Decision, decisions
 from trainerlab.game.events import EventKind
@@ -94,6 +100,111 @@ CHECKS: dict[str, Callable[[Decision], bool]] = {
 }
 
 
+def _moves_chosen(d: Decision) -> _engine.MoveEntry | None:
+    """The move the deciding side chose, if it chose a move."""
+    if d.kind != "action" or not isinstance(d.choice, _engine.Action):
+        return None
+    if d.choice.kind != _engine.ACTION_MOVE:
+        return None
+    return _engine.move_entry(d.view.active(d.side).move_ids[d.choice.index])
+
+
+def _raises_own_stats(move: _engine.MoveEntry) -> bool:
+    """A status move that raises its user's stats: Swords Dance, Nasty Plot, Belly Drum..."""
+    return move.category == STATUS and any(
+        (e.kind == "StatChange" and e.affects_user and e.delta > 0) or e.kind == "BellyDrum"
+        for e in move.effects
+    )
+
+
+def _boost(battle: list[Decision], i: int) -> bool:
+    move = _moves_chosen(battle[i])
+    return move is not None and _raises_own_stats(move)
+
+
+def _landed_hit(d: Decision) -> bool:
+    return any(
+        e.kind == EventKind.DAMAGE_DEALT and e.side != d.side and e.i0 > 0
+        for e in _own_move_followed_by(d)
+    )
+
+
+def _boost_wasted(battle: list[Decision], i: int) -> bool:
+    """A boost, then the Pokemon left the field (knocked out, switched, phazed) without a hit."""
+    if not _boost(battle, i):
+        return False
+    d = battle[i]
+    slot = d.view.active_index[d.side]
+    for later in battle[i + 1 :]:
+        if later.side != d.side:
+            continue
+        if later.kind == "replacement" or later.view.active_index[d.side] != slot:
+            return True
+        if _landed_hit(later):
+            return False
+    return d.winner != d.side  # the battle ended with it still in, unused
+
+
+def _boost_into_phazer(battle: list[Decision], i: int) -> bool:
+    """A boost in front of a foe that can force it out (Whirlwind, Dragon Tail): seen, revealed."""
+    if not _boost(battle, i):
+        return False
+    d = battle[i]
+    foe = d.view.active(1 - d.side)
+    return any(
+        e.kind == "ForceSwitch"
+        for move_id in foe.move_ids
+        if move_id != _engine.NO_MOVE
+        for e in _engine.move_entry(move_id).effects
+    )
+
+
+def _boost_into_ko(battle: list[Decision], i: int) -> bool:
+    """A boost while the foe's strongest hit, as estimated, knocks the booster out."""
+    if not _boost(battle, i):
+        return False
+    d = battle[i]
+    active, foe = d.view.active(d.side), d.view.active(1 - d.side)
+    return estimate.strongest_hit(foe, active) >= active.current_hp
+
+
+def _destiny_bond_trade(battle: list[Decision], i: int) -> bool:
+    """The bot's Pokemon knocked the foe out and fell to its Destiny Bond.
+
+    The event names the side of the Pokemon taken down, not of the one that bound it.
+    """
+    d = battle[i]
+    return d.kind == "action" and any(
+        e.kind == EventKind.DESTINY_BOND_TRIGGERED and e.side == d.side for e in d.events
+    )
+
+
+def _ko_missed(battle: list[Decision], i: int) -> bool:
+    """The bot moves first, a move's smallest damage knocks the foe out, and it plays another."""
+    d = battle[i]
+    if d.kind != "action":
+        return False
+    active, foe = d.view.active(d.side), d.view.active(1 - d.side)
+    if estimate.effective_speed(active) <= estimate.effective_speed(foe):
+        return False
+    moves = [a for a in d.legal if isinstance(a, _engine.Action) and a.kind == _engine.ACTION_MOVE]
+    knock_outs = [
+        a for a in moves if _engine.expected_damage(d.view, d.side, a.index).min >= foe.current_hp
+    ]
+    return bool(knock_outs) and d.choice not in knock_outs
+
+
+STATUS = 2  # a move's category: physical 0, special 1, status 2
+STRATEGIC: dict[str, Callable[[list[Decision], int], bool]] = {
+    "boost": _boost,  # not a mistake: what the three next ones are a share of
+    "boost-wasted": _boost_wasted,
+    "boost-into-phazer": _boost_into_phazer,
+    "boost-into-ko": _boost_into_ko,
+    "destiny-bond-trade": _destiny_bond_trade,
+    "ko-missed": _ko_missed,
+}
+
+
 def _no_battles() -> dict[Outcome, int]:
     return {"win": 0, "draw": 0, "loss": 0}
 
@@ -117,7 +228,7 @@ class AuditResult:
 
 def audit(make_a: BotFactory, make_b: BotFactory, *, seeds: Iterable[int]) -> AuditResult:
     """Runs every check on bot A's decisions over the pairs of these seeds."""
-    result = AuditResult(checks={name: CheckCount() for name in CHECKS})
+    result = AuditResult(checks={name: CheckCount() for name in [*CHECKS, *STRATEGIC]})
     battle: list[Decision] = []
     for d in decisions(make_a, make_b, seeds=seeds):
         if battle and (d.seed, d.a_side) != (battle[0].seed, battle[0].a_side):
@@ -130,12 +241,34 @@ def audit(make_a: BotFactory, make_b: BotFactory, *, seeds: Iterable[int]) -> Au
 
 
 def _tally(result: AuditResult, battle: list[Decision]) -> None:
-    mine = [d for d in battle if d.by_a]
+    mine = [i for i, d in enumerate(battle) if d.by_a]
     outcome = outcome_of(battle[0].winner, battle[0].a_side)
     result.decisions += len(mine)
     result.battles[outcome] += 1
-    for name, check in CHECKS.items():
-        found = sum(1 for d in mine if check(d))
-        result.checks[name].occurrences += found
-        if found:
+    found = {name: sum(1 for i in mine if check(battle[i])) for name, check in CHECKS.items()}
+    found |= {name: sum(1 for i in mine if check(battle, i)) for name, check in STRATEGIC.items()}
+    for name, count in found.items():
+        result.checks[name].occurrences += count
+        if count:
             result.checks[name].battles[outcome] += 1
+
+
+def audit_block(bot_a: str, bot_b: str, seeds: range) -> AuditResult:
+    """One block of pairs, by the bots' names: a process of its own when spread over the cores."""
+    return audit(factory(bot_a), factory(bot_b), seeds=seeds)
+
+
+def audit_on_cores(
+    bot_a: str, bot_b: str, seeds: range, jobs: int, progress: parallel.Progress | None = None
+) -> AuditResult:
+    """`audit` over these seeds, spread over `jobs` processes: the same counts, faster."""
+    total = AuditResult(checks={name: CheckCount() for name in [*CHECKS, *STRATEGIC]})
+    for part in parallel.run(audit_block, bot_a, bot_b, seeds, jobs, progress):
+        total.decisions += part.decisions
+        for outcome, n in part.battles.items():
+            total.battles[outcome] += n
+        for name, count in part.checks.items():
+            total.checks[name].occurrences += count.occurrences
+            for outcome, n in count.battles.items():
+                total.checks[name].battles[outcome] += n
+    return total

@@ -6,7 +6,7 @@ from trainerlab import _engine
 from trainerlab._engine import Action
 from trainerlab.bots.roster import BOTS
 from trainerlab.commands.audit import main
-from trainerlab.experiments.audit import CHECKS, audit
+from trainerlab.experiments.audit import CHECKS, STRATEGIC, audit
 from trainerlab.game.decisions import Decision, decisions
 from trainerlab.game.environment import BattleEnvironment
 
@@ -129,7 +129,7 @@ def test_audit_counts_each_check_by_outcome() -> None:
     fixed = result.checks["fixed-damage-ko-missed"]
     assert fixed.occurrences >= 1
     assert fixed.battles["loss"] >= 1  # 20042-0 is a loss
-    assert set(result.checks) == set(CHECKS)
+    assert set(result.checks) == set(CHECKS) | set(STRATEGIC)
 
 
 def test_the_report_gives_a_rate_and_the_share_of_won_and_lost_battles() -> None:
@@ -143,7 +143,10 @@ def test_the_report_gives_a_rate_and_the_share_of_won_and_lost_battles() -> None
         "decisions by survivor."
     )
     assert lines[2].split() == ["check", "per", "1000", "decisions", "in", "lost", "in", "won"]
-    assert {line.split()[0] for line in lines[3:]} == set(CHECKS)
+    rows = _table(lines)
+    assert [line.split()[0] for line in rows] == [*CHECKS, *STRATEGIC]
+    assert lines[3 + len(CHECKS)] == "strategic"
+    assert lines[-1].startswith("of the ") and "boosts: wasted " in lines[-1]
     result = audit(BOTS["survivor"], BOTS["matcher"], seeds=range(20042, 20044))
     fixed = next(line for line in lines if line.startswith("fixed-damage-ko-missed"))
     rate = 1000 * result.checks["fixed-damage-ko-missed"].occurrences / result.decisions
@@ -154,7 +157,15 @@ def test_a_share_is_left_blank_when_there_is_no_battle_to_divide_by() -> None:
     out: list[str] = []
     assert main(["hitter", "random", "--pairs", "1"], write=out.append) == 0
     # Rule 1 never loses these two battles: the "in lost" column has nothing to divide by.
-    assert all(line.split()[-2] == "-" for line in "".join(out).splitlines()[3:])
+    assert all(line.split()[-2] == "-" for line in _table("".join(out).splitlines()))
+    assert "".join(out).splitlines()[-1] == (
+        "of the 0 boosts: wasted -, into-phazer -, into-ko -"
+    )  # hitter never boosts
+
+
+def _table(lines: list[str]) -> list[str]:
+    """The rows of the report's table: one per check."""
+    return [line for line in lines[3:] if line and line != "strategic" and " boosts:" not in line]
 
 
 def test_by_default_the_report_goes_to_the_terminal(capsys: pytest.CaptureFixture[str]) -> None:
