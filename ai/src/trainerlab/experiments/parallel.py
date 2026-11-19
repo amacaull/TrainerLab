@@ -15,7 +15,9 @@ from typing import TypeVar
 
 T = TypeVar("T")
 Work = Callable[[str, str, range], T]  # bot A's name, bot B's name, the seeds of the block
-BLOCK = 25  # pairs per block: small enough for a steady progress line and a fair share of work
+# Pairs per block: the progress line moves after each one, so small. A block loads its bots again,
+# about a second for a network: little beside the minutes a block of slow bots takes.
+BLOCK = 5
 
 
 def cores() -> int:
@@ -36,27 +38,50 @@ def blocks(seeds: range, count: int) -> list[range]:
 
 
 class Progress:
-    """One line, rewritten in place: pairs played, share done, and the time left at this pace."""
+    """One line, rewritten in place: a bar, pairs played, share done, the time left at this pace.
+
+    In colour (on a terminal), the bar is drawn in green blocks; elsewhere in plain characters.
+    """
+
+    WIDTH = 20  # characters of the bar
 
     def __init__(
         self,
         total: int,
         write: Callable[[str], object] = sys.stderr.write,
         clock: Callable[[], float] = time.monotonic,
+        *,
+        colour: bool = False,
     ) -> None:
         self._total, self._write, self._clock = total, write, clock
+        self.colour = colour
         self._start = clock()
-        self._width = 0  # the longest line so far: a shorter one must cover all of it
+        self._width = 0  # the longest line so far, as seen: a shorter one must cover all of it
 
     def update(self, done: int) -> None:
-        left = (self._clock() - self._start) / done * (self._total - done)
         share = 100 * done // self._total
-        line = f"{done}/{self._total} pairs ({share} %), about {_duration(left)} left"
-        self._width = max(self._width, len(line))
-        self._write("\r" + line.ljust(self._width))
+        if done:
+            left = (self._clock() - self._start) / done * (self._total - done)
+            when = f"about {_duration(left)} left"
+        else:
+            when = "estimating the time left"
+        text = f" {done}/{self._total} pairs ({share} %), {when}"
+        filled = self.WIDTH * done // self._total
+        seen = 2 + self.WIDTH + len(text)
+        self._width = max(self._width, seen)
+        self._write("\r[" + self._bar(filled) + "]" + text + " " * (self._width - seen))
+
+    def _bar(self, filled: int) -> str:
+        empty = self.WIDTH - filled
+        if not self.colour:
+            return "#" * filled + "." * empty
+        return f"{GREEN}{'█' * filled}{RESET}{DIM}{'░' * empty}{RESET}"
 
     def finish(self) -> None:
         self._write("\r" + " " * self._width + "\r")
+
+
+GREEN, DIM, RESET = "\x1b[32m", "\x1b[2m", "\x1b[0m"
 
 
 def _duration(seconds: float) -> str:
@@ -66,7 +91,7 @@ def _duration(seconds: float) -> str:
 
 def progress_on_terminal(total: int) -> Progress | None:
     """A progress line when someone watches the terminal, none in a pipe or a log file."""
-    return Progress(total) if sys.stderr.isatty() else None
+    return Progress(total, colour=True) if sys.stderr.isatty() else None
 
 
 def run(
@@ -81,6 +106,9 @@ def run(
     parts = blocks(seeds, -(-len(seeds) // BLOCK))
     results: dict[int, T] = {}
     done = 0
+
+    if progress is not None:
+        progress.update(0)  # at once: the first block may take minutes
 
     def record(index: int, result: T) -> None:
         nonlocal done
