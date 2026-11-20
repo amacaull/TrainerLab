@@ -6,8 +6,8 @@ from trainerlab import _engine, _search
 from trainerlab.bots.roster import ALPHAZERO, RULE12, SELFPLAY, factory
 from trainerlab.experiments import judge
 from trainerlab.game.environment import BattleEnvironment, random_team_pair
-from trainerlab.rl.net import PolicyValueNet
-from trainerlab.rl.planner import Planner, cpp_network
+from trainerlab.rl.net import PolicyValueNet, Shape
+from trainerlab.rl.planner import Planner, cpp_network, to_cpp
 
 
 def test_the_cpp_network_gives_what_pytorch_gives() -> None:
@@ -31,6 +31,28 @@ def test_the_cpp_network_gives_what_pytorch_gives() -> None:
             assert (logits[~legal] == expected[0].numpy()[~legal]).all()  # masked alike
             assert abs(value - float(expected_value)) < 1e-4
             assert int(np.argmax(logits)) == int(expected[0].argmax())
+
+
+def test_the_cpp_attention_network_gives_what_pytorch_gives() -> None:
+    torch.manual_seed(5)
+    net = PolicyValueNet(Shape(**{**Shape.for_catalog().__dict__, "layers": 2})).eval()
+    cpp = to_cpp(net)
+    for state in _search.openings(16):
+        for side in (0, 1):
+            view = _engine.observe(state, side)
+            mask = _search.action_mask(_engine.legal_actions(state, side))
+            logits, value = cpp.evaluate(view, side, mask)
+            pokemon, ids, field = _search.encode(view, side)
+            with torch.no_grad():
+                expected, expected_value = net(
+                    torch.from_numpy(pokemon)[None],
+                    torch.from_numpy(ids).long()[None],
+                    torch.from_numpy(field)[None],
+                    torch.from_numpy(mask)[None],
+                )
+            legal = mask == 1
+            assert np.allclose(logits[legal], expected[0].numpy()[legal], atol=1e-4)
+            assert abs(value - float(expected_value)) < 1e-4
 
 
 def test_the_planner_plays_a_legal_option_and_its_seed_fixes_its_decisions() -> None:

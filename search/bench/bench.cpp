@@ -288,6 +288,34 @@ int main(int argc, char **argv) {
                  search::selfPlay(game, network, settings, cores * 16, ++seed, cores).rows());
            }));
     }
+    // Palier 10: the same with 2 layers of attention over the Pokemon and the field.
+    const search::Network attention = search::testing::randomNetwork(game, 2);
+    std::vector<search::Network::Query> batch(16);
+    std::vector<search::Network::Output> outputs(batch.size());
+    line("attention network evaluation, batches of 16", "positions", rate(seconds, [&] {
+           for (auto &query : batch) {
+             const engine::BattleState &v = view();
+             query = {&v, 0, masks[next].data()};
+           }
+           attention.evaluate(batch, outputs.data());
+           return 16L;
+         }));
+    const search::Planner attentive(game, attention);
+    line("attention planner decision, 200 simulations", "decisions", rate(seconds, [&] {
+           const engine::BattleState &v = view();
+           const auto legal = rules.legalActions(positions[next], 0);
+           return static_cast<long>(attentive.chooseAction(v, 0, legal, ++seed) >= 0);
+         }));
+    search::SelfPlaySettings settings; // as the lines of 8.3
+    settings.planner.simulations = 200;
+    settings.fast = 0;
+    settings.maxTurns = 10;
+    const std::string selfPlay =
+        "attention self-play, " + std::to_string(cores) + " threads, 16 lanes";
+    line(selfPlay.c_str(), "decisions", rate(seconds, [&] {
+           return static_cast<long>(
+               search::selfPlay(game, attention, settings, cores * 16, ++seed, cores).rows());
+         }));
   }
   products(seconds / 4);
   return 0;

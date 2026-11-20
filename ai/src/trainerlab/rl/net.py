@@ -9,9 +9,14 @@ trunk then reads both actives, the mean of each team and the field. Two heads co
   options are masked out;
 - the value, the expected result for the side to play, between -1 (a loss) and 1 (a win).
 
+With `layers` (palier 10), the twelve Pokemon and the field then go through that many layers of
+attention before the trunk: each Pokemon reads the others (who threatens whom, who could come in),
+and the trunk and the switches read what they made of each other.
+
 Needs PyTorch: pip install -e "ai/.[rl]".
 """
 
+import math
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -25,6 +30,8 @@ from trainerlab.learning.encoding import ACTIONS, field_names, pokemon_names
 MOVES = 4
 TEAM = 6
 MASKED = -1e9  # the logit of an illegal option
+HEADS = 4  # of each layer of attention
+TOKENS = 2 * TEAM + 1  # the twelve Pokemon and the field
 
 
 @dataclass(frozen=True)
@@ -40,6 +47,8 @@ class Shape:
     embedding: int = 16
     hidden: int = 128
     trunk: int = 256
+    layers: int = 0  # of attention over the Pokemon and the field (palier 10)
+    feedforward: int = 256  # each layer's
 
     @classmethod
     def for_catalog(cls) -> "Shape":
@@ -52,6 +61,30 @@ class Shape:
             items=_engine.item_count(),
             moves=_engine.move_count(),
         )
+
+
+class Attention(nn.Module):
+    """One layer of attention over the tokens, as in a transformer (normalised first): each token
+    adds what it reads from all of them, then what a small network makes of it."""
+
+    def __init__(self, width: int, feedforward: int) -> None:
+        super().__init__()
+        self.norm1 = nn.LayerNorm(width)
+        self.qkv = nn.Linear(width, 3 * width)
+        self.out = nn.Linear(width, width)
+        self.norm2 = nn.LayerNorm(width)
+        self.ffn = nn.Sequential(
+            nn.Linear(width, feedforward), nn.ReLU(), nn.Linear(feedforward, width)
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        b, t, w = x.shape
+        d = w // HEADS
+        q, k, v = self.qkv(self.norm1(x)).view(b, t, 3, HEADS, d).permute(2, 0, 3, 1, 4)
+        weights = torch.softmax(q @ k.transpose(-1, -2) / math.sqrt(d), dim=-1)
+        x = x + self.out((weights @ v).transpose(1, 2).reshape(b, t, w))
+        out: torch.Tensor = x + self.ffn(self.norm2(x))
+        return out
 
 
 class PolicyValueNet(nn.Module):
@@ -67,8 +100,16 @@ class PolicyValueNet(nn.Module):
         self.pokemon = nn.Sequential(
             nn.Linear(shape.pokemon + 7 * e, h), nn.ReLU(), nn.Linear(h, h), nn.ReLU()
         )
+        if shape.layers:
+            self.field_token = nn.Linear(shape.field, h)
+            self.slots = nn.Parameter(torch.randn(TOKENS, h) * 0.02)  # which place, which side
+            self.attention = nn.ModuleList(
+                [Attention(h, shape.feedforward) for _ in range(shape.layers)]
+            )
+            self.norm = nn.LayerNorm(h)
+        field_width = h if shape.layers else shape.field
         self.trunk = nn.Sequential(
-            nn.Linear(4 * h + shape.field, shape.trunk),
+            nn.Linear(4 * h + field_width, shape.trunk),
             nn.ReLU(),
             nn.Linear(shape.trunk, shape.trunk),
             nn.ReLU(),
@@ -84,10 +125,16 @@ class PolicyValueNet(nn.Module):
         self.switch = nn.Sequential(nn.Linear(shape.trunk + h, h), nn.ReLU(), nn.Linear(h, 1))
         self.value = nn.Linear(shape.trunk, 1)
 
-    def forward(
-        self, pokemon: torch.Tensor, ids: torch.Tensor, field: torch.Tensor, mask: torch.Tensor
+    def pokemon_tokens(
+        self, pokemon: torch.Tensor, ids: torch.Tensor, field: torch.Tensor
+    ) -> torch.Tensor:
+        """What the network makes of each Pokemon, after attention if any: B x 12 x H."""
+        return self._read(pokemon, ids, field)[0]
+
+    def _read(
+        self, pokemon: torch.Tensor, ids: torch.Tensor, field: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """pokemon[B, 12, P], ids[B, 12, 7], field[B, F], mask[B, 10] -> logits[B, 10], value[B]."""
+        """Each Pokemon (B x 12 x H) and the field (B x F, or B x H after attention)."""
         embedded = torch.cat(
             [
                 self.species(ids[..., 0]),
@@ -97,7 +144,20 @@ class PolicyValueNet(nn.Module):
             ],
             dim=-1,
         )
-        each = self.pokemon(torch.cat([pokemon, embedded], dim=-1))  # B x 12 x H
+        each: torch.Tensor = self.pokemon(torch.cat([pokemon, embedded], dim=-1))
+        if not self.shape.layers:
+            return each, field
+        tokens = torch.cat([each, self.field_token(field).unsqueeze(1)], dim=1) + self.slots
+        for layer in self.attention:
+            tokens = layer(tokens)
+        tokens = self.norm(tokens)
+        return tokens[:, : 2 * TEAM], tokens[:, 2 * TEAM]
+
+    def forward(
+        self, pokemon: torch.Tensor, ids: torch.Tensor, field: torch.Tensor, mask: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """pokemon[B, 12, P], ids[B, 12, 7], field[B, F], mask[B, 10] -> logits[B, 10], value[B]."""
+        each, field_part = self._read(pokemon, ids, field)
         active = pokemon[..., self._active].unsqueeze(-1)
         present = pokemon[..., self._present].unsqueeze(-1)
         mine, theirs = slice(0, TEAM), slice(TEAM, 2 * TEAM)
@@ -114,7 +174,7 @@ class PolicyValueNet(nn.Module):
                     (each[:, theirs] * active[:, theirs]).sum(1),
                     side_mean(mine),
                     side_mean(theirs),
-                    field,
+                    field_part,
                 ],
                 dim=-1,
             )
