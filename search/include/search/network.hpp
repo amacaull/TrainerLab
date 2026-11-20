@@ -65,6 +65,18 @@ private:
     // y = x times the weights, plus the bias, then max(., 0) if relu; x rows are `in` apart.
     void apply(const float *x, int rows, float *y, bool relu) const;
   };
+  // PyTorch's LayerNorm over the last `width` floats of each row (eps 1e-5).
+  struct Norm {
+    std::vector<float> weight, bias;
+    void apply(const float *x, int rows, float *y) const;
+  };
+  // Palier 10: one layer of attention, normalised first (trainerlab.rl.net.Attention).
+  struct Layer {
+    Norm norm1, norm2;
+    Linear qkv, out, ffn1, ffn2;
+  };
+  void attend(const float *each, const float *field, int b, float *tokens) const;
+
   struct Embedding {
     int dim = 0;
     std::vector<float> table;
@@ -80,5 +92,10 @@ private:
   // What the Pokemon network makes of a foe not seen yet, and of an empty place: always the same
   // input, computed once.
   std::vector<float> unseen_, empty_;
+  // Palier 10: the layers of attention over the 12 Pokemon and the field, if any.
+  std::vector<Layer> attention_;
+  Linear fieldToken_;
+  std::vector<float> slots_; // 13 x hidden
+  Norm norm_;
 };
 } // namespace search

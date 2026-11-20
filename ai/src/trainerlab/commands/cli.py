@@ -19,6 +19,7 @@ from trainerlab.commands import (
     audit,
     bench,
     dataset,
+    distill,
     duel,
     imitate,
     judge,
@@ -72,6 +73,7 @@ COMMANDS: dict[str, Command] = {
     "selfplay": Command("improve the network by self-play", lambda a, _: selfplay.main(a)),
     "teams": Command("measure how much a team's composition decides", lambda a, _: teams.main(a)),
     "alphazero": Command("improve the network with its own search", lambda a, _: alphazero.main(a)),
+    "distill": Command("teach a network with attention a search", lambda a, _: distill.main(a)),
 }
 
 
@@ -87,6 +89,7 @@ MODES = [
         "pretrain",
         "selfplay",
         "alphazero",
+        "distill",
         "teams",
         "judge",
         "verify",

@@ -135,6 +135,36 @@ TEST_CASE("the planner's analysis gives each option its visits and its mean valu
     CHECK((mask[a] == 1.0f ? judged.visits[a] >= 20 : judged.visits[a] == 0));
 }
 
+TEST_CASE("an attention network masks, values within -1 and 1, the same alone and in a batch") {
+  const search::Network net = search::testing::randomNetwork(game(), 2);
+  const std::vector<engine::BattleState> states = search::openings(game(), 5);
+  std::vector<engine::BattleState> views;
+  std::vector<std::vector<float>> masks;
+  std::vector<search::Network::Query> queries;
+  for (const engine::BattleState &state : states) {
+    views.push_back(engine::observe(state, 0));
+    std::vector<float> mask(search::Encoding::kActions);
+    search::Encoding::mask(game().rules().legalActions(state, 0), mask.data());
+    masks.push_back(mask);
+  }
+  for (size_t i = 0; i < states.size(); ++i)
+    queries.push_back({&views[i], 0, masks[i].data()});
+  std::vector<search::Network::Output> batch(queries.size());
+  net.evaluate(queries, batch.data());
+  using Catch::Matchers::WithinAbs;
+  for (size_t i = 0; i < queries.size(); ++i) {
+    const auto alone = net.evaluate(views[i], 0, masks[i].data());
+    CHECK(std::abs(alone.value) < 1.0f);
+    for (size_t a = 0; a < alone.logits.size(); ++a) {
+      CHECK((masks[i][a] == 1.0f) == (alone.logits[a] > -1e8f));
+      CHECK_THAT(alone.logits[a], WithinAbs(batch[i].logits[a], 1e-5));
+    }
+  }
+  const search::Planner planner(game(), net, {40, 2, 1.5, 0.0});
+  const auto legal = game().rules().legalActions(states[0], 0);
+  CHECK(static_cast<size_t>(planner.chooseAction(views[0], 0, legal, 3)) < legal.size());
+}
+
 TEST_CASE("the network's kernel multiplies rows by a matrix, as the plain sums do") {
   // 7 rows of 5 inputs, `stride` 6 apart, times a 5 x 19 matrix: blocks of outputs and a tail.
   const int rows = 7, stride = 6, in = 5, out = 19;

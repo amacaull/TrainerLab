@@ -11,7 +11,8 @@
 #include <vector>
 
 namespace search::testing {
-inline Network randomNetwork(const Game &game) {
+// `layers` of attention (palier 10) over the 12 Pokemon and the field, if any.
+inline Network randomNetwork(const Game &game, int layers = 0) {
   const auto &e = game.encoding();
   const int p = static_cast<int>(e.pokemonNames().size());
   const int f = static_cast<int>(e.fieldNames().size());
@@ -41,13 +42,31 @@ inline Network randomNetwork(const Game &game) {
   tensor("move.weight", {data.moveCount() + 1, emb});
   linear("pokemon.0", p + 7 * emb, hidden);
   linear("pokemon.2", hidden, hidden);
-  linear("trunk.0", 4 * hidden + f, trunk);
+  linear("trunk.0", 4 * hidden + (layers ? hidden : f), trunk);
   linear("trunk.2", trunk, trunk);
   linear("moves.0", trunk + emb + moveWidth, hidden);
   linear("moves.2", hidden, 1);
   linear("switch.0", trunk + hidden, hidden);
   linear("switch.2", hidden, 1);
   linear("value", trunk, 1);
+  auto norm = [&](const std::string &name) {
+    w[name + ".weight"] = {{hidden}, std::vector<float>(static_cast<size_t>(hidden), 1.0f)};
+    tensor(name + ".bias", {hidden});
+  };
+  for (int i = 0; i < layers; ++i) {
+    const std::string at = "attention." + std::to_string(i) + ".";
+    norm(at + "norm1");
+    norm(at + "norm2");
+    linear(at + "qkv", hidden, 3 * hidden);
+    linear(at + "out", hidden, hidden);
+    linear(at + "ffn.0", hidden, 256);
+    linear(at + "ffn.2", 256, hidden);
+  }
+  if (layers) {
+    linear("field_token", f, hidden);
+    tensor("slots", {13, hidden});
+    norm("norm");
+  }
   return Network(e, w);
 }
 } // namespace search::testing

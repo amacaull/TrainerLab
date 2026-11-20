@@ -65,3 +65,39 @@ def test_the_switches_read_the_pokemon_they_would_send_in() -> None:
     assert after[0, 8] == pytest.approx(float(before[0, 9]), abs=1e-5)
     assert after[0, 9] == pytest.approx(float(before[0, 8]), abs=1e-5)
     assert np.allclose(after[0, :4].numpy(), before[0, :4].numpy(), atol=1e-5)
+
+
+def test_an_attention_network_plays_saves_and_loads_its_layers(tmp_path: Path) -> None:
+    # Palier 10: 2 layers of attention over the 12 Pokemon and the field.
+    torch.manual_seed(3)
+    shape = Shape(**{**Shape.for_catalog().__dict__, "layers": 2})
+    net = PolicyValueNet(shape).eval()
+    pokemon, ids, field, mask = _batch()
+
+    with torch.no_grad():
+        logits, value = net(pokemon, ids, field, mask)
+    assert logits.shape == (6, ACTIONS) and ((value > -1) & (value < 1)).all()
+    assert (logits[mask == 0] == MASKED).all()
+    assert len(net.attention) == 2
+    plain = PolicyValueNet(Shape.for_catalog())
+    assert sum(p.numel() for p in net.parameters()) > sum(p.numel() for p in plain.parameters())
+
+    net.save(tmp_path / "attention.pt")
+    loaded = PolicyValueNet.load(tmp_path / "attention.pt")
+    assert loaded.shape.layers == 2
+    with torch.no_grad():
+        assert torch.equal(loaded(pokemon, ids, field, mask)[0], logits)
+
+
+def test_in_an_attention_network_a_pokemon_reads_the_foes_team() -> None:
+    # A foe's benched Pokemon changed: what the network makes of my own bench changes with it.
+    torch.manual_seed(4)
+    net = PolicyValueNet(Shape(**{**Shape.for_catalog().__dict__, "layers": 1})).eval()
+    pokemon, ids, field, mask = (t[:1].clone() for t in _batch())
+    other = ids.clone()
+    other[0, 10, 0] = (other[0, 10, 0] % 40) + 1  # another species on the foe's bench
+
+    with torch.no_grad():
+        mine = net.pokemon_tokens(pokemon, ids, field)[0, 3]
+        after = net.pokemon_tokens(pokemon, other, field)[0, 3]
+    assert not torch.allclose(mine, after)

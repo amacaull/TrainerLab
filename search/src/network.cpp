@@ -65,6 +65,47 @@ Vec fused(Vec acc, Vec w, float x) {
 #endif
 }
 
+// acc + a * b, lane by lane.
+Vec fusedVec(Vec acc, Vec a, Vec b) {
+#if defined(__aarch64__)
+  return vfmaq_f32(acc, a, b);
+#else
+  return acc + a * b;
+#endif
+}
+
+Vec splat(float x) { return Vec{x, x, x, x}; }
+void store(float *p, Vec v) { std::memcpy(p, &v, sizeof v); }
+float sum(Vec v) { return (v[0] + v[1]) + (v[2] + v[3]); }
+
+typedef int32_t IVec __attribute__((vector_size(16)));
+
+// e^x lane by lane, for x <= 0 (a softmax's scores less their maximum): x = n ln 2 + r, e^r by
+// its Taylor polynomial to degree 7 on [0, ln 2), 2^n in the exponent bits. Relative error under
+// 1e-6, well within what the network's floats carry.
+Vec expNonPositive(Vec x) {
+  x = x < -87.0f ? splat(-87.0f) : x;
+  const Vec t = x * 1.44269504f; // x / ln 2
+  IVec n = __builtin_convertvector(t, IVec);
+  n += __builtin_convertvector(t, IVec) > 0
+           ? IVec{}
+           : (__builtin_convertvector(n, Vec) > t ? IVec{-1, -1, -1, -1} : IVec{});
+  const Vec nf = __builtin_convertvector(n, Vec);
+  const Vec r = (x - nf * 0.693145752f) - nf * 1.42860677e-6f; // ln 2 in two parts
+  Vec p = splat(1.0f / 5040.0f);
+  p = p * r + 1.0f / 720.0f;
+  p = p * r + 1.0f / 120.0f;
+  p = p * r + 1.0f / 24.0f;
+  p = p * r + 1.0f / 6.0f;
+  p = p * r + 0.5f;
+  p = p * r + 1.0f;
+  p = p * r + 1.0f;
+  const IVec bits = (n + 127) << 23;
+  Vec scale;
+  std::memcpy(&scale, &bits, sizeof scale);
+  return p * scale;
+}
+
 // The running sums kept in registers: 4 rows times 16 outputs on ARM (32 vector registers), times
 // 8 elsewhere (16). The blocks only decide which sums are kept together: each output still sums
 // its inputs in order, one by one.
@@ -165,13 +206,134 @@ void Network::Linear::partial(const float *x, int rowCount, int stride, int from
 
 void Network::Linear::apply(const float *x, int rowCount, float *y, bool relu) const {
   partial(x, rowCount, in, 0, in, y);
-  for (int r = 0; r < rowCount; ++r)
-    for (int o = 0; o < out; ++o) {
-      float &v = y[at(r) * at(out) + at(o)];
+  const int vectors = out / kLanes * kLanes;
+  for (int r = 0; r < rowCount; ++r) {
+    float *row = y + at(r) * at(out);
+    for (int o = 0; o < vectors; o += kLanes) {
+      Vec v = load(row + o) + load(bias.data() + o);
+      if (relu)
+        v = v > 0.0f ? v : Vec{};
+      store(row + o, v);
+    }
+    for (int o = vectors; o < out; ++o) {
+      float &v = row[o];
       v += bias[at(o)];
       if (relu)
         v = std::max(v, 0.0f);
     }
+  }
+}
+
+void Network::Norm::apply(const float *x, int rows, float *y) const {
+  const int width = static_cast<int>(weight.size()); // a multiple of 4
+  const float n = static_cast<float>(width);
+  for (int r = 0; r < rows; ++r) {
+    const float *row = x + at(r) * at(width);
+    float *to = y + at(r) * at(width);
+    Vec total{};
+    for (int k = 0; k < width; k += kLanes)
+      total += load(row + k);
+    const float mean = sum(total) / n;
+    const Vec meanv = splat(mean);
+    Vec squares{};
+    for (int k = 0; k < width; k += kLanes) {
+      const Vec c = load(row + k) - meanv;
+      squares = fusedVec(squares, c, c);
+    }
+    const Vec scale = splat(1.0f / std::sqrt(sum(squares) / n + 1e-5f));
+    for (int k = 0; k < width; k += kLanes)
+      store(to + k,
+            (load(row + k) - meanv) * scale * load(weight.data() + k) + load(bias.data() + k));
+  }
+}
+
+namespace {
+constexpr int kHeads = 4;
+constexpr int kTokens = Encoding::kSlots + 1; // the twelve Pokemon and the field
+} // namespace
+
+// The tokens of b positions (b x 13 x hidden): each Pokemon and the field, plus their place, then
+// the layers of attention and the last norm.
+void Network::attend(const float *each, const float *field, int b, float *tokens) const {
+  const int h = pokemon2_.out, rows = b * kTokens, d = h / kHeads, ff = attention_[0].ffn1.out;
+  thread_local std::vector<float> work;
+  work.resize(at(rows) * at(h) * 6 + at(rows) * at(ff) + at(b) * at(h));
+  float *normed = work.data(), *qkv = normed + at(rows) * at(h);
+  float *mixed = qkv + at(rows) * at(3 * h), *projected = mixed + at(rows) * at(h);
+  float *hidden = projected + at(rows) * at(h), *fieldRows = hidden + at(rows) * at(ff);
+
+  fieldToken_.apply(field, b, fieldRows, false);
+  for (int q = 0; q < b; ++q)
+    for (int s = 0; s < kTokens; ++s) {
+      const float *from =
+          s < Encoding::kSlots ? each + at((q * Encoding::kSlots + s) * h) : fieldRows + at(q * h);
+      float *to = tokens + at((q * kTokens + s) * h);
+      for (int k = 0; k < h; ++k)
+        to[k] = from[k] + slots_[at(s * h + k)];
+    }
+  const float scale = 1.0f / std::sqrt(static_cast<float>(d));
+  for (const Layer &layer : attention_) {
+    layer.norm1.apply(tokens, rows, normed);
+    layer.qkv.apply(normed, rows, qkv, false);
+    for (int q = 0; q < b; ++q)
+      for (int head = 0; head < kHeads; ++head) {
+        // This head's keys and values, side by side (rows 3h apart in qkv): 13 x 32 each.
+        constexpr int kDim = 32;
+        float keys[kTokens * kDim], values[kTokens * kDim];
+        for (int j = 0; j < kTokens; ++j) {
+          const float *row = qkv + at((q * kTokens + j) * 3 * h + head * d);
+          std::memcpy(keys + j * kDim, row + h, sizeof(float) * kDim);
+          std::memcpy(values + j * kDim, row + 2 * h, sizeof(float) * kDim);
+        }
+        for (int i = 0; i < kTokens; ++i) {
+          const float *qi = qkv + at((q * kTokens + i) * 3 * h + head * d);
+          Vec query[kDim / kLanes];
+          for (int k = 0; k < kDim / kLanes; ++k)
+            query[k] = load(qi + k * kLanes);
+          alignas(16) float scores[16];
+          float top = -1e30f;
+          for (int j = 0; j < kTokens; ++j) {
+            const float *kj = keys + j * kDim;
+            Vec even{}, odd{};
+            for (int k = 0; k < kDim / kLanes; k += 2) {
+              even = fusedVec(even, query[k], load(kj + k * kLanes));
+              odd = fusedVec(odd, query[k + 1], load(kj + (k + 1) * kLanes));
+            }
+            scores[j] = sum(even + odd) * scale;
+            top = std::max(top, scores[j]);
+          }
+          for (int j = kTokens; j < 16; ++j)
+            scores[j] = -1e30f;
+          float total = 0.0f;
+          for (int k = 0; k < 16; k += kLanes) {
+            const Vec e = expNonPositive(load(scores + k) - splat(top));
+            store(scores + k, e);
+            total += sum(e);
+          }
+          const float inverse = 1.0f / total;
+          Vec mix[kDim / kLanes] = {};
+          for (int j = 0; j < kTokens; ++j) {
+            const Vec w = splat(scores[j] * inverse);
+            const float *vj = values + j * kDim;
+            for (int k = 0; k < kDim / kLanes; ++k)
+              mix[k] = fusedVec(mix[k], w, load(vj + k * kLanes));
+          }
+          float *to = mixed + at((q * kTokens + i) * h + head * d);
+          for (int k = 0; k < kDim / kLanes; ++k)
+            store(to + k * kLanes, mix[k]);
+        }
+      }
+    layer.out.apply(mixed, rows, projected, false);
+    for (int k = 0; k < rows * h; k += kLanes)
+      store(tokens + k, load(tokens + k) + load(projected + k));
+    layer.norm2.apply(tokens, rows, normed);
+    layer.ffn1.apply(normed, rows, hidden, true);
+    layer.ffn2.apply(hidden, rows, projected, false);
+    for (int k = 0; k < rows * h; k += kLanes)
+      store(tokens + k, load(tokens + k) + load(projected + k));
+  }
+  norm_.apply(tokens, rows, normed);
+  std::copy_n(normed, at(rows) * at(h), tokens);
 }
 
 Network::Network(const Encoding &encoding, const std::map<std::string, Tensor> &weights)
@@ -209,6 +371,21 @@ Network::Network(const Encoding &encoding, const std::map<std::string, Tensor> &
   switch1_ = linear("switch.0");
   switch2_ = linear("switch.2");
   value_ = linear("value");
+  auto norm = [&](const std::string &name) {
+    return Norm{find(weights, name + ".weight").values, find(weights, name + ".bias").values};
+  };
+  for (int i = 0; weights.count("attention." + std::to_string(i) + ".qkv.weight"); ++i) {
+    const std::string at_ = "attention." + std::to_string(i) + ".";
+    attention_.push_back({norm(at_ + "norm1"), norm(at_ + "norm2"), linear(at_ + "qkv"),
+                          linear(at_ + "out"), linear(at_ + "ffn.0"), linear(at_ + "ffn.2")});
+  }
+  if (!attention_.empty()) {
+    fieldToken_ = linear("field_token");
+    slots_ = find(weights, "slots").values;
+    norm_ = norm("norm");
+    if (pokemon2_.out != 32 * kHeads || slots_.size() != at(kTokens * pokemon2_.out))
+      throw std::invalid_argument("Network: bad shape for the attention");
+  }
 
   const auto &names = encoding.pokemonNames();
   present_ = column(names, "present");
@@ -325,6 +502,25 @@ void Network::evaluate(std::span<const Query> queries, Output *out) const {
   for (int k = 0; k < knownCount; ++k)
     std::copy_n(second + at(k * hidden), hidden, each + at(known[at(k)] * hidden));
 
+  // Palier 10: the Pokemon and the field read each other; the trunk and the switches then read
+  // what they made of it.
+  const float *fieldPart = field;
+  int fieldWidth = fields;
+  thread_local std::vector<float> attended, attendedField;
+  if (!attention_.empty()) {
+    attended.resize(at(b * kTokens * hidden));
+    attend(each, field, b, attended.data());
+    attendedField.resize(at(b * hidden));
+    for (int q = 0; q < b; ++q) {
+      const float *tokens = attended.data() + at(q * kTokens * hidden);
+      std::copy_n(tokens, Encoding::kSlots * hidden, each + at(q * Encoding::kSlots * hidden));
+      std::copy_n(tokens + at(Encoding::kSlots * hidden), hidden,
+                  attendedField.data() + at(q * hidden));
+    }
+    fieldPart = attendedField.data();
+    fieldWidth = hidden;
+  }
+
   // The trunk: both actives, the mean of each team, the field.
   std::fill_n(trunkIn, b * trunk1_.in, 0.0f);
   for (int q = 0; q < b; ++q) {
@@ -346,7 +542,7 @@ void Network::evaluate(std::span<const Query> queries, Output *out) const {
       for (int k = 0; k < hidden; ++k)
         mean[k] /= std::max(present, 1.0f);
     }
-    std::copy_n(field + at(q * fields), fields, row + 4 * hidden);
+    std::copy_n(fieldPart + at(q * fieldWidth), fieldWidth, row + 4 * hidden);
   }
   trunk1_.apply(trunkIn, b, t1, true);
   trunk2_.apply(t1, b, trunk, true);
