@@ -19,7 +19,6 @@ from trainerlab.game.decisions import Decision
 LOW_HP = 0.25  # at or below, a Pokemon left to fall is a sacrifice rather than a mistake
 HIGH_HP = 0.75  # above, a heal is a heal at high HP
 HEALS = {"Recovery", "Roost", "Rest", "Wish"}
-MOVES = 4
 
 
 def _heals(move: _engine.MoveEntry) -> bool:

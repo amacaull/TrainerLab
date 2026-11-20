@@ -3,6 +3,7 @@
 import math
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -189,3 +190,79 @@ def test_by_default_the_report_goes_to_the_terminal(
     argv = ["hitter", "random", "--pairs", "1", "--from", "30000", "--jobs", "1"]
     assert command.main([*argv, "--out", str(tmp_path / "j.npz")]) == 0
     assert capsys.readouterr().out.startswith("hitter against random, seeds 30000-30000")
+
+
+class _FakeNetwork:
+    """A judge whose analysis is known: it prefers option 2, worth 0.6; every other is 0.2."""
+
+    def judge(self, *args: object) -> tuple[np.ndarray, np.ndarray]:
+        visits = np.zeros(10, dtype=np.int32)
+        visits[2] = 99
+        value = np.full(10, 0.2)
+        value[2] = 0.6
+        return visits, value
+
+
+def _first_choice() -> Decision:
+    return next(
+        d
+        for d in decisions(factory("hitter"), factory("random"), seeds=[30000])
+        if d.by_a
+        and d.kind == "action"
+        and any(isinstance(a, _engine.Action) and a.kind != _engine.ACTION_MOVE for a in d.legal)
+    )
+
+
+def test_a_loss_is_half_the_gap_of_values_and_options_keep_their_numbers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(judge, "_network", lambda path: _FakeNetwork())
+    d = _first_choice()
+    switch = next(
+        a for a in d.legal if isinstance(a, _engine.Action) and a.kind != _engine.ACTION_MOVE
+    )
+    as_switch = judge.judge_decision(Decision(**{**vars(d), "choice": switch}))
+    as_move = judge.judge_decision(Decision(**{**vars(d), "choice": _engine.Action.move(1)}))
+
+    assert as_switch.best == 2 and as_switch.loss == pytest.approx((0.6 - 0.2) / 2)
+    assert as_switch.chosen == 4 + switch.index
+    target = _engine.species_display_name(d.view.pokemon(d.side, switch.index).species_id)
+    assert as_switch.chosen_label == f"switch to {target}"
+    active = d.view.active(d.side)
+    assert as_move.chosen == 1 and as_move.chosen_label == _engine.move_name(active.move_ids[1])
+    assert as_move.best_label == _engine.move_name(active.move_ids[2])
+    played = judge.judge_decision(Decision(**{**vars(d), "choice": _engine.Action.move(2)}))
+    assert played.loss == 0.0  # the judge's own choice loses nothing
+
+
+def test_only_turns_with_two_options_or_more_are_judged(monkeypatch: pytest.MonkeyPatch) -> None:
+    def turn(options: int, kind: str = "action", by_a: bool = True) -> SimpleNamespace:
+        return SimpleNamespace(
+            seed=1, a_side=0, kind=kind, by_a=by_a, legal=tuple(range(options)), turn=options
+        )
+
+    turns = [turn(1), turn(2), turn(3), turn(5, "replacement"), turn(4, by_a=False)]
+    monkeypatch.setattr(judge, "decisions", lambda *args, **kwargs: iter(turns))
+    monkeypatch.setattr(judge, "flagged", lambda battle, i: [])
+    monkeypatch.setattr(judge, "judge_decision", lambda d, situations: d.turn)
+
+    judged: list[object] = list(judge.judge_block("hitter", "random", range(1)))
+    assert judged == [2, 3]
+
+
+def test_a_loss_of_exactly_5_or_10_points_counts_as_an_inaccuracy_or_a_blunder() -> None:
+    s = judge.summarize([_judged(0.05), _judged(0.10), _judged(0.0499)])
+    assert s.inaccuracies == pytest.approx(2 / 3) and s.blunders == pytest.approx(1 / 3)
+
+
+def test_the_verdicts_hold_at_their_exact_thresholds() -> None:
+    half = [_judged(0.05, situations=("boost",))] * 15 + [_judged(0.0, situations=("boost",))] * 15
+    fifth = [_judged(0.05, situations=("sacrifice",))] * 6 + [
+        _judged(0.0, situations=("sacrifice",))
+    ] * 24
+
+    found = {c.name: c for c in judge.calibrate(half + fifth)}
+
+    assert found["boost"].confirmed == 0.5 and found["boost"].verdict == "mistake"
+    assert found["sacrifice"].confirmed == 0.2 and found["sacrifice"].verdict == "mixed"
+    assert found["ko-missed"].confirmed == 0.0 and math.isnan(found["ko-missed"].mean_loss)

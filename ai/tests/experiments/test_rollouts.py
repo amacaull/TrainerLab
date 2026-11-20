@@ -6,10 +6,13 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from trainerlab import _engine
 from trainerlab.bots.roster import factory
 from trainerlab.commands import verify as command
 from trainerlab.experiments import parallel, rollouts
+from trainerlab.experiments.tournament import Z_95
 from trainerlab.game.decisions import decisions
+from trainerlab.game.environment import BattleEnvironment
 
 
 def _turn(bot_a: str, bot_b: str, seed: int, a_side: int, index: int = 2) -> tuple[int, object]:
@@ -135,3 +138,117 @@ def test_progress_counts_the_blunders_checked(jobs: int) -> None:
     rollouts.verify_all("random", "hitter", [_row(0, 1), _row(1, 0)], 2, jobs, progress)
 
     assert [line.split()[1] for line in shown[:-1]] == ["0/2", "1/2", "2/2"]
+
+
+class _Env:
+    """A battle that records the turn played into it."""
+
+    played: list[tuple[object, object]] = []
+    seeds: list[int] = []
+
+    def __init__(self, seed: int) -> None:
+        _Env.seeds.append(seed)
+
+    def observe(self, side: int) -> int:
+        return side
+
+    def legal_actions(self, side: int) -> list[str]:
+        return [f"legal for {side}"]
+
+    def play_turn(self, action0: object, action1: object) -> None:
+        _Env.played.append((action0, action1))
+
+
+class _Bot:
+    def __init__(self, name: str, seed: int) -> None:
+        self.name, self.seed = name, seed
+
+    def choose_action(self, side: int, view: object, legal: list[str]) -> str:
+        return f"{self.name}'s choice on side {side}"
+
+
+@pytest.fixture
+def fake_battle(monkeypatch: pytest.MonkeyPatch) -> list[tuple[object, object]]:
+    """Rollouts on a fake battle; returns the bots each play_battle got."""
+    _Env.played, _Env.seeds = [], []
+    monkeypatch.setattr(
+        BattleEnvironment, "resume", classmethod(lambda cls, state, seed: _Env(seed))
+    )
+    monkeypatch.setattr(rollouts, "factory", lambda name: lambda seed: _Bot(name, seed))
+    given: list[tuple[object, object]] = []
+    winners = iter([0, 1, None])
+
+    def play(env: object, bot0: object, bot1: object) -> int | None:
+        given.append((bot0, bot1))
+        return next(winners)
+
+    monkeypatch.setattr(rollouts, "play_battle", play)
+    return given
+
+
+def test_bot_a_plays_the_option_forced_on_its_side_and_the_foe_its_own(
+    fake_battle: list[tuple[_Bot, _Bot]],
+) -> None:
+    on_0 = rollouts.rollout("a", "b", None, 0, 6, seed=3)  # type: ignore[arg-type]
+    on_1 = rollouts.rollout("a", "b", None, 1, 2, seed=3)  # type: ignore[arg-type]
+    draw = rollouts.rollout("a", "b", None, 0, 2, seed=4)  # type: ignore[arg-type]
+
+    assert (on_0, on_1, draw) == (1.0, 1.0, 0.5)  # winners 0, then 1, then a draw
+    assert _Env.played[0] == (_engine.Action.switch(2), "b's choice on side 1")
+    assert _Env.played[1] == ("b's choice on side 0", _engine.Action.move(2))
+    (a0, b0), (b1, a1) = fake_battle[0], fake_battle[1]
+    assert (a0.name, b0.name, b1.name, a1.name) == ("a", "b", "b", "a")
+    assert (a0.seed, b0.seed) == (rollouts.SEEDS + 6, rollouts.SEEDS + 7)
+    assert _Env.seeds == [rollouts.SEEDS + 3, rollouts.SEEDS + 3, rollouts.SEEDS + 4]
+
+
+def test_a_loss_is_worth_nothing(fake_battle: list[tuple[_Bot, _Bot]]) -> None:
+    # The first battle's winner is side 0: bot A, on side 1, lost.
+    assert rollouts.rollout("a", "b", None, 1, 0, seed=0) == 0.0  # type: ignore[arg-type]
+
+
+def test_the_gap_is_the_judge_s_option_minus_the_bot_s_game_by_game(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(rollouts, "position", lambda *args, **kwargs: None)
+    # The judge's option (key 1) wins games 0 to 2, the bot's (key 0) only game 0.
+    wins = {(1, 0), (1, 1), (1, 2), (0, 0)}
+    monkeypatch.setattr(
+        rollouts,
+        "rollout",
+        lambda bot_a, bot_b, state, a_side, key, *, seed: float((key, seed) in wins),
+    )
+
+    v = rollouts.verify("a", "b", rollouts.Blunder(1, 0, 5, chosen=0, best=1, loss=0.3), games=4)
+
+    assert v.gap == pytest.approx(0.5)  # differences 0, 1, 1, 0
+    assert (v.low, v.high) == rollouts.interval([0.0, 1.0, 1.0, 0.0])
+    reverse = rollouts.verify("a", "b", rollouts.Blunder(1, 0, 5, 1, 0, 0.3), games=4)
+    assert reverse.gap == pytest.approx(-0.5)
+
+
+def test_one_game_has_no_spread_and_two_have_one() -> None:
+    assert rollouts.interval([0.4]) == (0.4, 0.4)
+    low, high = rollouts.interval([0.0, 1.0])
+    half = Z_95 * math.sqrt(0.5) / math.sqrt(2)  # sd of (0, 1) is sqrt(1/2)
+    assert (low, high) == pytest.approx((0.5 - half, 0.5 + half))
+
+
+def test_options_4_to_9_are_switches_to_team_indices_0_to_5() -> None:
+    assert rollouts._action(3) == _engine.Action.move(3)
+    assert rollouts._action(4) == _engine.Action.switch(0)
+    assert rollouts._action(9) == _engine.Action.switch(5)
+
+
+def test_the_summary_tells_the_three_verdicts_apart() -> None:
+    def checked(gap: float, verdict: str) -> rollouts.Verification:
+        return rollouts.Verification(1, 0, 3, 0, 1, 0.3, gap, 0.0, 0.0, 10, verdict)
+
+    s = rollouts.summarize(
+        [checked(0.2, "confirmed"), checked(-0.1, "refuted"), checked(0.0, "unclear")]
+    )
+
+    assert s.confirmed == pytest.approx(1 / 3) and s.refuted == pytest.approx(1 / 3)
+    assert s.mean_gap == pytest.approx(0.1 / 3) and s.mean_loss == pytest.approx(0.3)
+    empty = rollouts.summarize([])
+    assert (empty.confirmed, empty.refuted) == (0.0, 0.0) and math.isnan(empty.mean_loss)

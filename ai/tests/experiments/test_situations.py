@@ -1,5 +1,7 @@
 """The situations of palier 7.5: what a rule can spot, for the judge to say if it is a mistake."""
 
+import pytest
+
 from trainerlab import _engine
 from trainerlab._engine import Action
 from trainerlab.experiments import situations
@@ -9,21 +11,30 @@ from trainerlab.game.environment import BattleEnvironment
 
 
 def _decision(
-    team: list[str], foe: str, choice: Action, *, hp: float = 1.0, foe_hp: int | None = None
+    team: list[str],
+    foe: str,
+    choice: Action,
+    *,
+    hp: float = 1.0,
+    foe_hp: int | None = None,
+    side: int = 0,
+    exact_hp: int | None = None,
 ) -> Decision:
-    """A turn of side 0, built to order: its first Pokemon at `hp` of its HP against `foe`."""
-    env = BattleEnvironment(team, [foe], seed=1)
-    view = env.observe(0)
-    mine = view.pokemon(0, 0)
-    mine.current_hp = max(1, int(mine.stats.hp * hp))
-    view.set_pokemon(0, 0, mine)
+    """A turn built to order: `side`'s first Pokemon at `hp` of its HP (or `exact_hp`) against
+    `foe`, alone on the other side."""
+    teams = (team, [foe]) if side == 0 else ([foe], team)
+    env = BattleEnvironment(*teams, seed=1)
+    view = env.observe(side)
+    mine = view.pokemon(side, 0)
+    mine.current_hp = exact_hp if exact_hp is not None else max(1, int(mine.stats.hp * hp))
+    view.set_pokemon(side, 0, mine)
     if foe_hp is not None:
-        theirs = view.pokemon(1, 0)
+        theirs = view.pokemon(1 - side, 0)
         theirs.current_hp = foe_hp
-        view.set_pokemon(1, 0, theirs)
-    legal = tuple(env.legal_actions(0))
+        view.set_pokemon(1 - side, 0, theirs)
+    legal = tuple(env.legal_actions(side))
     return Decision(
-        seed=1, a_side=0, side=0, turn=1, kind="action", view=view, legal=legal,
+        seed=1, a_side=side, side=side, turn=1, kind="action", view=view, legal=legal,
         choice=choice, events=(), winner=None,
     )  # fmt: skip
 
@@ -98,9 +109,46 @@ def test_only_status_free_healing_moves_count_as_heals() -> None:
     assert heals(move("SoftBoiled")) and heals(move("Roost")) and heals(move("Rest"))
     assert heals(move("Wish")) and heals(move("Recover"))
     assert not heals(move("DrainPunch")) and not heals(move("Scald"))
+    assert not heals(move("SwordsDance")) and not heals(move("Toxic"))  # status, but no heal
 
 
 def test_a_replacement_after_a_knock_out_is_no_switch_into_anything() -> None:
     turn = _decision(["Blissey", "Corviknight"], "Luxray", Action.switch(1))
     replacement = Decision(**{**vars(turn), "kind": "replacement", "legal": (1,), "choice": 1})
     assert flagged([replacement], 0) == []
+
+
+REST = Action.move(2)  # Snorlax's
+
+
+@pytest.mark.parametrize("side", [0, 1])
+def test_every_situation_reads_the_foe_on_the_other_side(side: int) -> None:
+    def flags(*args: object, **kwargs: object) -> set[str]:
+        return _flags(_decision(*args, side=side, **kwargs))  # type: ignore[arg-type]
+
+    assert "priority-ko-missed" in flags(["Conkeldurr"], "Weavile", DRAIN_PUNCH, foe_hp=10)
+    assert "stayed-facing-ko" in flags(["Snorlax", "Corviknight"], "Conkeldurr", BODY_SLAM, hp=0.4)
+    assert "heal-high-hp-slower" in flags(["Blissey"], "Weavile", SOFT_BOILED, hp=0.9)
+    assert "switch-into-weakness" in flags(["Blissey", "Corviknight"], "Luxray", Action.switch(1))
+
+
+def test_a_foe_as_fast_does_not_move_first() -> None:
+    # Two Blissey: the same speed. A tie is decided by the dice, not "the foe moves first".
+    tie = _decision(["Blissey"], "Blissey", SOFT_BOILED, hp=0.9)
+    assert "heal-high-hp-faster" in _flags(tie) and "heal-high-hp-slower" not in _flags(tie)
+
+
+def test_a_quarter_of_the_hp_is_a_sacrifice_and_three_quarters_no_heal_at_high_hp() -> None:
+    team = ["Snorlax", "Corviknight"]  # Snorlax has 524 HP: a quarter is 131, three quarters 393
+    at_a_quarter = _flags(_decision(team, "Conkeldurr", BODY_SLAM, exact_hp=131))
+    assert "sacrifice" in at_a_quarter and "stayed-facing-ko" not in at_a_quarter
+    above = _flags(_decision(team, "Conkeldurr", BODY_SLAM, exact_hp=132))
+    assert "stayed-facing-ko" in above and "sacrifice" not in above
+    assert "heal-high-hp-slower" not in _flags(_decision(team, "Conkeldurr", REST, exact_hp=393))
+    assert "heal-high-hp-slower" in _flags(_decision(team, "Conkeldurr", REST, exact_hp=394))
+
+
+def test_a_switch_in_front_of_a_foe_that_cannot_hurt_it_is_no_weakness() -> None:
+    # Blissey's moves do no damage the estimate can count (Seismic Toss is fixed damage).
+    d = _decision(["Blissey", "Corviknight"], "Blissey", Action.switch(1))
+    assert "switch-into-weakness" not in _flags(d)

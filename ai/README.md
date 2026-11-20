@@ -22,6 +22,24 @@ trainerlab duel matcher hitter            # rule 3 against rule 1, 500 pairs
 trainerlab bots                           # every bot and what it does
 ```
 
+### Tests
+
+A test is written first and seen failing, then the code. `pytest --cov` requires
+every line and branch to run under a test, but running is not checking: mutation
+testing changes the code one small mutation at a time (a `<` for a `<=`, a `+`
+for a `-`, a constant) and checks that some test fails. A mutant that survives
+is a test to write, or an equivalent mutant that changes nothing observable (a
+tuning constant, a seed, a tolerance). mutmut 2 comes with the `dev` extras: it
+mutates the files in place, which the editable install needs.
+
+```bash
+mutmut run --paths-to-mutate src/trainerlab/experiments/teams.py \
+  --runner "python -m pytest -x -q tests/experiments/test_team_effect.py" --tests-dir tests
+mutmut results                            # the survivors; mutmut show ID for one
+```
+
+[`docs/testing.md`](../docs/testing.md) records what the first runs found.
+
 ## One command
 
 `trainerlab` with no argument opens a menu: the mode (play, duel, watch,
