@@ -9,6 +9,12 @@
 #if defined(__aarch64__)
 #include <arm_neon.h>
 #endif
+#if defined(SEARCH_BLAS) && defined(__APPLE__)
+#define ACCELERATE_NEW_LAPACK
+#include <Accelerate/Accelerate.h>
+#elif defined(SEARCH_BLAS)
+#include <cblas.h>
+#endif
 #include <iterator>
 #include <span>
 #include <stdexcept>
@@ -133,9 +139,28 @@ void multiply(const float *x, int rowCount, int stride, const float *w, int coun
   }
 }
 
+// Palier 8.2: on the M4, Accelerate's matrix product (its matrix unit) is ten times our kernel's,
+// even for one position. Its sums are not ours, in another order: a position may then get numbers
+// a hair different in another batch.
+const char *Network::backend() {
+#if defined(SEARCH_BLAS) && defined(__APPLE__)
+  return "Accelerate";
+#elif defined(SEARCH_BLAS)
+  return "BLAS";
+#else
+  return "kernel";
+#endif
+}
+
 void Network::Linear::partial(const float *x, int rowCount, int stride, int from, int count,
                               float *y) const {
-  multiply(x, rowCount, stride, weight.data() + at(from) * at(out), count, out, y);
+  const float *w = weight.data() + at(from) * at(out);
+#if defined(SEARCH_BLAS)
+  cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, rowCount, out, count, 1.0f, x, stride, w,
+              out, 0.0f, y, out);
+#else
+  multiply(x, rowCount, stride, w, count, out, y);
+#endif
 }
 
 void Network::Linear::apply(const float *x, int rowCount, float *y, bool relu) const {
