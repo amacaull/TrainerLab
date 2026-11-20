@@ -123,3 +123,25 @@ TEST_CASE("the planner's analysis gives each option its visits and its mean valu
   for (size_t a = 0; a < mask.size(); ++a)
     CHECK((mask[a] == 1.0f ? judged.visits[a] >= 20 : judged.visits[a] == 0));
 }
+
+TEST_CASE("the network's kernel multiplies rows by a matrix, as the plain sums do") {
+  // 7 rows of 5 inputs, `stride` 6 apart, times a 5 x 19 matrix: blocks of outputs and a tail.
+  const int rows = 7, stride = 6, in = 5, out = 19;
+  std::vector<float> x(static_cast<size_t>(rows * stride)), w(static_cast<size_t>(in * out));
+  for (size_t i = 0; i < x.size(); ++i)
+    x[i] = static_cast<float>(static_cast<int>(i % 13) - 6) / 7.0f;
+  for (size_t i = 0; i < w.size(); ++i)
+    w[i] = static_cast<float>(static_cast<int>(i % 11) - 5) / 9.0f;
+  std::vector<float> y(static_cast<size_t>(rows * out));
+
+  search::multiply(x.data(), rows, stride, w.data(), in, out, y.data());
+
+  for (int r = 0; r < rows; ++r)
+    for (int o = 0; o < out; ++o) {
+      double sum = 0.0;
+      for (int i = 0; i < in; ++i)
+        sum += static_cast<double>(x[static_cast<size_t>(r * stride + i)]) *
+               w[static_cast<size_t>(i * out + o)];
+      CHECK(std::abs(y[static_cast<size_t>(r * out + o)] - sum) < 1e-5);
+    }
+}

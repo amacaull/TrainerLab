@@ -2,7 +2,7 @@
 // palier 5 is measured against.
 //
 //   search_bench            # about 2 s per line
-//   search_bench 0.2        # seconds per line
+//   search_bench 0.2        # seconds per line (a quarter of it per matrix product line)
 //
 // Every line plays from the same 64 positions as `trainerlab bench` (search::openings): random
 // battles, 3 random turns in. A line reports how many times per second it does its one thing.
@@ -24,6 +24,11 @@
 
 #include "../tests/random_network.hpp"
 
+#if defined(__APPLE__)
+#define ACCELERATE_NEW_LAPACK
+#include <Accelerate/Accelerate.h>
+#endif
+
 namespace {
 using Clock = std::chrono::steady_clock;
 
@@ -43,6 +48,48 @@ double rate(double seconds, const std::function<long()> &step) {
 
 void line(const char *what, const char *unit, double perSecond) {
   std::printf("%-44s %12.0f %s/s\n", what, perSecond, unit);
+}
+
+// Palier 8.1: our kernel against Accelerate's matrix product (the M4's matrix unit), at the sizes
+// of two of the network's layers. Accelerate only pays on large products: these lines say from
+// how many positions per batch, if any, batching across games (8.4) would be worth it.
+void products(double seconds) {
+  struct Layer {
+    const char *name;
+    int rowsPerPosition, in, out;
+  };
+  const Layer layers[] = {{"pokemon layer", 12, 265, 128}, {"trunk layer", 1, 529, 256}};
+  std::printf("\n%-28s %9s %12s %12s\n", "matrix product (GMAC/s)", "positions", "ours",
+              "Accelerate");
+  std::mt19937 dice(1);
+  std::uniform_real_distribution<float> uniform(-1.0f, 1.0f);
+  for (const Layer &layer : layers)
+    for (int positions : {1, 2, 16, 64}) {
+      const int rows = layer.rowsPerPosition * positions;
+      std::vector<float> x(static_cast<size_t>(rows) * static_cast<size_t>(layer.in));
+      std::vector<float> w(static_cast<size_t>(layer.in) * static_cast<size_t>(layer.out));
+      std::vector<float> y(static_cast<size_t>(rows) * static_cast<size_t>(layer.out));
+      for (float &v : x)
+        v = uniform(dice);
+      for (float &v : w)
+        v = uniform(dice);
+      const double macs = double(rows) * layer.in * layer.out;
+      const double ours = rate(seconds, [&] {
+        search::multiply(x.data(), rows, layer.in, w.data(), layer.in, layer.out, y.data());
+        return 1L;
+      });
+      std::printf("%-28s %9d %12.1f", layer.name, positions, ours * macs / 1e9);
+#if defined(__APPLE__)
+      const double theirs = rate(seconds, [&] {
+        cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, rows, layer.out, layer.in, 1.0f,
+                    x.data(), layer.in, w.data(), layer.out, 0.0f, y.data(), layer.out);
+        return 1L;
+      });
+      std::printf(" %12.1f\n", theirs * macs / 1e9);
+#else
+      std::printf(" %12s\n", "-");
+#endif
+    }
 }
 
 // A random playout through the flat API, as Python plays it: each call validates and copies.
@@ -191,5 +238,6 @@ int main(int argc, char **argv) {
            return static_cast<long>(planner.chooseAction(v, 0, legal, ++seed) >= 0);
          }));
   }
+  products(seconds / 4);
   return 0;
 }

@@ -18,7 +18,11 @@ namespace search {
 // It evaluates positions in batches: each layer then reads its weights once for all the rows of
 // the batch (12 Pokemon per position, 4 moves, 6 switches) instead of once per row. Each output
 // still sums its inputs in order, one by one, whatever the batch: a position gets the same
-// numbers alone or in any batch, on any machine.
+// numbers alone or in any batch, on the same machine (the M4 fuses its multiply-adds).
+// y (rows x out, rows `out` apart) = x (rows x in, rows `stride` apart) times w (in x out,
+// row-major): the network's own kernel, also timed by the benchmark against other libraries.
+void multiply(const float *x, int rows, int stride, const float *w, int in, int out, float *y);
+
 class Network {
 public:
   struct Tensor {

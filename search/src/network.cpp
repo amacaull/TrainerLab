@@ -5,6 +5,10 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+
+#if defined(__aarch64__)
+#include <arm_neon.h>
+#endif
 #include <iterator>
 #include <span>
 #include <stdexcept>
@@ -34,14 +38,25 @@ int column(const std::vector<std::string> &names, const std::string &name) {
 } // namespace
 
 namespace {
-// Four floats side by side, one vector register: NEON on the M4, SSE on x86. Its + and * are
-// the floats' own, lane by lane, never fused (-ffp-contract=off): the same numbers everywhere.
+// Four floats side by side, one vector register: NEON on the M4, SSE on x86. On ARM, each step
+// multiplies and adds in one fused instruction (FMA, rounded once): faster, and a hair more
+// precise, so the M4 and x86 no longer give the same numbers bit for bit (palier 8.1). Each
+// machine still gives a position the same numbers alone or in any batch.
 typedef float Vec __attribute__((vector_size(16)));
 constexpr int kLanes = 4;
 Vec load(const float *p) {
   Vec v;
   std::memcpy(&v, p, sizeof v);
   return v;
+}
+
+// acc + w * x, lane by lane: fused on ARM, a multiply then an add elsewhere.
+Vec fused(Vec acc, Vec w, float x) {
+#if defined(__aarch64__)
+  return vfmaq_n_f32(acc, w, x);
+#else
+  return acc + x * w;
+#endif
 }
 
 // The running sums kept in registers: 4 rows times 16 outputs on ARM (32 vector registers), times
@@ -68,7 +83,7 @@ void block(const float *x, int stride, const float *w, int out, int count, float
     for (int r = 0; r < R; ++r) {
       const float xi = x[at(r) * at(stride) + at(i)];
       for (int k = 0; k < kVecs; ++k)
-        acc[r][k] += xi * wv[k];
+        acc[r][k] = fused(acc[r][k], wv[k], xi);
     }
   }
   for (int r = 0; r < R; ++r)
@@ -96,9 +111,8 @@ void rows(const float *x, int stride, const float *w, int out, int count, float 
 }
 } // namespace
 
-void Network::Linear::partial(const float *x, int rowCount, int stride, int from, int count,
-                              float *y) const {
-  const float *w = weight.data() + at(from) * at(out);
+void multiply(const float *x, int rowCount, int stride, const float *w, int count, int out,
+              float *y) {
   int r = 0;
   for (; r + kRows <= rowCount; r += kRows)
     rows<kRows>(x + at(r) * at(stride), stride, w, out, count, y + at(r) * at(out));
@@ -117,6 +131,11 @@ void Network::Linear::partial(const float *x, int rowCount, int stride, int from
   default:
     break;
   }
+}
+
+void Network::Linear::partial(const float *x, int rowCount, int stride, int from, int count,
+                              float *y) const {
+  multiply(x, rowCount, stride, weight.data() + at(from) * at(out), count, out, y);
 }
 
 void Network::Linear::apply(const float *x, int rowCount, float *y, bool relu) const {

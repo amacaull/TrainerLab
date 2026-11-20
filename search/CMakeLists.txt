@@ -58,6 +58,9 @@ if(SEARCH_BUILD_TESTS)
     target_link_libraries(search_bench PRIVATE search_lib)
     target_compile_options(search_bench PRIVATE ${SEARCH_WARNINGS})
     target_compile_definitions(search_bench PRIVATE TRAINERLAB_DATA_DIR="${TRAINERLAB_DATA_PATH}")
+    if(APPLE)
+        target_link_libraries(search_bench PRIVATE "-framework Accelerate")
+    endif()
 
     include(FetchContent)
     FetchContent_Declare(
