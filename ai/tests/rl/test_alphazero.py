@@ -101,3 +101,87 @@ def test_without_pytorch_the_command_says_how_to_get_it(
 
     assert command.main([str(tmp_path / "start.pt")], shown.append) == 2
     assert "pip install" in shown[0]
+
+
+def _losses(net: PolicyValueNet, rows: dict[str, np.ndarray]) -> tuple[float, float]:
+    """The policy's cross-entropy against the search's visits, and the value's squared error."""
+    with torch.no_grad():
+        logits, value = net(
+            torch.from_numpy(rows["pokemon"].astype(np.float32)),
+            torch.from_numpy(rows["ids"].astype(np.int64)),
+            torch.from_numpy(rows["field"].astype(np.float32)),
+            torch.from_numpy(rows["mask"].astype(np.float32)),
+        )
+        policy = torch.from_numpy(rows["policy"].astype(np.float32))
+        result = torch.from_numpy(rows["result"].astype(np.float32))
+        cross_entropy = -(policy * torch.log_softmax(logits, dim=-1)).sum(-1).mean()
+        return float(cross_entropy), float(((value - result) ** 2).mean())
+
+
+@pytest.fixture(scope="module")
+def played() -> dict[str, np.ndarray]:
+    return alphazero.play(
+        PolicyValueNet.load(SELFPLAY), 2, seed=2, threads=2, simulations=4, worlds=2
+    )
+
+
+def test_the_losses_reported_are_the_cross_entropy_and_the_squared_error_of_every_row(
+    played: dict[str, np.ndarray], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(alphazero, "BATCH", 16)  # several batches, of unequal sizes
+    assert len(played["result"]) % 16 != 0
+    net = PolicyValueNet.load(SELFPLAY)
+    still = torch.optim.SGD(net.parameters(), lr=0.0)  # learns nothing: the losses stay put
+
+    reported = alphazero.learn(net, still, played, epochs=1, rng=np.random.default_rng(0))
+
+    assert reported == pytest.approx(_losses(net, played), rel=1e-5)
+    assert reported[0] > 0  # a cross-entropy
+
+
+def test_learning_brings_the_policy_to_the_search_and_the_value_to_the_result(
+    played: dict[str, np.ndarray],
+) -> None:
+    torch.manual_seed(0)
+    net = PolicyValueNet.load(SELFPLAY)
+    policy_before, value_before = _losses(net, played)
+
+    optimizer = torch.optim.Adam(net.parameters(), lr=1e-3)
+    alphazero.learn(net, optimizer, played, epochs=5, rng=np.random.default_rng(0))
+
+    policy_after, value_after = _losses(net, played)
+    assert policy_after < policy_before
+    assert value_after < value_before
+
+
+def test_the_loop_learns_from_the_last_iterations_and_reports_their_battles(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seeds: list[int] = []
+    learned: list[int] = []
+
+    def play(net: object, games: int, *, seed: int, **kwargs: object) -> dict[str, np.ndarray]:
+        seeds.append(seed)
+        n = len(seeds)  # iteration n leaves n decisions
+        rows = {key: np.zeros(n) for key in alphazero.KEYS}
+        rows["turns"] = np.array([10.0, 30.0])
+        rows["winner"] = np.array([-1, 0], dtype=np.int8)  # one draw, one win for side 0
+        return rows
+
+    def learn(
+        net: object, optimizer: object, rows: dict[str, np.ndarray], **kwargs: object
+    ) -> tuple[float, float]:
+        learned.append(len(rows["result"]))
+        return 0.1, 0.2
+
+    monkeypatch.setattr(alphazero, "play", play)
+    monkeypatch.setattr(alphazero, "learn", learn)
+    seen: list[alphazero.Progress] = []
+
+    alphazero.loop(PolicyValueNet.load(SELFPLAY), 6, seed=3, report=lambda p, _: seen.append(p))
+
+    assert seeds == [3001, 3002, 3003, 3004, 3005, 3006]
+    window = alphazero.WINDOW
+    assert learned == [sum(range(max(1, n - window + 1), n + 1)) for n in range(1, 7)]
+    assert seen[0].turns == 20.0 and seen[0].draws == 0.5
+    assert (seen[0].policy_loss, seen[0].value_loss) == (0.1, 0.2)
