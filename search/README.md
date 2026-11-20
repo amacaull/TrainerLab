@@ -14,8 +14,9 @@ on its own.
 | `include/search/mcts.hpp` | Rule 9: a Monte Carlo tree search over simultaneous moves (decoupled UCT), with guessed teams for the foe's unseen Pokémon |
 | `include/search/encoding.hpp` | A position for a network: one vector per Pokémon, the field, the legal options (palier 6) |
 | `include/search/vec_env.hpp` | Many battles at once for self-play: observe both sides, step, rewards, a battle that ends starts again |
-| `include/search/network.hpp` | The policy and value network of `trainerlab.rl.net`, evaluated in C++ from its PyTorch weights |
-| `include/search/planner.hpp` | Rule 11: the tree search over simultaneous moves guided by the network (PUCT) |
+| `include/search/network.hpp` | The policy and value network of `trainerlab.rl.net`, evaluated in C++ from its PyTorch weights, in batches; its layers through Accelerate on macOS |
+| `include/search/planner.hpp` | Rule 11: the tree search over simultaneous moves guided by the network (PUCT), also step by step, for batching |
+| `include/search/self_play.hpp` | The AlphaZero loop's games: battles side by side on every core, their network queries batched; deep searches recorded, fast ones not |
 | `bench/bench.cpp` | `search_bench`: how fast the engine plays, through each of its APIs |
 | `tests/` | Catch2 tests |
 
@@ -30,6 +31,10 @@ cmake --build search/build -j
 ctest --test-dir search/build --output-on-failure
 search/build/search_bench                # about 2 s per line
 ```
+
+On macOS the network's layers go through Accelerate (`SEARCH_BLAS`, on by
+default there); `-DSEARCH_BLAS=OFF` keeps the network's own kernel, as on
+Linux, where `-DSEARCH_BLAS=ON` takes any CBLAS.
 
 The Python counterpart, on the same positions: `trainerlab bench`. From
 Python, `trainerlab._search` exposes the features, the positions and the

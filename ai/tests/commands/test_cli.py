@@ -67,7 +67,7 @@ def test_a_wrong_answer_is_asked_again() -> None:
 
     assert command == ["duel", "hitter", "random", "--pairs", "2", "--from", "7"]
     assert shown.count("Type a number from 1 to 7.") == 2  # the mode: 0, 9
-    assert shown.count("Type a number from 1 to 13.") == 2  # bot A: empty (no default), genius
+    assert shown.count("Type a number from 1 to 14.") == 2  # bot A: empty (no default), genius
     assert shown.count("Invalid answer, try again.") == 3
 
 

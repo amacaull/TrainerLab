@@ -152,3 +152,47 @@ blocks are half as wide). Larger batches gain little more: the network is now
 limited by its arithmetic, not by reading its weights. Batching simulations of
 one tree together would change the search for some 25 %; playing several games
 at once, one per core, is the next lever.
+
+## Palier 8: fused multiply-adds, Accelerate, battles side by side
+
+All on the Mac M4 (10 cores), `search_bench 2`, and the planner and self-play
+timed from Python with rule 12's network.
+
+**8.1, fused multiply-adds.** On ARM, the kernel's multiply and add are one
+instruction (`vfmaq_n_f32`, rounded once). The M4 and x86 no longer give the
+same numbers bit for bit; each machine still gives a position the same numbers
+alone or in any batch, and the 300 decisions checked were the same.
+
+**8.2, Accelerate.** On macOS, the layers go through `cblas_sgemm` (Apple's
+matrix unit), our kernel elsewhere (`-DSEARCH_BLAS=OFF` keeps it on the Mac).
+BLAS sums in its own order: a position alone or in a batch differs by a float's
+rounding, and the same batches still give the same numbers.
+
+| Matrix product (GMAC/s) | positions | our kernel | Accelerate |
+|---|---|---|---|
+| Pokémon layer (265 → 128, 12 rows per position) | 1 | 57 | 445 |
+| | 16 | 57 | 780 |
+| trunk layer (529 → 256) | 1 | 18 | 188 |
+| | 16 | 58 | 840 |
+
+**8.3, battles side by side.** A search and a self-play battle now stop when
+they wait on the network and resume with its outputs; each thread plays 16
+battles side by side and evaluates what they all wait on in one batch, where
+Accelerate is fastest. Battles 16g to 16g + 15 always go together: the rows are
+the same for any number of threads, and with our kernel the same as battles
+played one by one.
+
+| Line | 8.0 | FMA (8.1) | + Accelerate (8.2) | + side by side (8.3) |
+|---|---|---|---|---|
+| planner decision, 1 thread (Python, 300 positions) | 16.4 ms | 12.1 ms | **5.9 ms** | 5.9 ms |
+| network evaluation, batches of 16 | 35 503/s | 60 253/s | 285 392/s | |
+| planner decisions, 10 threads | | 570/s | 622/s | |
+| self-play, 10 threads (bench, 10 turns per battle) | | | 645/s | **1 643/s** |
+| self-play, 160 full battles on 10 threads | | | 577/s | **1 162/s** |
+
+Accelerate doubles one search but gains only 9 % on every core: the M4's matrix
+units are shared and saturate. Batching across battles is what lifts them:
+twice the self-play on every core. With 200 battles rather than 160, threads
+wait for the last groups (1.79 times instead of 2.0): the loop plays a multiple
+of 160 battles.
+

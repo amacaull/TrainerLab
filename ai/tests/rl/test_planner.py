@@ -3,7 +3,8 @@ import pytest
 import torch
 
 from trainerlab import _engine, _search
-from trainerlab.bots.roster import ALPHAZERO, SELFPLAY, factory
+from trainerlab.bots.roster import ALPHAZERO, RULE12, SELFPLAY, factory
+from trainerlab.experiments import judge
 from trainerlab.game.environment import BattleEnvironment, random_team_pair
 from trainerlab.rl.net import PolicyValueNet
 from trainerlab.rl.planner import Planner, cpp_network
@@ -64,9 +65,11 @@ def test_plan_searches_with_the_network_of_a_file() -> None:
     assert isinstance(bot, Planner)
 
 
-def test_alphazero_is_the_planner_with_rule_12_s_network() -> None:
-    assert ALPHAZERO.is_file()
+def test_alphazero_is_the_planner_with_rule_13_s_network_and_rule12_with_rule_12_s() -> None:
+    assert ALPHAZERO.is_file() and RULE12.is_file()
     assert isinstance(factory("alphazero")(0), Planner)
+    assert isinstance(factory("rule12@8")(0), Planner)
+    assert judge.NETWORK == RULE12  # the judge of palier 7 stays the same
 
 
 def test_a_search_bot_searches_as_many_simulations_as_asked() -> None:
