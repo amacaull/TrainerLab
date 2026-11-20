@@ -276,7 +276,9 @@ int main(int argc, char **argv) {
     // side with their queries batched. Ten turns per battle: enough decisions to time, and
     // `lanes` battles for each core.
     for (int lanes : {1, 16}) {
-      search::SelfPlaySettings settings;
+      search::SelfPlaySettings settings; // every search rule 11's 200 simulations, as in 8.3
+      settings.planner.simulations = 200;
+      settings.fast = 0;
       settings.maxTurns = 10;
       settings.lanes = lanes;
       const std::string selfPlay =

@@ -34,9 +34,11 @@ int keyOf(const Action &action) {
 // built.
 class Battle {
 public:
-  Battle(const Game &game, const Planner &planner, int maxTurns, uint64_t number, int index)
-      : game_(game), planner_(planner), maxTurns_(maxTurns), number_(number), index_(index),
-        state_(game.randomBattle(number)), dice_(number), draws_(number ^ 0x9E3779B97F4A7C15ULL) {
+  Battle(const Game &game, const Planner &full, const Planner &fast,
+         const SelfPlaySettings &settings, uint64_t number, int index)
+      : game_(game), full_(full), fast_(fast), settings_(settings), number_(number), index_(index),
+        state_(game.randomBattle(number)), dice_(number), draws_(number ^ 0x9E3779B97F4A7C15ULL),
+        caps_(number ^ 0xC2B2AE3D27D4EB4FULL) {
     advance();
   }
   Battle(const Battle &) = delete;
@@ -51,18 +53,20 @@ public:
 
 private:
   void advance();
-  void record(); // the search's visits: a row, and the option drawn
+  void record(); // the option drawn from the search's visits; a row if the search was full
   void finish();
 
   const Game &game_;
-  const Planner &planner_;
-  int maxTurns_;
+  const Planner &full_, &fast_;
+  const SelfPlaySettings &settings_;
   uint64_t number_;
   int index_;
   BattleState state_;
   engine::MersenneRNG dice_;
   std::mt19937_64 draws_;
+  std::mt19937_64 caps_; // which searches are full
   uint64_t decision_ = 0;
+  bool fullSearch_ = true;
   SelfPlayData data_;
   std::vector<int> sides_; // the side of each row, for its result
   bool done_ = false;
@@ -86,7 +90,7 @@ void Battle::advance() {
   const engine::BattleEngine &rules = game_.rules();
   while (true) {
     if (turnSide_ == 0) {
-      if (state_.isOver() || state_.turn >= maxTurns_) {
+      if (state_.isOver() || state_.turn >= settings_.maxTurns) {
         finish();
         return;
       }
@@ -111,8 +115,10 @@ void Battle::advance() {
       continue;
     }
     view_ = engine::observe(state_, turnSide_);
-    search_ = std::make_unique<Planner::Search>(planner_, view_, turnSide_, legal_,
-                                                number_ * 1'000'003 + decision_++);
+    fullSearch_ =
+        settings_.fast == 0 || static_cast<double>(caps_() >> 11) * 0x1.0p-53 < settings_.fullShare;
+    search_ = std::make_unique<Planner::Search>(fullSearch_ ? full_ : fast_, view_, turnSide_,
+                                                legal_, number_ * 1'000'003 + decision_++);
     if (!search_->done())
       return;
     record();
@@ -136,7 +142,7 @@ void Battle::record() {
   const size_t pokemonSize = Encoding::kSlots * encoding.pokemonNames().size();
   const size_t idsSize = Encoding::kSlots * Encoding::kIds;
   const size_t fieldSize = encoding.fieldNames().size();
-  const auto &counts = search_->analysis().visits;
+  const std::array<int, Encoding::kActions> counts = search_->analysis().visits;
   const int side = turnSide_;
   int total = 0;
   for (int n : counts)
@@ -150,6 +156,10 @@ void Battle::record() {
       break;
     }
   }
+  search_.reset();
+  ++turnSide_;
+  if (!fullSearch_)
+    return;
   const size_t row = at(data_.rows());
   data_.pokemon.resize((row + 1) * pokemonSize);
   data_.ids.resize((row + 1) * idsSize);
@@ -164,8 +174,6 @@ void Battle::record() {
   data_.result.push_back(0.0f);
   data_.game.push_back(index_);
   sides_.push_back(side);
-  search_.reset();
-  ++turnSide_;
 }
 
 void Battle::finish() {
@@ -180,12 +188,12 @@ void Battle::finish() {
 
 // Battles [first, first + count) side by side: each round, every battle not over gives what it
 // waits on, all evaluated in one batch, in battle order.
-void playTogether(const Game &game, const Network &network, const Planner &planner,
-                  const SelfPlaySettings &settings, uint64_t seed, int first, int count,
-                  std::vector<SelfPlayData> &battles) {
+void playTogether(const Game &game, const Network &network, const Planner &full,
+                  const Planner &fast, const SelfPlaySettings &settings, uint64_t seed, int first,
+                  int count, std::vector<SelfPlayData> &battles) {
   std::vector<std::unique_ptr<Battle>> lanes;
   for (int g = first; g < first + count; ++g)
-    lanes.push_back(std::make_unique<Battle>(game, planner, settings.maxTurns,
+    lanes.push_back(std::make_unique<Battle>(game, full, fast, settings,
                                              seed * 1'000'003 + static_cast<uint64_t>(g), g));
   std::vector<Network::Query> queries;
   std::vector<Network::Output> outputs;
@@ -218,9 +226,16 @@ template <typename T> void append(std::vector<T> &to, const std::vector<T> &from
 
 SelfPlayData selfPlay(const Game &game, const Network &network, const SelfPlaySettings &settings,
                       int games, uint64_t seed, int threads) {
-  if (games < 0 || threads < 1 || settings.planner.simulations < 2 || settings.lanes < 1)
-    throw std::invalid_argument("selfPlay: games >= 0, threads >= 1, simulations >= 2, lanes >= 1");
-  const Planner planner(game, network, settings.planner);
+  if (games < 0 || threads < 1 || settings.planner.simulations < 2 || settings.lanes < 1 ||
+      settings.fast == 1 || settings.fast < 0 || !(settings.fullShare >= 0.0) ||
+      settings.fullShare > 1.0)
+    throw std::invalid_argument("selfPlay: games >= 0, threads >= 1, simulations >= 2, lanes "
+                                ">= 1, fast 0 or >= 2, full share in [0, 1]");
+  const Planner full(game, network, settings.planner);
+  PlannerSettings quick = settings.planner;
+  quick.simulations = settings.fast;
+  quick.noise = 0.0;
+  const Planner fast(game, network, quick);
   std::vector<SelfPlayData> battles(at(games));
   const int groups = (games + settings.lanes - 1) / settings.lanes;
   std::atomic<int> next{0};
@@ -230,7 +245,7 @@ SelfPlayData selfPlay(const Game &game, const Network &network, const SelfPlaySe
     try {
       for (int g = next++; g < groups; g = next++) {
         const int first = g * settings.lanes;
-        playTogether(game, network, planner, settings, seed, first,
+        playTogether(game, network, full, fast, settings, seed, first,
                      std::min(settings.lanes, games - first), battles);
       }
     } catch (...) {

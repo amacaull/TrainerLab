@@ -10,12 +10,18 @@
 namespace search {
 // Fixed before any measurement.
 struct SelfPlaySettings {
-  PlannerSettings planner{200, 8, 1.5, 0.25};
+  // The full searches: their decisions are recorded, to learn from.
+  PlannerSettings planner{800, 8, 1.5, 0.25};
   int maxTurns = 1000; // then a draw, as in VecEnv
   // Palier 8.3: battles each thread plays side by side, their network queries batched (the M4's
   // matrix unit is fastest on large products). Battles g*lanes to g*lanes + lanes - 1 go
   // together, whatever the threads.
   int lanes = 16;
+  // Palier 8.5, KataGo's playout cap randomization: a share `fullShare` of the searches are full;
+  // the others search `fast` simulations without noise, and only move the battle on, unrecorded.
+  // 0: every search full.
+  int fast = 100;
+  double fullShare = 0.25;
 };
 
 // What self-play leaves to learn from, one row per decision: the encoding of what the side saw,
@@ -36,9 +42,10 @@ struct SelfPlayData {
 };
 
 // The AlphaZero loop's games: rule 11 against itself, with the network given. Each side searches
-// what it sees, with noise at the root, and plays an option drawn in proportion to its visits, so
-// that games vary and mixed choices stay mixed. A side with one legal option plays it, unrecorded;
-// a fainted Pokemon is replaced by the network's favourite, unrecorded.
+// what it sees and plays an option drawn in proportion to its visits, so that games vary and mixed
+// choices stay mixed; a full search, with noise at the root, is recorded, a fast one is not. A
+// side with one legal option plays it, unrecorded; a fainted Pokemon is replaced by the network's
+// favourite, unrecorded.
 //
 // Battle g starts from the seed of VecEnv's battle g (seed * 1'000'003 + g). The groups of
 // `lanes` battles are shared among `threads` threads; the rows come in battle order, the same for

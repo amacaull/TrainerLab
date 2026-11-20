@@ -294,13 +294,15 @@ PYBIND11_MODULE(_search, m) {
       .def(
           "self_play",
           [](const search::Network &net, int games, uint64_t seed, int threads, int simulations,
-             int worlds, double noise, int max_turns, int lanes) {
+             int worlds, double noise, int max_turns, int lanes, int fast, double full_share) {
             search::SelfPlaySettings settings;
             settings.planner.simulations = simulations;
             settings.planner.worlds = worlds;
             settings.planner.noise = noise;
             settings.maxTurns = max_turns;
             settings.lanes = lanes;
+            settings.fast = fast;
+            settings.fullShare = full_share;
             search::SelfPlayData data;
             {
               const py::gil_scoped_release free; // the threads run without Python
@@ -332,12 +334,13 @@ PYBIND11_MODULE(_search, m) {
           },
           py::arg("games"), py::arg("seed"), py::arg("threads"), py::arg("simulations") = 200,
           py::arg("worlds") = 8, py::arg("noise") = 0.25, py::arg("max_turns") = 1000,
-          py::arg("lanes") = 16,
+          py::arg("lanes") = 16, py::arg("fast") = 0, py::arg("full_share") = 1.0,
           "The AlphaZero loop's games (search/include/search/self_play.hpp): rule 11 against "
           "itself, with noise at the root; per decision the encoding, the mask, the share of "
           "visits per option (policy) and the result for that side; per battle its turns and "
           "winner (-1 for a draw). Each thread plays `lanes` battles side by side, their network "
-          "queries batched.");
+          "queries batched. With `fast`, only a share `full_share` of the searches are full and "
+          "recorded; the others search `fast` simulations, unrecorded.");
 
   m.def(
       "openings", [](int count, int turns) { return search::openings(loaded(), count, turns); },
