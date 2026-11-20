@@ -498,3 +498,145 @@ visible Destiny Bond, leaves a boosted threat alive when a knock-out is there,
 and spends the Pokémon that could stop the foe's last one. A revealed foe is
 seen whole (each species has one fixed set): these are failures to foresee the
 foe's move and to weigh the long run, not missing information.
+
+## Palier 7: how good is rule 12, and where it goes wrong
+
+Palier 7 measures instead of improving: how much teams decide, whether search
+is the limit, and which of rule 12's decisions are mistakes. Its lesson is as
+much about the measuring tools as about the bot.
+
+### Teams decide much (7.1)
+
+`trainerlab teams` makes a bot play itself, each matchup twice, with dice of
+its own and the teams on swapped sides. If teams did not matter, the team that
+won the first battle would win the second half the time.
+
+```bash
+trainerlab teams alphazero --pairs 3000 --from 190000
+```
+
+| Measure (rule 12, 6000 battles) | Value |
+|---|---|
+| matchups won twice by the same team | **0.654** [0.636, 0.670] (0.5 if teams did not matter) |
+| winners called by the composition alone, held-out battles | 0.639 (log loss 0.636, 0.693 for a coin) |
+| species whose teams score outside 0.5 at 95 % | 30 of 49 (about 2 by chance) |
+
+In a typical matchup the better team wins about three times in four, with the
+same bot on both sides; with `hitter` the agreement is 0.779, as a stronger
+bot makes up for part of a weak team. Toxapex (0.700), Mega Rayquaza (0.688)
+and Mega Mawile (0.610) lead; Blissey (0.404), Drampa (0.400) and Azelf
+(0.372) trail. Some of it matches competitive play (Toxapex, Corviknight),
+some is the bot: Blissey and Snorlax want long, patient games, its weak spot.
+These scores are a species in the hands of this bot. Duels stay sound: the
+same teams play both sides of a pair.
+
+### Search is a limit (7.3)
+
+```bash
+trainerlab duel alphazero@800 alphazero --pairs 1000 --from 210000
+```
+
+Four times the simulations (`@800`) beat rule 12 by **0.569** [0.547, 0.591]:
+about 7 points, nearly what the whole AlphaZero loop brought. Speed turns into
+strength.
+
+### The judge (7.4)
+
+`trainerlab judge` rates each decision of a bot with a search 16 times deeper:
+rule 12's network, 3200 simulations, 16 guessed teams, every legal option
+tried at least 50 times so that even the bot's disliked choices get a value.
+A decision's loss is what the judge's choice is worth over the bot's, in
+points of the chance to win. Settings fixed before measuring; replacements
+after a knock-out, chosen without search, are not judged.
+
+```bash
+trainerlab judge alphazero planner --pairs 200 --from 220000 --out runs/judge-rule12.npz
+trainerlab judge planner alphazero --pairs 200 --from 220000 --out runs/judge-rule11.npz
+```
+
+| | rule 11 | rule 12 |
+|---|---|---|
+| plays the judge's choice | 55.2 % | 73.9 % |
+| mean loss, points of the chance to win | 1.79 | 0.67 |
+| losing 5 points or more | 10.9 % | 3.1 % |
+| losing 10 points or more | 4.6 % | 0.8 % |
+
+The judge searches with rule 12's own network: rule 12 is judged by a deeper
+self, which flatters its agreement, while rule 11 has another network. The gap
+is real (duels say so), the table overstates it.
+
+### Situations, rated by the judge (7.2, 7.5)
+
+`trainerlab audit` spots situations a program can see: a boost, a boost that
+never led to a hit, a boost in front of a foe that can phaze (Whirlwind,
+Dragon Tail) or knock the booster out, a fall to Destiny Bond, a sure
+knock-out left unplayed. Palier 7.5 adds a priority move that would knock out
+a faster foe, staying in against a faster knock-out (above a quarter of the
+HP; at or below, a sacrifice), a heal above three quarters of the HP (faster
+or slower than the foe), a switch into the foe's best hit being super
+effective.
+
+```bash
+trainerlab audit alphazero planner --pairs 1000 --from 200000
+```
+
+Counted on their own, they made rule 12 look much better than rule 11 (28 %
+of its boosts wasted against 41 %). Rated by the judge, **none is a mistake
+most of the time**. Each situation's share of decisions losing 5 points or
+more, against the bot's share over all its decisions:
+
+| Situation | rule 11 (10.9 %) | rule 12 (3.1 %) |
+|---|---|---|
+| priority knock-out left unplayed | 26 % | 10 % |
+| switch into a weakness | 24 % | 6 % |
+| boost in front of a phazer | 20 % | too rare |
+| sure knock-out left unplayed | 17 % | 4 % |
+| boost in front of a knock-out | 14 % | 4 % |
+| boost, boost that came to nothing | 10 % | 3 to 4 % |
+| staying in against a faster knock-out | 13 % | 4 % |
+| sacrifice | 12 % | 4 % |
+| heal at high HP, faster | 8 % | 4 % |
+| heal at high HP, slower | 12 % | **1 %** |
+
+Two situations flag mistakes, in both bots: a priority knock-out left
+unplayed and a switch into a weakness, two to three times the bot's usual
+rate, though the bot is still right most of the time there. A sacrifice and a
+heal at high HP are not mistakes; healing while slower, the heal coming after
+the foe's hit, is even better than the bot's average. For a bot of this
+level, rules do not find its mistakes: they depend on context and are spread
+out. The audit describes how a bot plays, not how badly.
+
+### Checking the judge against results (7.6)
+
+`trainerlab verify` replays a battle to one of the judge's worst blunders,
+copies the real state, and plays it out 200 times with the bot's option and
+200 times with the judge's, by the same bots, the k-th game of each option on
+the same dice.
+
+```bash
+trainerlab verify alphazero planner --judged runs/judge-rule12.npz --worst 20 --games 200
+trainerlab verify planner alphazero --judged runs/judge-rule11.npz --worst 20 --games 200
+```
+
+| The 20 worst blunders | rule 11 | rule 12 |
+|---|---|---|
+| confirmed (the judge's option wins more, at 95 %) | 25 % | 30 % |
+| refuted (the bot's wins more) | 5 % | 25 % |
+| unclear | 70 % | 45 % |
+| loss the judge gave / gap the games measured | 45 / 9 points | 24 / 4.3 points |
+
+**The judge is not reliable decision by decision.** Its worst ratings are
+largely noise picked out: among 10 000 decisions, the most extreme ratings are
+those where the error ran furthest, and an option tried 50 times has a value
+known only to a few points. In 8 of rule 11's 20 positions, every game ended
+the same whichever option was played; most are long, locked endgames
+(Corviknight against Quagsire after turn 70), where the network, and so the
+judge, rates positions it hardly saw in training. Where it is right, it is
+clearly so (a position won 200 times out of 200 with its option, lost every
+time with the bot's).
+
+So duels remain the measure of strength. The judge's mean loss, averaged over
+thousands of decisions, is a secondary indicator, to be read with care; its
+share of blunders is inflated. A judge worth trusting would have to be
+calibrated on decisions drawn at random rather than on its worst, and an exact
+endgame solver would cover where the network is weakest.

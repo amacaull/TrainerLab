@@ -35,7 +35,7 @@ lists the commands, `trainerlab duel --help` the options of one.
 | `play [--against BOT] [--seed N] [--team A,B,…]` | a battle against a bot in the terminal |
 | `duel BOT_A BOT_B` | bot A's score against bot B, with its 95 % interval |
 | `watch BOT_A BOT_B --losses` / `--seed N --side S` | the battles A lost, or one replayed with what each bot saw |
-| `audit BOT_A BOT_B` | the mistakes of bot A that a program can spot |
+| `audit BOT_A BOT_B` | situations a program can spot in bot A's play (moves that fail or hit an immunity, boosts and what came of them, sure knock-outs left unplayed…): a description of how it plays, not how badly (palier 7) |
 | `usage BOT_A BOT_B` | the kinds of moves bot A plays (attacks, hazards, boosts, statuses…), and how often each was an option |
 | `dataset BOT_A BOT_B` | every decision of the battles, as a learning dataset (`.npz`) |
 | `train DATASET…` | a win probability model, fitted and scored on unseen battles |
@@ -45,6 +45,8 @@ lists the commands, `trainerlab duel --help` the options of one.
 | `selfplay NET.pt` | improves the network by self-play with PPO (`selfplay.pt`, rule 10), measured against forecaster along the way |
 | `alphazero NET.pt` | improves the network with its own search, as AlphaZero: rule 11 plays itself on every core, the network learns its search's choices and the results; measured against rule 11 along the way |
 | `teams BOT` | how much a team's composition decides battles: the bot plays itself, each matchup twice with dice of its own; the share of matchups won twice by the same team, each species' score, and how well the composition alone calls the winner |
+| `judge BOT_A BOT_B` | rates each decision of bot A with a search 16 times deeper: agreement, mean loss in points of the chance to win, the situations of the audit as the judge rates them, the worst decisions; reliable on average, not decision by decision |
+| `verify BOT_A BOT_B --judged FILE` | plays the judge's worst blunders out to the end, both options, the same dice, to check them against results |
 
 Every command that plays battles takes `--pairs N` (pairs of two battles, sides
 swapped) and `--from SEED`, the seed of the first pair: `--pairs 5000 --from
@@ -85,7 +87,8 @@ play with another model instead.
 
 `net:FILE.pt` plays a policy network alone, greedily, without any search: the network
 made by `trainerlab pretrain`; `plan:FILE.pt` is rule 11's search guided by the network in that
-file (`trainerlab alphazero`). PyTorch comes with the `rl` extras; `pytest --cov` needs them.
+file (`trainerlab alphazero`). A search bot (`planner`, `alphazero`, `plan:FILE.pt`) takes `@N` to
+search N simulations per decision instead of 200: `alphazero@800`. PyTorch comes with the `rl` extras; `pytest --cov` needs them.
 
 ## Method
 
@@ -106,7 +109,7 @@ file (`trainerlab alphazero`). PyTorch comes with the `rl` extras; `pytest --cov
 | `game/` | The referee (`environment`), the loop (`battle`), the contract a player honours (`player`), a pair of battles from its seed (`pairs`), every decision replayed (`decisions`), the event kinds (`events`), what a player can reckon of damage and speed (`estimate`), a playable state built from a view (`views`). |
 | `learning/` | The features of a position (`features`), the win probability model (`model`), fitting and scoring it (`fitting`), the shipped model (`models/`). |
 | `bots/` | Rules 1 to 5 (`rules`), rules 6 and 7 (`lookahead`), every bot by name (`roster`). |
-| `experiments/` | Duels (`tournament`), spreading pairs over the cores (`parallel`), the audit of mistakes (`audit`), the datasets (`dataset`). |
+| `experiments/` | Duels (`tournament`), spreading pairs over the cores (`parallel`), the audit (`audit`, `situations`), the judge (`judge`) and its check by playing out (`rollouts`), how much teams decide (`teams`), the datasets (`dataset`). |
 | `terminal/` | A battle against a bot (`session`), a battle between bots told with what each saw (`commentary`), the human player, the text and the panels. |
 | `rl/` | Palier 6, with PyTorch: the policy and value network (`net`), the bot that plays it (`bot`), pre-training by imitation (`train`), self-play with PPO (`ppo`), the search it guides (`planner`). |
 | `commands/` | `trainerlab`: the dispatch, the menu, and one thin module per mode that reads the options, calls the domain and prints the result. |
