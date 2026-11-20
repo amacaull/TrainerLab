@@ -8,8 +8,9 @@ and measured in Python.
 > **Status: version 1.** The engine is complete and tested. Twelve bots are
 > measured, the best of them a tree search guided by a network trained on its
 > own search, as AlphaZero; play against any of them with `trainerlab play`, or
-> `trainerlab` for a menu. Next: measuring its strategic mistakes, a network
-> that sees how the Pokémon relate, then teams built by the AI itself.
+> `trainerlab` for a menu. Palier 7 measured it: teams decide much, deeper
+> search wins, and its mistakes are hard to pin down. Next: speed and longer
+> training, then teams built by the AI itself.
 
 ## Results so far
 
@@ -38,7 +39,11 @@ is the first bot that looks ahead to lay hazards as often as chance does. And a
 tree search guided by that network (rule 11) beats it by 26 more points: once
 the positions are judged well, search pays. Trained on its own search, as
 AlphaZero, the network lifts that search by 8 more points (rule 12): strong in
-tactics, still weak in long-term strategy.
+tactics, still weak in long-term strategy. Measured further (palier 7, in
+[`docs/results.md`](docs/results.md)): four times its simulations win 7 more
+points; the composition of the teams decides about three matchups in four; and
+neither simple rules nor a deeper search judging it decision by decision pin
+down its mistakes reliably, so duels stay the measure.
 
 ## Where to look
 
