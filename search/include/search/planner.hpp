@@ -8,6 +8,9 @@
 
 #include <array>
 #include <cstdint>
+#include <memory>
+#include <span>
+#include <utility>
 #include <vector>
 
 namespace search {
@@ -62,19 +65,73 @@ public:
 
   // The team index of the network's favourite Pokemon to send in, without search.
   int chooseReplacement(const engine::BattleState &view, int side) const;
+  // The same in two steps, for a caller that batches its queries: the mask of `side`'s switches
+  // in `view`, then the team index the network's output for it picks.
+  static std::array<float, Encoding::kActions> replacementMask(const engine::BattleState &view,
+                                                               int side);
+  static int pickReplacement(const Network::Output &out);
+
+  class Search;
 
 private:
   struct Node;
 
-  double simulate(engine::BattleState &state, Node &node, int root, engine::RNG &dice,
-                  bool atRoot) const;
-  double expand(const engine::BattleState &state, Node &node, int root) const;
-  void replaceFainted(engine::BattleState &state, engine::RNG &dice) const;
+  double expand(Node &node, const std::array<std::array<float, Encoding::kActions>, 2> &masks,
+                const Network::Output *outputs, int root) const;
   void addNoise(std::array<double, Encoding::kActions> &prior,
                 const std::vector<engine::Action> &legal, uint64_t seed) const;
 
   const Game &game_;
   const Network &network_;
   PlannerSettings settings_;
+};
+
+// One search (analyse's), step by step, so that self-play can batch the network's queries across
+// battles (palier 8.3). pending() is what the search waits on the network for, resume() gives it
+// the outputs, in order; once done(), analysis() is its result. The queries point into the
+// search: it stays where it is built.
+class Planner::Search {
+public:
+  Search(const Planner &planner, const engine::BattleState &view, int side,
+         const std::vector<engine::Action> &legal, uint64_t seed);
+  ~Search();
+  Search(const Search &) = delete;
+  Search &operator=(const Search &) = delete;
+
+  bool done() const { return done_; }
+  std::span<const Network::Query> pending() const { return {queries_.data(), pending_}; }
+  void resume(const Network::Output *outputs);
+  const Analysis &analysis() const { return analysis_; }
+
+private:
+  enum class Waiting { nothing, replacement, expansion };
+
+  void advance();
+  bool descend(); // true: waiting on the network
+  void backUp(double value);
+  void endSimulation();
+
+  const Planner &planner_;
+  int side_;
+  std::vector<engine::Action> legal_;
+  uint64_t seed_;
+  std::vector<engine::BattleState> guesses_;
+  std::unique_ptr<Node> root_;
+  int simulation_ = 0;
+  bool simulating_ = false, done_ = false;
+  Analysis analysis_;
+
+  // The simulation under way: its state, dice, and the nodes it went through with the options.
+  engine::BattleState state_;
+  engine::MersenneRNG dice_{0};
+  Node *node_ = nullptr;
+  std::vector<std::pair<Node *, std::array<int, 2>>> path_;
+
+  Waiting waiting_ = Waiting::nothing;
+  int replacing_ = 0;
+  std::array<engine::BattleState, 2> views_{};
+  std::array<std::array<float, Encoding::kActions>, 2> masks_{};
+  std::array<Network::Query, 2> queries_{};
+  size_t pending_ = 0;
 };
 } // namespace search

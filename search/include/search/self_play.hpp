@@ -12,6 +12,10 @@ namespace search {
 struct SelfPlaySettings {
   PlannerSettings planner{200, 8, 1.5, 0.25};
   int maxTurns = 1000; // then a draw, as in VecEnv
+  // Palier 8.3: battles each thread plays side by side, their network queries batched (the M4's
+  // matrix unit is fastest on large products). Battles g*lanes to g*lanes + lanes - 1 go
+  // together, whatever the threads.
+  int lanes = 16;
 };
 
 // What self-play leaves to learn from, one row per decision: the encoding of what the side saw,
@@ -36,9 +40,9 @@ struct SelfPlayData {
 // that games vary and mixed choices stay mixed. A side with one legal option plays it, unrecorded;
 // a fainted Pokemon is replaced by the network's favourite, unrecorded.
 //
-// Battle g starts from the seed of VecEnv's battle g (seed * 1'000'003 + g). The battles are
-// shared among `threads` threads; the rows come in battle order, the same for any number of
-// threads.
+// Battle g starts from the seed of VecEnv's battle g (seed * 1'000'003 + g). The groups of
+// `lanes` battles are shared among `threads` threads; the rows come in battle order, the same for
+// any number of threads.
 SelfPlayData selfPlay(const Game &game, const Network &network, const SelfPlaySettings &settings,
                       int games, uint64_t seed, int threads);
 } // namespace search

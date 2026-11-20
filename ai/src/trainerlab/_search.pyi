@@ -84,9 +84,9 @@ class Network:
         """
         Rule 11: the index, in `legal`, of the option a tree search guided by this network visits most, after `simulations` simulations; the same seed makes the same decision.
         """
-    def self_play(self, games: typing.SupportsInt | typing.SupportsIndex, seed: typing.SupportsInt | typing.SupportsIndex, threads: typing.SupportsInt | typing.SupportsIndex, simulations: typing.SupportsInt | typing.SupportsIndex = 200, worlds: typing.SupportsInt | typing.SupportsIndex = 8, noise: typing.SupportsFloat | typing.SupportsIndex = 0.25, max_turns: typing.SupportsInt | typing.SupportsIndex = 1000) -> dict:
+    def self_play(self, games: typing.SupportsInt | typing.SupportsIndex, seed: typing.SupportsInt | typing.SupportsIndex, threads: typing.SupportsInt | typing.SupportsIndex, simulations: typing.SupportsInt | typing.SupportsIndex = 200, worlds: typing.SupportsInt | typing.SupportsIndex = 8, noise: typing.SupportsFloat | typing.SupportsIndex = 0.25, max_turns: typing.SupportsInt | typing.SupportsIndex = 1000, lanes: typing.SupportsInt | typing.SupportsIndex = 16) -> dict:
         """
-        The AlphaZero loop's games (search/include/search/self_play.hpp): rule 11 against itself, with noise at the root; per decision the encoding, the mask, the share of visits per option (policy) and the result for that side; per battle its turns and winner (-1 for a draw).
+        The AlphaZero loop's games (search/include/search/self_play.hpp): rule 11 against itself, with noise at the root; per decision the encoding, the mask, the share of visits per option (policy) and the result for that side; per battle its turns and winner (-1 for a draw). Each thread plays `lanes` battles side by side, their network queries batched.
         """
 def action_mask(legal: collections.abc.Sequence[trainerlab._engine.Action]) -> numpy.typing.NDArray[numpy.float32]:
     """

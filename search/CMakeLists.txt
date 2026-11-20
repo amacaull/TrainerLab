@@ -98,5 +98,6 @@ if(SEARCH_BUILD_TESTS)
     target_compile_options(search_tests PRIVATE ${SEARCH_WARNINGS})
     target_compile_definitions(search_tests PRIVATE TRAINERLAB_DATA_DIR="${TRAINERLAB_DATA_PATH}")
     include(Catch)
-    catch_discover_tests(search_tests)
+    # A test SKIPped (Catch2 exits with 4) is skipped, not failed.
+    catch_discover_tests(search_tests PROPERTIES SKIP_RETURN_CODE 4)
 endif()

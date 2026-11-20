@@ -7,6 +7,7 @@
 #include <cmath>
 #include <set>
 #include <stdexcept>
+#include <string>
 
 namespace {
 const search::Game &game() {
@@ -14,7 +15,9 @@ const search::Game &game() {
   return instance;
 }
 
-search::SelfPlaySettings small(int maxTurns = 40) { return {{16, 2, 1.5, 0.25}, maxTurns}; }
+search::SelfPlaySettings small(int maxTurns = 40, int lanes = 16) {
+  return {{16, 2, 1.5, 0.25}, maxTurns, lanes};
+}
 } // namespace
 
 TEST_CASE("self-play records a policy over the legal options and each side's result") {
@@ -47,14 +50,28 @@ TEST_CASE("self-play records a policy over the legal options and each side's res
 
 TEST_CASE("self-play's rows are the same for any number of threads") {
   const search::Network net = search::testing::randomNetwork(game());
-  const search::SelfPlayData one = search::selfPlay(game(), net, small(), 4, 3, 1);
-  const search::SelfPlayData three = search::selfPlay(game(), net, small(), 4, 3, 3);
+  const search::SelfPlayData one = search::selfPlay(game(), net, small(40, 2), 4, 3, 1);
+  const search::SelfPlayData three = search::selfPlay(game(), net, small(40, 2), 4, 3, 3);
 
   CHECK(one.policy == three.policy);
   CHECK(one.pokemon == three.pokemon);
   CHECK(one.result == three.result);
   CHECK(one.game == three.game);
   CHECK(std::set<int>(one.game.begin(), one.game.end()).size() == 4);
+}
+
+TEST_CASE("battles played side by side, their queries batched, play as they do one by one") {
+  // Bit for bit with our kernel; BLAS sums a batch in its own order (network.hpp).
+  if (std::string(search::Network::backend()) != "kernel")
+    SKIP("the layers go through BLAS");
+  const search::Network net = search::testing::randomNetwork(game());
+  const search::SelfPlayData alone = search::selfPlay(game(), net, small(40, 1), 5, 11, 2);
+  const search::SelfPlayData together = search::selfPlay(game(), net, small(40, 4), 5, 11, 2);
+
+  CHECK(alone.policy == together.policy);
+  CHECK(alone.pokemon == together.pokemon);
+  CHECK(alone.result == together.result);
+  CHECK(alone.turns == together.turns);
 }
 
 TEST_CASE("a battle stopped at the turn limit is a draw: every result 0") {
@@ -73,4 +90,5 @@ TEST_CASE("self-play refuses settings it cannot play with") {
   one.planner.simulations = 1;
   CHECK_THROWS_AS(search::selfPlay(game(), net, one, 1, 0, 1), std::invalid_argument);
   CHECK_THROWS_AS(search::selfPlay(game(), net, small(), 1, 0, 0), std::invalid_argument);
+  CHECK_THROWS_AS(search::selfPlay(game(), net, small(40, 0), 1, 0, 1), std::invalid_argument);
 }
