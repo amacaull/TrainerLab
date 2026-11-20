@@ -51,6 +51,24 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 endif()
 set_target_properties(search_lib PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# Palier 8.2: the network's matrix products through BLAS. On by default on macOS, where it is
+# Accelerate (the M4's matrix unit); off elsewhere, where search::multiply does them.
+if(APPLE)
+    set(SEARCH_BLAS_DEFAULT ON)
+else()
+    set(SEARCH_BLAS_DEFAULT OFF)
+endif()
+option(SEARCH_BLAS "Multiply the network's layers with BLAS (Accelerate on macOS)" ${SEARCH_BLAS_DEFAULT})
+if(SEARCH_BLAS)
+    target_compile_definitions(search_lib PRIVATE SEARCH_BLAS)
+    if(APPLE)
+        target_link_libraries(search_lib PUBLIC "-framework Accelerate")
+    else()
+        find_package(BLAS REQUIRED)
+        target_link_libraries(search_lib PUBLIC BLAS::BLAS)
+    endif()
+endif()
+
 if(SEARCH_BUILD_TESTS)
     set(TRAINERLAB_DATA_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../engine/data")
 

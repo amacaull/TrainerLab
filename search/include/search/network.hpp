@@ -16,9 +16,12 @@ namespace search {
 // through Python and PyTorch.
 //
 // It evaluates positions in batches: each layer then reads its weights once for all the rows of
-// the batch (12 Pokemon per position, 4 moves, 6 switches) instead of once per row. Each output
-// still sums its inputs in order, one by one, whatever the batch: a position gets the same
-// numbers alone or in any batch, on the same machine (the M4 fuses its multiply-adds).
+// the batch (12 Pokemon per position, 4 moves, 6 switches) instead of once per row. On macOS the
+// products go through Accelerate (palier 8.2), whose sums may run in another order from one batch
+// size to another: a position gets numbers a float's rounding apart. Our kernel, used elsewhere,
+// sums each output's inputs in order, one by one: the same numbers alone or in any batch, on the
+// same machine (the M4 fuses its multiply-adds). Either way, the same batches give the same
+// numbers: self-play stays the same whatever its threads.
 // y (rows x out, rows `out` apart) = x (rows x in, rows `stride` apart) times w (in x out,
 // row-major): the network's own kernel, also timed by the benchmark against other libraries.
 void multiply(const float *x, int rows, int stride, const float *w, int in, int out, float *y);
@@ -45,6 +48,9 @@ public:
   };
 
   Output evaluate(const engine::BattleState &view, int side, const float *mask) const;
+  // What multiplies the layers: "Accelerate" (macOS), "BLAS" or "kernel" (search::multiply).
+  static const char *backend();
+
   // out[i] is what the network makes of queries[i].
   void evaluate(std::span<const Query> queries, Output *out) const;
 

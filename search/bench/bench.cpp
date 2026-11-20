@@ -14,12 +14,15 @@
 #include "engine/core/observation.hpp"
 #include "engine/ffi/ffi.hpp"
 
+#include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <functional>
 #include <random>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "../tests/random_network.hpp"
@@ -43,6 +46,25 @@ double rate(double seconds, const std::function<long()> &step) {
     units += step();
     elapsed = Clock::now() - start;
   } while (elapsed.count() < seconds);
+  return static_cast<double>(units) / elapsed.count();
+}
+
+// The same on `threads` threads at once: step(thread) on each until `seconds` have passed.
+double rateOnThreads(int threads, double seconds, const std::function<long(int)> &step) {
+  std::atomic<long> units{0};
+  const auto start = Clock::now();
+  std::vector<std::thread> pool;
+  for (int k = 0; k < threads; ++k)
+    pool.emplace_back([&, k] {
+      long mine = 0;
+      do
+        mine += step(k);
+      while (std::chrono::duration<double>(Clock::now() - start).count() < seconds);
+      units += mine;
+    });
+  for (std::thread &thread : pool)
+    thread.join();
+  const std::chrono::duration<double> elapsed = Clock::now() - start;
   return static_cast<double>(units) / elapsed.count();
 }
 
@@ -126,7 +148,8 @@ int main(int argc, char **argv) {
   const engine::BattleEngine &rules = game.rules();
 
   const std::vector<engine::BattleState> positions = search::openings(game, kPositions);
-  std::printf("%zu positions, %.1f s per line\n\n", positions.size(), seconds);
+  std::printf("%zu positions, %.1f s per line, layers multiplied by %s\n\n", positions.size(),
+              seconds, search::Network::backend());
 
   size_t next = 0;
   auto position = [&]() -> const engine::BattleState & {
@@ -236,6 +259,17 @@ int main(int argc, char **argv) {
            const engine::BattleState &v = view();
            const auto legal = rules.legalActions(positions[next], 0);
            return static_cast<long>(planner.chooseAction(v, 0, legal, ++seed) >= 0);
+         }));
+    // Palier 8.2: as self-play plays, on every core. The M4's matrix units are shared by its
+    // cores: what Accelerate gains on one thread may not hold on all of them.
+    const int cores = static_cast<int>(std::max(1u, std::thread::hardware_concurrency()));
+    std::vector<size_t> where(static_cast<size_t>(cores));
+    const std::string what = "planner decisions, " + std::to_string(cores) + " threads";
+    line(what.c_str(), "decisions", rateOnThreads(cores, seconds, [&](int k) {
+           size_t &i = where[static_cast<size_t>(k)];
+           i = (i + 7) % positions.size();
+           const auto legal = rules.legalActions(positions[i], 0);
+           return static_cast<long>(planner.chooseAction(views[i], 0, legal, i * 31 + 1) >= 0);
          }));
   }
   products(seconds / 4);

@@ -5,8 +5,10 @@
 #include "engine/core/observation.hpp"
 
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers_floating_point.hpp>
 
 #include <cmath>
+#include <string>
 #include <vector>
 
 namespace {
@@ -47,7 +49,8 @@ TEST_CASE("the planner plays a legal option, the same for the same seed") {
   }
 }
 
-TEST_CASE("a position gets the same numbers alone and in any batch") {
+TEST_CASE("a position gets the same numbers alone and in any batch: bit for bit with our kernel, "
+          "to a float's rounding with BLAS") {
   const search::Network net = smallNetwork();
   const std::vector<engine::BattleState> states = search::openings(game(), 9);
   std::vector<engine::BattleState> views;
@@ -65,10 +68,18 @@ TEST_CASE("a position gets the same numbers alone and in any batch") {
 
   std::vector<search::Network::Output> batch(queries.size());
   net.evaluate(queries, batch.data());
+  const bool exact = std::string(search::Network::backend()) == "kernel";
+  using Catch::Matchers::WithinAbs;
   for (size_t i = 0; i < queries.size(); ++i) {
     const auto alone = net.evaluate(views[i], queries[i].side, masks[i].data());
-    CHECK(alone.logits == batch[i].logits); // bit for bit
-    CHECK(alone.value == batch[i].value);
+    if (exact) {
+      CHECK(alone.logits == batch[i].logits);
+      CHECK(alone.value == batch[i].value);
+    } else {
+      for (size_t k = 0; k < alone.logits.size(); ++k)
+        CHECK_THAT(alone.logits[k], WithinAbs(batch[i].logits[k], 1e-5));
+      CHECK_THAT(alone.value, WithinAbs(batch[i].value, 1e-5));
+    }
   }
 }
 
