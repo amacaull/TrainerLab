@@ -9,6 +9,7 @@
 
 #include "search/game.hpp"
 #include "search/planner.hpp"
+#include "search/self_play.hpp"
 #include "search/vec_env.hpp"
 
 #include "engine/core/observation.hpp"
@@ -271,6 +272,20 @@ int main(int argc, char **argv) {
            const auto legal = rules.legalActions(positions[i], 0);
            return static_cast<long>(planner.chooseAction(views[i], 0, legal, i * 31 + 1) >= 0);
          }));
+    // Palier 8.3: self-play as the loop plays it, on every core, its battles alone or side by
+    // side with their queries batched. Ten turns per battle: enough decisions to time, and
+    // `lanes` battles for each core.
+    for (int lanes : {1, 16}) {
+      search::SelfPlaySettings settings;
+      settings.maxTurns = 10;
+      settings.lanes = lanes;
+      const std::string selfPlay =
+          "self-play, " + std::to_string(cores) + " threads, " + std::to_string(lanes) + " lanes";
+      line(selfPlay.c_str(), "decisions", rate(seconds, [&] {
+             return static_cast<long>(
+                 search::selfPlay(game, network, settings, cores * 16, ++seed, cores).rows());
+           }));
+    }
   }
   products(seconds / 4);
   return 0;
