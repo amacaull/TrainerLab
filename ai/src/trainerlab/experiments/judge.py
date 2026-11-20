@@ -20,13 +20,13 @@ from functools import cache
 from pathlib import Path
 
 from trainerlab import _engine, _search
-from trainerlab.bots.roster import ALPHAZERO, factory
+from trainerlab.bots.roster import RULE12, factory
 from trainerlab.experiments import parallel
 from trainerlab.experiments.situations import SITUATIONS, flagged
 from trainerlab.game.decisions import Decision, decisions
 from trainerlab.rl.planner import cpp_network
 
-NETWORK = ALPHAZERO  # rule 12's
+NETWORK = RULE12  # rule 12's, as in palier 7
 SIMULATIONS = 3200
 WORLDS = 16
 MIN_VISITS = 50

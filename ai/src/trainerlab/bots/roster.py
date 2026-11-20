@@ -20,7 +20,10 @@ from trainerlab.learning.model import WinModel
 # (docs/results.md). Loaded with PyTorch only when the bot plays.
 SELFPLAY = Path(__file__).resolve().parents[1] / "rl" / "models" / "selfplay.pt"
 # Rule 12's network: rule 10's, improved by its own search, trainerlab alphazero selfplay.pt
-# --iterations 20 (docs/results.md).
+# --iterations 20 (docs/results.md). The judge of palier 7 searches with it.
+RULE12 = SELFPLAY.with_name("rule12.pt")
+# Rule 13's network: rule 12's, improved further by the cheaper loop of palier 8, trainerlab
+# alphazero rule12.pt --iterations 140 (docs/results.md).
 ALPHAZERO = SELFPLAY.with_name("alphazero.pt")
 
 BOTS: dict[str, BotFactory] = {
@@ -36,7 +39,8 @@ BOTS: dict[str, BotFactory] = {
     "mcts": lambda seed: Mcts(seed=seed),  # rule 9
     "selfplay": lambda seed: _net_bot(str(SELFPLAY))(seed),  # rule 10, needs [rl]
     "planner": lambda seed: _planner(str(SELFPLAY), seed),  # rule 11, needs [rl]
-    "alphazero": lambda seed: _planner(str(ALPHAZERO), seed),  # rule 12, needs [rl]
+    "rule12": lambda seed: _planner(str(RULE12), seed),  # rule 12, needs [rl]
+    "alphazero": lambda seed: _planner(str(ALPHAZERO), seed),  # rule 13, needs [rl]
 }
 
 # One line each, shown by the menu and by `trainerlab bots`.
@@ -53,7 +57,8 @@ DESCRIPTIONS: dict[str, str] = {
     "mcts": "rule 9: a tree search over simultaneous moves, three turns deep",
     "selfplay": "rule 10: a network trained by self-play, plays without search",
     "planner": "rule 11: a tree search over simultaneous moves guided by rule 10's network",
-    "alphazero": "rule 12: rule 11, its network trained on its own search (AlphaZero)",
+    "rule12": "rule 12: rule 11, its network trained on its own search (AlphaZero)",
+    "alphazero": "rule 13: rule 12, its network trained further on deeper searches",
 }
 
 DEFAULT_OPPONENT = "forecaster"  # beats every bot but strategist, head to head
@@ -71,7 +76,7 @@ NET = "net"
 PLAN = "plan"
 # The bots that search a tree with a network, by the network they search with. Any of them, and
 # plan:FILE.pt, takes @N to search N simulations per decision instead of 200: alphazero@800.
-SEARCHERS = {"planner": SELFPLAY, "alphazero": ALPHAZERO}
+SEARCHERS = {"planner": SELFPLAY, "rule12": RULE12, "alphazero": ALPHAZERO}
 
 
 def factory(spec: str) -> BotFactory:

@@ -98,7 +98,7 @@ def test_the_command_trains_saves_each_iteration_and_measures(tmp_path: Path) ->
 
     assert shown[0].startswith(f"from {SELFPLAY}, learning on ")
     assert shown[1].startswith("iteration 1: 2 battles, ")
-    assert shown[2].startswith("  against rule 11: ") and shown[2].endswith("az-1.pt\n")
+    assert shown[2].startswith(f"  against plan:{SELFPLAY}: ") and shown[2].endswith("az-1.pt\n")
     assert out.is_file() and (tmp_path / "az-1.pt").is_file()
 
 
@@ -107,8 +107,11 @@ def test_the_command_measures_every_few_iterations_and_after_the_last(
 ) -> None:
     measured: list[str] = []
 
+    opponents: list[str] = []
+
     def duel(first: str, second: str, seeds: object, *, jobs: int) -> object:
         measured.append(first)
+        opponents.append(second)
         return type("Result", (), {"score": 0.5, "games": 2})()
 
     def loop(
@@ -126,8 +129,16 @@ def test_the_command_measures_every_few_iterations_and_after_the_last(
     assert command.main(argv, shown.append) == 0
 
     assert measured == [f"plan:{tmp_path / f'az-{i}.pt'}" for i in (3, 6, 7)]
+    assert opponents == [f"plan:{SELFPLAY}"] * 3  # the network it started from
     assert "entropy 1.200" in shown[1]
     assert (tmp_path / "az-1.pt").is_file()  # saved each iteration
+
+    opponents.clear()
+    assert command.main([*argv, "--iterations", "1", "--against", "planner"], shown.append) == 0
+    assert opponents == ["planner"]
+    assert shown[-1].startswith("  against planner: ")
+    with pytest.raises(SystemExit):
+        command.main([*argv, "--against", "nobody"], shown.append)
 
 
 def test_without_pytorch_the_command_says_how_to_get_it(

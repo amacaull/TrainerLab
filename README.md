@@ -29,6 +29,7 @@ command.
 | rule 10: a network trained by self-play, no search | forecaster | **0.672** | [0.663, 0.681] |
 | rule 11: a tree search guided by that network | rule 10 | **0.763** | [0.750, 0.776] |
 | rule 12: that search, its network trained on its own search (AlphaZero) | rule 11 | **0.578** | [0.562, 0.593] |
+| rule 13: rule 12's network, trained further on deeper searches | rule 12 | **0.530** | [0.514, 0.545] |
 
 `forecaster` beats every earlier bot; `strategist` beats it head to head but
 does worse against every other bot. Tree searches (Nash, MCTS) brought nothing:
@@ -43,7 +44,10 @@ tactics, still weak in long-term strategy. Measured further (palier 7, in
 [`docs/results.md`](docs/results.md)): four times its simulations win 7 more
 points; the composition of the teams decides about three matchups in four; and
 neither simple rules nor a deeper search judging it decision by decision pin
-down its mistakes reliably, so duels stay the measure.
+down its mistakes reliably, so duels stay the measure. Palier 8 made the loop
+about twice as fast on the Mac (fused multiply-adds, Apple's matrix unit through
+Accelerate, battles played side by side) and its targets four times deeper; 140
+more iterations, in an afternoon, gave rule 13, 3 points above rule 12.
 
 ## Where to look
 

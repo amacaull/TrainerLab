@@ -458,7 +458,7 @@ move, not by playing other kinds.
 
 ### Rule 12: the network trained on its own search (6.5c)
 
-`alphazero` is rule 11 with a better network, trained by the AlphaZero loop
+`rule12` (`alphazero` until palier 8) is rule 11 with a better network, trained by the AlphaZero loop
 (`trainerlab alphazero`, `search/src/self_play.cpp`). Each iteration, rule 11
 plays 1000 battles against itself on every core: both sides search what they
 see, with noise at the root (a quarter of the prior), and play an option drawn
@@ -512,7 +512,7 @@ its own and the teams on swapped sides. If teams did not matter, the team that
 won the first battle would win the second half the time.
 
 ```bash
-trainerlab teams alphazero --pairs 3000 --from 190000
+trainerlab teams rule12 --pairs 3000 --from 190000
 ```
 
 | Measure (rule 12, 6000 battles) | Value |
@@ -533,7 +533,7 @@ same teams play both sides of a pair.
 ### Search is a limit (7.3)
 
 ```bash
-trainerlab duel alphazero@800 alphazero --pairs 1000 --from 210000
+trainerlab duel rule12@800 rule12 --pairs 1000 --from 210000
 ```
 
 Four times the simulations (`@800`) beat rule 12 by **0.569** [0.547, 0.591]:
@@ -550,8 +550,8 @@ points of the chance to win. Settings fixed before measuring; replacements
 after a knock-out, chosen without search, are not judged.
 
 ```bash
-trainerlab judge alphazero planner --pairs 200 --from 220000 --out runs/judge-rule12.npz
-trainerlab judge planner alphazero --pairs 200 --from 220000 --out runs/judge-rule11.npz
+trainerlab judge rule12 planner --pairs 200 --from 220000 --out runs/judge-rule12.npz
+trainerlab judge planner rule12 --pairs 200 --from 220000 --out runs/judge-rule11.npz
 ```
 
 | | rule 11 | rule 12 |
@@ -577,7 +577,7 @@ or slower than the foe), a switch into the foe's best hit being super
 effective.
 
 ```bash
-trainerlab audit alphazero planner --pairs 1000 --from 200000
+trainerlab audit rule12 planner --pairs 1000 --from 200000
 ```
 
 Counted on their own, they made rule 12 look much better than rule 11 (28 %
@@ -614,8 +614,8 @@ copies the real state, and plays it out 200 times with the bot's option and
 the same dice.
 
 ```bash
-trainerlab verify alphazero planner --judged runs/judge-rule12.npz --worst 20 --games 200
-trainerlab verify planner alphazero --judged runs/judge-rule11.npz --worst 20 --games 200
+trainerlab verify rule12 planner --judged runs/judge-rule12.npz --worst 20 --games 200
+trainerlab verify planner rule12 --judged runs/judge-rule11.npz --worst 20 --games 200
 ```
 
 | The 20 worst blunders | rule 11 | rule 12 |
@@ -640,3 +640,69 @@ thousands of decisions, is a secondary indicator, to be read with care; its
 share of blunders is inflated. A judge worth trusting would have to be
 calibrated on decisions drawn at random rather than on its worst, and an exact
 endgame solver would cover where the network is weakest.
+
+## Palier 8: a faster loop, and rule 13
+
+Palier 7 showed that depth pays (four times the simulations, 7 points), so
+palier 8 made the loop faster, then spent the time on deeper targets. The
+speed-ups, measured on the Mac, are in [`benchmark.md`](benchmark.md): fused
+multiply-adds (8.1), the network's layers through Accelerate (8.2), and battles
+played side by side in self-play, their network queries batched (8.3). Self-play
+on every core went from about 570 to 1 160 decisions per second.
+
+**Reusing the tree from one turn to the next was dropped.** A prototype counted
+what it would bring: the subtree of the options actually played holds on
+average 51 of the 200 visits (rule 11's network, 2 426 decisions), and none in
+24 % of the decisions. Topping it up to 200 would save a quarter of the
+simulations, at best 1.3 times faster self-play, and those visits were played
+on guessed teams and dice that did not happen: a knock-out in one simulation
+and not in another, even another Pokémon in play (3 % of the decisions), where
+"move 2" is not the same move. Not worth the risk to the targets.
+
+### The cheaper loop (8.5)
+
+The loop now plays 960 battles per iteration (6 rounds of 16 battles side by
+side on 10 threads) and mixes its searches as KataGo does (playout cap
+randomization): a quarter of them are full, 800 simulations with noise at the
+root, and recorded; the others search 100 simulations without noise and only
+move the battle on. Each target comes from a search four times deeper. The
+follow-up duel runs every 5 iterations, and the log shows the entropy of the
+targets. Settings fixed before measuring.
+
+| Self-play of one iteration (960 battles, Mac) | Decisions recorded | Entropy | Time |
+|---|---|---|---|
+| 200 simulations everywhere | 56 930 | 1.328 | 49 s |
+| a quarter at 800, the others at 100 | 13 945 | 1.215 | 76 s |
+
+Deeper searches cost more per simulation than counted (each goes further down a
+larger tree): 55 % more time rather than 37 %, for a quarter of the rows, each
+from a search four times deeper.
+
+### Rule 13: rule 12's network, 140 iterations more (8.6)
+
+Settings fixed before measuring: 140 iterations from rule 12's network (as many
+as fit before the evening with a margin), the last one measured.
+
+```bash
+trainerlab alphazero ai/src/trainerlab/rl/models/rule12.pt --iterations 140 --out runs/rule13.pt
+trainerlab duel plan:runs/rule13.pt rule12 --pairs 2000
+```
+
+| Duel | Score | 95 % interval | Record (W / D / L) |
+|---|---|---|---|
+| **rule 13 vs rule 12** | **0.530** | [0.514, 0.545] | 2113 / 13 / 1874 |
+
+**Rule 13 beats rule 12 by 3 points**, in 4 hours 19 minutes (140 iterations,
+134 400 battles, 1.9 million decisions recorded; 1.4 minutes per iteration at
+first, 1.9 at the end, the Mac warming up). The value loss fell from 0.596 to
+about 0.52, the network calling the winner better; the policy loss barely
+moved (1.428 to 1.403) and the entropy of the targets held near 1.21. The
+follow-up duels (100 pairs, against rule 11 for this run: the command still
+named it, it now measures against the network it started from) wandered
+between 0.487 and 0.635, as 200 battles do, with no collapse.
+
+The gain is real but smaller than rule 12's 8 points over rule 11, after seven
+times the iterations: with this network and this learning rate, the loop has
+less left to find. A network that can learn more (palier 10, attention) should
+get more out of a loop that is now fast.
+

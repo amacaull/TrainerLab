@@ -61,7 +61,7 @@ lists the commands, `trainerlab duel --help` the options of one.
 | `imitate BOT_A BOT_B` | bot A's decisions, encoded for the network to learn from (`.npz`) |
 | `pretrain DATA…` | trains the policy and value network by imitation (`net.pt`) |
 | `selfplay NET.pt` | improves the network by self-play with PPO (`selfplay.pt`, rule 10), measured against forecaster along the way |
-| `alphazero NET.pt` | improves the network with its own search, as AlphaZero: rule 11 plays itself on every core, the network learns its search's choices and the results; measured against rule 11 along the way |
+| `alphazero NET.pt` | improves the network with its own search, as AlphaZero: rule 11 plays itself on every core, a quarter of its searches deep (800 simulations) and recorded, the others fast (100); the network learns the deep searches' choices and the results; measured every `--follow` iterations (5) against the network it started from, or `--against BOT` |
 | `teams BOT` | how much a team's composition decides battles: the bot plays itself, each matchup twice with dice of its own; the share of matchups won twice by the same team, each species' score, and how well the composition alone calls the winner |
 | `judge BOT_A BOT_B` | rates each decision of bot A with a search 16 times deeper: agreement, mean loss in points of the chance to win, the situations of the audit as the judge rates them, the worst decisions; reliable on average, not decision by decision |
 | `verify BOT_A BOT_B --judged FILE` | plays the judge's worst blunders out to the end, both options, the same dice, to check them against results |
@@ -93,7 +93,8 @@ replays the same battle; `--log FILE` keeps it as text.
 | `mcts` | **Rule 9.** A Monte Carlo tree search over simultaneous moves, three turns deep, guessing the foe's unseen Pokémon as legal teams; the model rates where each simulation stops. |
 | `selfplay` | **Rule 10.** A policy network trained by imitation of `forecaster`, then by self-play with PPO; plays its best option without any search (needs the `rl` extras). |
 | `planner` | **Rule 11.** Rule 9's tree search over simultaneous moves, guided by rule 10's network: its policy gives each option a prior, its value rates each new position (PUCT, as in AlphaZero); both run in C++. |
-| `alphazero` | **Rule 12.** Rule 11, with a network trained on its own search: rule 11 played itself, the network learned the search's choices and the results, 20 times over (`trainerlab alphazero`). The strongest bot. |
+| `rule12` | **Rule 12.** Rule 11, with a network trained on its own search: rule 11 played itself, the network learned the search's choices and the results, 20 times over (`trainerlab alphazero`). The judge searches with its network. |
+| `alphazero` | **Rule 13.** Rule 12, its network trained 140 iterations more by the faster loop of palier 8, on searches four times deeper. The strongest bot. |
 
 Rules 1 to 5 are each three choices assembled in a `RuleBot`: a switch it may
 make before moving, its move, its replacement. `calculator()` is
@@ -105,7 +106,7 @@ play with another model instead.
 
 `net:FILE.pt` plays a policy network alone, greedily, without any search: the network
 made by `trainerlab pretrain`; `plan:FILE.pt` is rule 11's search guided by the network in that
-file (`trainerlab alphazero`). A search bot (`planner`, `alphazero`, `plan:FILE.pt`) takes `@N` to
+file (`trainerlab alphazero`). A search bot (`planner`, `rule12`, `alphazero`, `plan:FILE.pt`) takes `@N` to
 search N simulations per decision instead of 200: `alphazero@800`. PyTorch comes with the `rl` extras; `pytest --cov` needs them.
 
 ## Method
