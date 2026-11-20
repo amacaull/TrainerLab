@@ -15,8 +15,10 @@ const search::Game &game() {
   return instance;
 }
 
-search::SelfPlaySettings small(int maxTurns = 40, int lanes = 16) {
-  return {{16, 2, 1.5, 0.25}, maxTurns, lanes};
+// Every search full (16 simulations) unless `fast` is given: then a quarter of them, the others
+// `fast` simulations.
+search::SelfPlaySettings small(int maxTurns = 40, int lanes = 16, int fast = 0) {
+  return {{16, 2, 1.5, 0.25}, maxTurns, lanes, fast, 0.25};
 }
 } // namespace
 
@@ -50,8 +52,8 @@ TEST_CASE("self-play records a policy over the legal options and each side's res
 
 TEST_CASE("self-play's rows are the same for any number of threads") {
   const search::Network net = search::testing::randomNetwork(game());
-  const search::SelfPlayData one = search::selfPlay(game(), net, small(40, 2), 4, 3, 1);
-  const search::SelfPlayData three = search::selfPlay(game(), net, small(40, 2), 4, 3, 3);
+  const search::SelfPlayData one = search::selfPlay(game(), net, small(40, 2, 4), 4, 3, 1);
+  const search::SelfPlayData three = search::selfPlay(game(), net, small(40, 2, 4), 4, 3, 3);
 
   CHECK(one.policy == three.policy);
   CHECK(one.pokemon == three.pokemon);
@@ -74,6 +76,30 @@ TEST_CASE("battles played side by side, their queries batched, play as they do o
   CHECK(alone.turns == together.turns);
 }
 
+TEST_CASE("with fast searches, only the full ones are recorded: a share of the decisions") {
+  const search::Network net = search::testing::randomNetwork(game());
+  search::SelfPlaySettings none = small(40, 16, 4), all = small(40, 16, 4);
+  none.fullShare = 0.0;
+  all.fullShare = 1.0;
+  const search::SelfPlayData played = search::selfPlay(game(), net, none, 2, 5, 1);
+  CHECK(played.rows() == 0); // the battles are played, nothing recorded
+  CHECK(played.turns.size() == 2);
+  CHECK(played.turns[0] > 0);
+
+  // All full: as without fast searches.
+  const search::SelfPlayData full = search::selfPlay(game(), net, all, 2, 5, 1);
+  const search::SelfPlayData plain = search::selfPlay(game(), net, small(), 2, 5, 1);
+  CHECK(full.policy == plain.policy);
+  CHECK(full.turns == plain.turns);
+
+  const search::SelfPlayData mixed = search::selfPlay(game(), net, small(40, 16, 4), 6, 5, 1);
+  int searched = 0;
+  for (int turns : mixed.turns)
+    searched += turns;
+  CHECK(mixed.rows() > 0);
+  CHECK(mixed.rows() < searched); // about a quarter of the decisions searched
+}
+
 TEST_CASE("a battle stopped at the turn limit is a draw: every result 0") {
   const search::Network net = search::testing::randomNetwork(game());
   const search::SelfPlayData data = search::selfPlay(game(), net, small(2), 2, 1, 2);
@@ -91,4 +117,8 @@ TEST_CASE("self-play refuses settings it cannot play with") {
   CHECK_THROWS_AS(search::selfPlay(game(), net, one, 1, 0, 1), std::invalid_argument);
   CHECK_THROWS_AS(search::selfPlay(game(), net, small(), 1, 0, 0), std::invalid_argument);
   CHECK_THROWS_AS(search::selfPlay(game(), net, small(40, 0), 1, 0, 1), std::invalid_argument);
+  CHECK_THROWS_AS(search::selfPlay(game(), net, small(40, 16, 1), 1, 0, 1), std::invalid_argument);
+  search::SelfPlaySettings share = small(40, 16, 4);
+  share.fullShare = 1.5;
+  CHECK_THROWS_AS(search::selfPlay(game(), net, share, 1, 0, 1), std::invalid_argument);
 }

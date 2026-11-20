@@ -1,5 +1,7 @@
 import sys
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
@@ -11,13 +13,13 @@ from trainerlab.commands import alphazero as command
 from trainerlab.rl import alphazero
 from trainerlab.rl.net import PolicyValueNet
 
-# A small search (4 simulations, 2 worlds): rule 10's network plays the battles quickly.
+# A small search (4 simulations, 2 worlds, fast searches of 2): rule 10's network plays the battles
+# quickly.
+SMALL: dict[str, Any] = {"simulations": 4, "worlds": 2, "fast": 2}
 
 
 def test_self_play_gives_a_policy_and_a_result_per_decision() -> None:
-    rows = alphazero.play(
-        PolicyValueNet.load(SELFPLAY), 2, seed=1, threads=2, simulations=4, worlds=2
-    )
+    rows = alphazero.play(PolicyValueNet.load(SELFPLAY), 2, seed=1, threads=2, **SMALL)
 
     n = len(rows["result"])
     assert n > 0
@@ -29,10 +31,20 @@ def test_self_play_gives_a_policy_and_a_result_per_decision() -> None:
     assert len(rows["turns"]) == len(rows["winner"]) == 2
 
 
+def test_only_the_full_searches_are_recorded() -> None:
+    net = PolicyValueNet.load(SELFPLAY)
+    none = alphazero.play(net, 2, seed=1, threads=2, **SMALL, share=0.0)
+    every = alphazero.play(net, 2, seed=1, threads=2, **SMALL, share=1.0)
+    some = alphazero.play(net, 2, seed=1, threads=2, **SMALL)  # a quarter
+
+    assert len(none["result"]) == 0 and len(none["turns"]) == 2
+    assert 0 < len(some["result"]) < len(every["result"])
+
+
 def test_learning_moves_the_policy_toward_the_search() -> None:
     torch.manual_seed(0)
     net = PolicyValueNet.load(SELFPLAY)
-    rows = alphazero.play(net, 2, seed=2, threads=2, simulations=4, worlds=2)
+    rows = alphazero.play(net, 2, seed=2, threads=2, **SMALL, share=1.0)
     optimizer = torch.optim.Adam(net.parameters(), lr=1e-3)
     rng = np.random.default_rng(0)
 
@@ -49,7 +61,7 @@ def test_the_loop_plays_learns_and_reports_each_iteration() -> None:
     before = [p.clone() for p in net.parameters()]
 
     trained = alphazero.loop(
-        net, 2, games=2, threads=2, report=lambda p, _: seen.append(p), simulations=4, worlds=2
+        net, 2, games=2, threads=2, report=lambda p, _: seen.append(p), **SMALL, share=1.0
     )
 
     assert [p.iteration for p in seen] == [1, 2]
@@ -57,9 +69,7 @@ def test_the_loop_plays_learns_and_reports_each_iteration() -> None:
     assert 0 <= seen[0].draws <= 1
     assert any(not torch.equal(a, b) for a, b in zip(before, trained.parameters(), strict=True))
     assert next(trained.parameters()).device.type == "cpu"
-    assert (
-        alphazero.loop(trained, 1, games=1, simulations=4, worlds=2) is trained
-    )  # no report: quiet
+    assert alphazero.loop(trained, 1, games=1, **SMALL) is trained  # no report: quiet
 
 
 def test_an_empty_iteration_reports_no_turns() -> None:
@@ -69,17 +79,17 @@ def test_an_empty_iteration_reports_no_turns() -> None:
         1,
         games=0,
         report=lambda p, _: seen.append(p),
-        simulations=4,
-        worlds=2,
+        **SMALL,
     )
 
     assert seen[0].decisions == 0 and seen[0].turns == 0.0 and seen[0].draws == 0.0
+    assert seen[0].entropy == 0.0
 
 
 def test_the_command_trains_saves_each_iteration_and_measures(tmp_path: Path) -> None:
     out = tmp_path / "az.pt"
     shown: list[str] = []
-    argv = [str(SELFPLAY), "--iterations", "1", "--games", "2", "--simulations", "4"]
+    argv = [str(SELFPLAY), "--iterations", "1", "--games", "2", "--simulations", "4", "--fast", "2"]
 
     assert (
         command.main([*argv, "--pairs", "1", "--threads", "2", "--out", str(out)], shown.append)
@@ -90,6 +100,34 @@ def test_the_command_trains_saves_each_iteration_and_measures(tmp_path: Path) ->
     assert shown[1].startswith("iteration 1: 2 battles, ")
     assert shown[2].startswith("  against rule 11: ") and shown[2].endswith("az-1.pt\n")
     assert out.is_file() and (tmp_path / "az-1.pt").is_file()
+
+
+def test_the_command_measures_every_few_iterations_and_after_the_last(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    measured: list[str] = []
+
+    def duel(first: str, second: str, seeds: object, *, jobs: int) -> object:
+        measured.append(first)
+        return type("Result", (), {"score": 0.5, "games": 2})()
+
+    def loop(
+        net: object, iterations: int, *, report: Callable[..., None], **kwargs: object
+    ) -> None:
+        for i in range(1, iterations + 1):
+            report(alphazero.Progress(i, 2, 4, 10.0, 0.0, 1.2, 0.5, 0.3), net)
+
+    monkeypatch.setattr(command, "duel", duel)
+    monkeypatch.setattr(alphazero, "loop", loop)
+    shown: list[str] = []
+    out = tmp_path / "az.pt"
+    argv = [str(SELFPLAY), "--iterations", "7", "--follow", "3", "--out", str(out)]
+
+    assert command.main(argv, shown.append) == 0
+
+    assert measured == [f"plan:{tmp_path / f'az-{i}.pt'}" for i in (3, 6, 7)]
+    assert "entropy 1.200" in shown[1]
+    assert (tmp_path / "az-1.pt").is_file()  # saved each iteration
 
 
 def test_without_pytorch_the_command_says_how_to_get_it(
@@ -120,9 +158,7 @@ def _losses(net: PolicyValueNet, rows: dict[str, np.ndarray]) -> tuple[float, fl
 
 @pytest.fixture(scope="module")
 def played() -> dict[str, np.ndarray]:
-    return alphazero.play(
-        PolicyValueNet.load(SELFPLAY), 2, seed=2, threads=2, simulations=4, worlds=2
-    )
+    return alphazero.play(PolicyValueNet.load(SELFPLAY), 2, seed=2, threads=2, **SMALL, share=1.0)
 
 
 def test_the_losses_reported_are_the_cross_entropy_and_the_squared_error_of_every_row(
@@ -166,6 +202,7 @@ def test_the_loop_learns_from_the_last_iterations_and_reports_their_battles(
         rows = {key: np.zeros(n) for key in alphazero.KEYS}
         rows["turns"] = np.array([10.0, 30.0])
         rows["winner"] = np.array([-1, 0], dtype=np.int8)  # one draw, one win for side 0
+        rows["policy"] = np.tile([0.5, 0.5, 0, 0, 0, 0, 0, 0, 0, 0], (n, 1))  # ln 2 each
         return rows
 
     def learn(
@@ -185,3 +222,4 @@ def test_the_loop_learns_from_the_last_iterations_and_reports_their_battles(
     assert learned == [sum(range(max(1, n - window + 1), n + 1)) for n in range(1, 7)]
     assert seen[0].turns == 20.0 and seen[0].draws == 0.5
     assert (seen[0].policy_loss, seen[0].value_loss) == (0.1, 0.2)
+    assert seen[0].entropy == pytest.approx(np.log(2))
