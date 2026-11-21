@@ -196,3 +196,24 @@ twice the self-play on every core. With 200 battles rather than 160, threads
 wait for the last groups (1.79 times instead of 2.0): the loop plays a multiple
 of 160 battles.
 
+## Palier 10: the network with attention
+
+On the Mac (`search_bench 2`, random weights of the shapes), 2 layers of
+attention over the Pokémon and the field cost the search 3.7 times the matrix
+work of rule 13's network. Between the matrix products, which go through
+Accelerate, the attention's own arithmetic ran one float at a time and
+dominated; in NEON vectors (each head's keys and values side by side, the query
+and the mix in registers, e^x by a polynomial, the norms four floats at a time)
+it costs half as much:
+
+| Line | rule 13's network | attention | attention, vectorised |
+|---|---|---|---|
+| network evaluation, batches of 16 | 281 429/s | 30 119/s | **45 925/s** |
+| planner decision, 1 thread | 207/s | 49/s | **65/s** |
+| self-play, 10 threads, 16 battles side by side | 1 635/s | 286/s | **363/s** |
+
+Self-play with attention is 4.5 times slower; an iteration of the loop takes
+about 7.5 minutes rather than 1.6. The matchup columns of 10.2 cost the encoding
+of a position about 1.2 µs more (0.71 million positions per second on this
+Linux machine), small next to the network.
+
