@@ -706,3 +706,144 @@ times the iterations: with this network and this learning rate, the loop has
 less left to find. A network that can learn more (palier 10, attention) should
 get more out of a loop that is now fast.
 
+## Palier 9: two changes to the search, no gain
+
+Two ideas to foresee the foe better, each measured against rule 13 with the same
+network and 200 simulations, 2000 pairs. Neither was kept.
+
+**A tree that keeps a turn's outcomes apart.** A pair of choices led to one
+child, whatever the dice: after a knock-out in one simulation and not in
+another, "move 2" below mixed the moves of two Pokémon. Splitting the children
+by the Pokémon in play once the turn is over changed nothing: **0.500**
+[0.484, 0.515]. The mix only happens after a knock-out or a phazing, low in the
+tree, where splitting also leaves each child fewer visits.
+
+**A mixed choice from the root's equilibrium.** The two sides choose at once,
+and always playing the option visited most is predictable. Drawing the option
+from the equilibrium of the zero-sum game the root's pairs of options make
+(`solveMatrixGame`) changed a third of the choices, for the worse: **0.385**
+[0.370, 0.401]. With 200 simulations spread over dozens of pairs, each pair's
+value rests on a few visits: the equilibrium of noise. The visits sum up the
+whole search; a pair's value sees a sliver of it. A mixed strategy worth having
+would come from the search itself (regret matching at each node), for later.
+
+Guessing the foe's unseen Pokémon by their likelihood was dropped for now: the
+teams are drawn at random, so every remaining Pokémon is as likely, which is
+what the search assumes already. It will matter once the bots build their
+teams.
+
+## Palier 10: attention, the arithmetic, and rule 14
+
+Rule 13's loop gained little (3 points in 140 iterations): the network seemed
+to hold it back. Palier 10 gave it attention, then the arithmetic, then fixed
+the loop that trains it.
+
+### A network with attention, taught rule 13's search (10.1)
+
+The 12 Pokémon and the field, each placed by a learned embedding, go through 2
+layers of attention (normalised first, 4 heads, width 128, a feed-forward of
+256) before the trunk: each Pokémon reads the others, and the trunk and the
+switches read what they made of each other. The C++ network evaluates it too,
+the same as PyTorch to 1e-4 (speed in [`benchmark.md`](benchmark.md)).
+
+It starts from nothing, so it first learns rule 13's search (`trainerlab
+distill`): rule 13 plays the loop's battles until it has left 501 864
+decisions, with the targets of 800-simulation searches; the student learns them
+in passes, the last 5 % of the decisions held out.
+
+```bash
+trainerlab distill ai/src/trainerlab/rl/models/rule13.pt --out runs/attention.pt --data runs/distill.npz
+```
+
+| Student | Held-out policy loss | Held-out value loss | Against rule 13 (100 pairs) |
+|---|---|---|---|
+| 8 passes | 1.462 | 0.710 | **0.380** [0.316, 0.449] |
+| 3 passes, then 10 iterations of the loop | 1.580 (before the loop) | 0.593 | 0.278, then 0.300 |
+
+Past the third pass, its value learnt the battles by heart: all the decisions
+of a battle share its result, and with some 35 000 battles for 500 000
+decisions the network came to recognise them. Stopping at 3 passes kept the
+value but cost the policy, which the loop then could not recover. Either way it
+fell far short of its teacher.
+
+### The arithmetic, and a foe head (10.2)
+
+Each Pokémon's vector read its types, stats and moves, but nothing computed:
+the network had to learn the type chart and the damage formula. Its last ten
+numbers are now its matchup against the opposing active: each move's
+effectiveness and the damage the formula gives at the mean roll (as a share of
+the target's HP, without abilities or items), who is faster, and the most the
+opposing active would take from it. A network made before reads the columns
+before them, and plays as it did. Beside them, self-play records what the foe
+played each turn, and a foe head learns to guess it (weight 0.5): our bots'
+mistakes came from foreseeing the foe's move (palier 7).
+
+The same 501 864 decisions, generated again with the new columns, taught two
+students in 8 passes:
+
+| Student | Held-out policy loss | Held-out value loss (best) | Against rule 13 |
+|---|---|---|---|
+| no attention (347 373 parameters) | 1.481 | 0.585 | 0.440 [0.373, 0.509] (100 pairs) |
+| **attention** (644 973 parameters) | **1.450** | 0.584 (pass 3) | **0.500** [0.485, 0.516] (2000 pairs) |
+
+**The arithmetic made the difference**: the student with attention went from 12
+points below its teacher to its exact level, by imitation alone.
+
+### A loop that does not learn by heart
+
+From that student, the loop of palier 8 made it worse: after 53 iterations the
+follow-up duels against rule 13 had fallen from about 0.5 to 0.31–0.36, the
+value loss on the window had dropped from 0.515 to 0.31 and the policy loss had
+risen from 1.465 to 1.49. Each decision came back eight times (2 passes, 4
+iterations in the window), and the network with attention, unlike rule 13's,
+had the room to learn the results by heart; its search then trusted a value
+that judged new positions badly. Stopped.
+
+Three changes: one pass per iteration; the value's loss weighed 0.25 (Leela
+Chess Zero's remedy); and each iteration now measures the network on its new
+battles before learning them (the "fresh" losses of the log), where learning by
+heart shows at once. 33 iterations from the student:
+
+| | Fresh policy loss | Fresh value loss | Against rule 13 |
+|---|---|---|---|
+| iterations 1–5 | 1.461 | 0.626 | |
+| iterations 29–33 | about 1.41 | about 0.58 | **0.512** [0.496, 0.527] |
+
+Stable, and the policy learned, but the gain was within the noise. Raising the
+learning rate to 3e-4 (then 1e-4 and 3e-5) made it worse on battles it had not
+learned from (fresh policy 1.41 to 1.43–1.46, fresh value 0.57 to 0.60–0.66 by
+the 17th iteration): learning harder from noisy targets learns their noise.
+Stopped; back to 1e-4.
+
+### The search's value beside the result: rule 14
+
+The result of a battle is a noisy target: the dice decide much of it. The
+800-simulation search gives each position its own value, the mean of hundreds of
+lines. The value now learns the mean of both; the fresh value stays measured on
+the results alone, to compare with the loops before. 33 iterations more:
+
+| Fresh value loss | Iterations 11–15 | 16–20 | 21–25 |
+|---|---|---|---|
+| the result alone | 0.621 | 0.612 | 0.598 |
+| **mixed with the search's value** | **0.570** | **0.573** | **0.567** |
+
+```bash
+trainerlab alphazero runs/attention.pt --iterations 33 --out runs/rule14.pt --against rule13
+trainerlab alphazero runs/rule14.pt --iterations 33 --out runs/rule14c.pt --against rule13
+trainerlab duel plan:runs/rule14c.pt rule13 --pairs 2000 --from 290000
+```
+
+| Duel | Score | 95 % interval | Record (W / D / L) |
+|---|---|---|---|
+| **rule 14 vs rule 13** | **0.539** | [0.523, 0.554] | 2141 / 27 / 1832 |
+
+**Rule 14 beats rule 13 by 4 points**, more than rule 13 gained over rule 12,
+in 66 iterations rather than 140. How much of the last 2.7 points the mixed
+value brought, rather than 33 more iterations, the intervals do not tell; the
+fresh value, lower all along, says it helped. Its rise over the last three
+iterations (0.60 to 0.62) is to watch.
+
+Played by a human (one battle, which measures nothing but shows something), rule
+13 lost, sending its Kommo-o, four times weak to Fairy, in front of an
+Azumarill: its replacements are its network's favourite, never searched.
+

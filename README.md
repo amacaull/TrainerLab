@@ -30,6 +30,7 @@ command.
 | rule 11: a tree search guided by that network | rule 10 | **0.763** | [0.750, 0.776] |
 | rule 12: that search, its network trained on its own search (AlphaZero) | rule 11 | **0.578** | [0.562, 0.593] |
 | rule 13: rule 12's network, trained further on deeper searches | rule 12 | **0.530** | [0.514, 0.545] |
+| rule 14: a network with attention that sees the matchups, trained on its search | rule 13 | **0.539** | [0.523, 0.554] |
 
 `forecaster` beats every earlier bot; `strategist` beats it head to head but
 does worse against every other bot. Tree searches (Nash, MCTS) brought nothing:
@@ -47,7 +48,13 @@ neither simple rules nor a deeper search judging it decision by decision pin
 down its mistakes reliably, so duels stay the measure. Palier 8 made the loop
 about twice as fast on the Mac (fused multiply-adds, Apple's matrix unit through
 Accelerate, battles played side by side) and its targets four times deeper; 140
-more iterations, in an afternoon, gave rule 13, 3 points above rule 12.
+more iterations, in an afternoon, gave rule 13, 3 points above rule 12. Palier 10
+gave the network attention, each Pokémon reading the others, and the
+arithmetic it had to guess before (each move's effectiveness and damage, who is
+faster, what it would take): taught rule 13's search, it plays as rule 13 does,
+where without the arithmetic it fell 12 points short. Once the loop stopped
+learning the battles' results by heart and learned the search's value beside
+them, it gave rule 14, 4 points above rule 13.
 
 ## Where to look
 
