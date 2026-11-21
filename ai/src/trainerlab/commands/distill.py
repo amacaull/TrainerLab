@@ -67,7 +67,7 @@ def main(argv: list[str] | None = None, write: Write = stdout) -> int:
         np.savez(args.data, **kept)
         write(f"saved {len(rows['result'])} decisions to {args.data}\n")
 
-    student = distill.student(args.layers or distill.LAYERS)
+    student = distill.student(distill.LAYERS if args.layers is None else args.layers)
     size = sum(p.numel() for p in student.parameters())
     write(f"learning on {train.device()}: {student.shape.layers} layers, {size} parameters\n")
 

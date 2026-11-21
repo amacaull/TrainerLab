@@ -89,6 +89,7 @@ private:
   Embedding species_, ability_, item_, move_;
   Linear pokemon1_, pokemon2_, trunk1_, trunk2_, moves1_, moves2_, switch1_, switch2_, value_;
   int present_, known_, active_, moveColumns_, moveWidth_;
+  int reads_; // the columns of each Pokemon's vector it reads: all, or those before the matchups
   // What the Pokemon network makes of a foe not seen yet, and of an empty place: always the same
   // input, computed once.
   std::vector<float> unseen_, empty_;

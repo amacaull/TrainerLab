@@ -30,7 +30,7 @@ def _decisions() -> list[Decision]:
 
 def test_the_columns_have_names_and_the_arrays_their_shapes() -> None:
     names, field = pokemon_names(), field_names()
-    assert len(set(names)) == len(names) == 153
+    assert len(set(names)) == len(names) == 163  # 153, then the 10 matchup columns (10.2)
     assert len(set(field)) == len(field) == 17
     view = _decisions()[0].view
     encoded = encode(view, 0)

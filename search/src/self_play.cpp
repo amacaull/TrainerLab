@@ -68,7 +68,8 @@ private:
   uint64_t decision_ = 0;
   bool fullSearch_ = true;
   SelfPlayData data_;
-  std::vector<int> sides_; // the side of each row, for its result
+  std::vector<int> sides_;       // the side of each row, for its result
+  std::vector<size_t> turnRows_; // the rows of the turn under way, to learn what the foe played
   bool done_ = false;
 
   // The turn under way: whose choice is next (2: both chosen), and what they chose.
@@ -104,6 +105,13 @@ void Battle::advance() {
       }
     }
     if (turnSide_ == 2) {
+      for (size_t row : turnRows_) {
+        const int foe = 1 - sides_[row];
+        data_.foe[row] = keyOf(chosen_[at(foe)]);
+        Encoding::mask(rules.legalActions(state_, foe),
+                       data_.foeMask.data() + row * Encoding::kActions);
+      }
+      turnRows_.clear();
       rules.resolveTurn(state_, chosen_[0], chosen_[1], dice_);
       turnSide_ = 0;
       continue;
@@ -172,7 +180,10 @@ void Battle::record() {
   for (int n : counts)
     data_.policy.push_back(static_cast<float>(n) / static_cast<float>(total));
   data_.result.push_back(0.0f);
+  data_.foe.push_back(-1);
+  data_.foeMask.resize(data_.foeMask.size() + Encoding::kActions, 0.0f);
   data_.game.push_back(index_);
+  turnRows_.push_back(row);
   sides_.push_back(side);
 }
 
@@ -271,6 +282,8 @@ SelfPlayData selfPlay(const Game &game, const Network &network, const SelfPlaySe
     append(all.mask, b.mask);
     append(all.policy, b.policy);
     append(all.result, b.result);
+    append(all.foe, b.foe);
+    append(all.foeMask, b.foeMask);
     append(all.game, b.game);
     append(all.turns, b.turns);
     append(all.winner, b.winner);

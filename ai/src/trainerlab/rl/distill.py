@@ -17,7 +17,6 @@ from typing import Any
 
 import numpy as np
 import torch
-from torch.nn import functional
 
 from trainerlab.rl import alphazero, train
 from trainerlab.rl.alphazero import KEYS, Rows
@@ -68,36 +67,24 @@ def generate(
 
 
 def student(layers: int = LAYERS) -> PolicyValueNet:
-    """A fresh network with `layers` of attention, for the catalog."""
-    return PolicyValueNet(Shape(**{**asdict(Shape.for_catalog()), "layers": layers}))
+    """A fresh network with `layers` of attention and a foe head, for the catalog."""
+    return PolicyValueNet(
+        Shape(**{**asdict(Shape.for_catalog()), "layers": layers, "foe_head": True})
+    )
 
 
 def _batch(rows: Rows, index: np.ndarray, on: torch.device) -> list[torch.Tensor]:
     return [
-        torch.from_numpy(rows[key][index].astype(np.int64 if key == "ids" else np.float32)).to(on)
+        torch.from_numpy(
+            rows[key][index].astype(np.int64 if key in ("ids", "foe") else np.float32)
+        ).to(on)
         for key in KEYS
     ]
 
 
-def _loss(net: PolicyValueNet, batch: list[torch.Tensor]) -> tuple[torch.Tensor, torch.Tensor]:
-    pokemon, ids, field, mask, policy, result = batch
-    logits, value = net(pokemon, ids, field, mask)
-    policy_loss = -(policy * functional.log_softmax(logits, dim=-1)).sum(-1).mean()
-    return policy_loss, functional.mse_loss(value, result)
-
-
 def losses(net: PolicyValueNet, rows: Rows, *, batch: int = BATCH) -> tuple[float, float]:
     """The network's mean policy cross-entropy and value squared error on these decisions."""
-    on = next(net.parameters()).device
-    totals, n = np.zeros(2), len(rows["result"])
-    net.eval()
-    with torch.no_grad():
-        for start in range(0, n, batch):
-            index = np.arange(start, min(start + batch, n))
-            policy_loss, value_loss = _loss(net, _batch(rows, index, on))
-            totals += [policy_loss.item() * len(index), value_loss.item() * len(index)]
-    mean = totals / max(n, 1)
-    return float(mean[0]), float(mean[1])
+    return alphazero.measure(net, rows, batch=batch)
 
 
 def rate(step: int, steps: int) -> float:
@@ -130,9 +117,10 @@ def teach(
         order = rng.permutation(learned)
         for start in range(0, learned, batch):
             index = np.sort(order[start : start + batch])
-            policy_loss, value_loss = _loss(net, _batch(rows, index, on))
+            policy_loss, value_loss, foe = alphazero.losses(net, _batch(rows, index, on))
             optimizer.zero_grad()
-            (policy_loss + value_loss).backward()  # type: ignore[no-untyped-call]
+            loss = policy_loss + value_loss + alphazero.FOE_WEIGHT * foe
+            loss.backward()  # type: ignore[no-untyped-call]
             optimizer.step()
             schedule.step()
             totals += [policy_loss.item() * len(index), value_loss.item() * len(index)]

@@ -393,11 +393,14 @@ Network::Network(const Encoding &encoding, const std::map<std::string, Tensor> &
   active_ = column(names, "active");
   moveColumns_ = column(names, "move1_present");
   moveWidth_ = column(names, "move2_present") - moveColumns_;
-  if (pokemon1_.in != static_cast<int>(names.size()) + 7 * species_.dim)
+  // A network made before the matchup columns (palier 10.2) reads the columns before them only.
+  reads_ = pokemon1_.in - 7 * species_.dim;
+  if (reads_ != static_cast<int>(names.size()) &&
+      (reads_ > static_cast<int>(names.size()) || names[at(reads_)] != "vs_faster"))
     throw std::invalid_argument("Network: weights made for another encoding");
 
   // [an unseen foe, an empty place]: present or not, nothing else; all ids 0.
-  const int e = species_.dim, width = static_cast<int>(names.size());
+  const int e = species_.dim, width = reads_;
   std::vector<float> input(at(2 * pokemon1_.in), 0.0f), first(at(2 * pokemon1_.out));
   std::vector<float> each(at(2 * pokemon2_.out));
   for (int r = 0; r < 2; ++r) {
@@ -488,7 +491,7 @@ void Network::evaluate(std::span<const Query> queries, Output *out) const {
       continue;
     }
     const int32_t *id = ids.data() + at(s * Encoding::kIds);
-    float *x = std::copy(numbers, numbers + width, input + known.size() * at(pokemon1_.in));
+    float *x = std::copy(numbers, numbers + reads_, input + known.size() * at(pokemon1_.in));
     x = std::copy_n(species_.row(id[0]), e, x);
     x = std::copy_n(ability_.row(id[1]), e, x);
     x = std::copy_n(item_.row(id[2]), e, x);

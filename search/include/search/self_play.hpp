@@ -34,6 +34,8 @@ struct SelfPlayData {
   std::vector<float> mask;    // rows x 10
   std::vector<float> policy;  // rows x 10
   std::vector<float> result;  // rows
+  std::vector<int32_t> foe;   // rows: the option the foe played that turn (Encoding's numbering)
+  std::vector<float> foeMask; // rows x 10: the foe's legal options that turn
   std::vector<int32_t> game;  // rows: the battle each row comes from
   std::vector<int32_t> turns; // per battle
   std::vector<int8_t> winner; // per battle: 0, 1, or -1 for a draw

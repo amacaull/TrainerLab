@@ -3,7 +3,9 @@
 Computed in C++ (search/src/encoding.cpp). From a side's view, twelve slots: its team in team
 order, then the foe's. Each Pokemon has numbers (HP, stats, stages, status, types, and for each of
 its four moves power, accuracy, category, priority, PP and type) and seven catalog ids for
-embeddings (species, ability, item, the four moves; 0 for none or unknown, else index + 1). A
+embeddings (species, ability, item, the four moves; 0 for none or unknown, else index + 1). Its
+last ten numbers are its matchup against the opposing active (palier 10.2): each move's
+effectiveness and estimated damage, who is faster, the most it would take. A
 foe not seen yet is present but unknown. The options are ten: moves 0-3, then switches to team
 indices 0-5.
 """

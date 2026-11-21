@@ -17,6 +17,10 @@ namespace search {
 //
 // Next to the numbers, each Pokemon has seven catalog ids for embeddings: species, ability, item,
 // then its four moves. 0 means none or unknown, any other value is the catalog index + 1.
+//
+// The last columns (palier 10.2) are its matchup against the opposing active: what its moves
+// would do, who is faster, what it would take. A network made before them reads the columns
+// before them only.
 class Encoding {
 public:
   static constexpr int kSlots = 2 * engine::kTeamSize;
@@ -41,6 +45,10 @@ public:
 private:
   void encodePokemon(const engine::BattlePokemon &p, bool present, bool active, float *row,
                      int32_t *ids) const;
+  void encodeMatchups(const engine::BattleState &view, int side, float *pokemon) const;
+  // The damage of user's move against target, a share of its HP; effect, the move's effectiveness.
+  double estimate(const engine::BattleState &view, const engine::BattlePokemon &user,
+                  const engine::BattlePokemon &target, int moveIndex, double &effect) const;
 
   const engine::DataLoader &data_;
   std::vector<std::string> pokemonNames_;

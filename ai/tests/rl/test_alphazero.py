@@ -10,7 +10,7 @@ import torch
 import trainerlab.rl
 from trainerlab.bots.roster import SELFPLAY
 from trainerlab.commands import alphazero as command
-from trainerlab.rl import alphazero
+from trainerlab.rl import alphazero, distill
 from trainerlab.rl.net import PolicyValueNet
 
 # A small search (4 simulations, 2 worlds, fast searches of 2): rule 10's network plays the battles
@@ -29,6 +29,21 @@ def test_self_play_gives_a_policy_and_a_result_per_decision() -> None:
     assert (rows["policy"][rows["mask"] == 0] == 0).all()
     assert set(np.unique(rows["result"])) <= {-1.0, 0.0, 1.0}
     assert len(rows["turns"]) == len(rows["winner"]) == 2
+    assert rows["foe"].shape == (n,) and rows["foe_mask"].shape == (n, 10)
+    assert (rows["foe_mask"][np.arange(n), rows["foe"]] == 1).all()
+
+
+def test_a_network_with_a_foe_head_learns_what_the_foe_played() -> None:
+    torch.manual_seed(0)
+    rows = alphazero.play(PolicyValueNet.load(SELFPLAY), 2, seed=4, threads=2, **SMALL, share=1.0)
+    net = distill.student(layers=0)
+    assert net.shape.foe_head
+    optimizer = torch.optim.Adam(net.parameters(), lr=1e-3)
+    rng = np.random.default_rng(0)
+
+    before = alphazero.foe_loss(net, rows)
+    alphazero.learn(net, optimizer, rows, epochs=5, rng=rng)
+    assert alphazero.foe_loss(net, rows) < before
 
 
 def test_only_the_full_searches_are_recorded() -> None:
@@ -83,6 +98,7 @@ def test_an_empty_iteration_reports_no_turns() -> None:
     )
 
     assert seen[0].decisions == 0 and seen[0].turns == 0.0 and seen[0].draws == 0.0
+    assert seen[0].fresh_value == 0.0
     assert seen[0].entropy == 0.0
 
 
@@ -118,7 +134,7 @@ def test_the_command_measures_every_few_iterations_and_after_the_last(
         net: object, iterations: int, *, report: Callable[..., None], **kwargs: object
     ) -> None:
         for i in range(1, iterations + 1):
-            report(alphazero.Progress(i, 2, 4, 10.0, 0.0, 1.2, 0.5, 0.3), net)
+            report(alphazero.Progress(i, 2, 4, 10.0, 0.0, 1.2, 1.4, 0.45, 0.5, 0.3), net)
 
     monkeypatch.setattr(command, "duel", duel)
     monkeypatch.setattr(alphazero, "loop", loop)
@@ -130,7 +146,7 @@ def test_the_command_measures_every_few_iterations_and_after_the_last(
 
     assert measured == [f"plan:{tmp_path / f'az-{i}.pt'}" for i in (3, 6, 7)]
     assert opponents == [f"plan:{SELFPLAY}"] * 3  # the network it started from
-    assert "entropy 1.200" in shown[1]
+    assert "entropy 1.200" in shown[1] and "fresh 1.400, 0.450" in shown[1]
     assert (tmp_path / "az-1.pt").is_file()  # saved each iteration
 
     opponents.clear()
@@ -222,8 +238,19 @@ def test_the_loop_learns_from_the_last_iterations_and_reports_their_battles(
         learned.append(len(rows["result"]))
         return 0.1, 0.2
 
+    order: list[str] = []
+
+    def measure(net: object, rows: dict[str, np.ndarray], **kwargs: object) -> tuple[float, float]:
+        order.append(f"measure {len(rows['result'])}")
+        return 1.5, 0.25
+
+    def learning(*args: object, **kwargs: object) -> tuple[float, float]:
+        order.append("learn")
+        return learn(*args, **kwargs)  # type: ignore[arg-type]
+
     monkeypatch.setattr(alphazero, "play", play)
-    monkeypatch.setattr(alphazero, "learn", learn)
+    monkeypatch.setattr(alphazero, "learn", learning)
+    monkeypatch.setattr(alphazero, "measure", measure)
     seen: list[alphazero.Progress] = []
 
     alphazero.loop(PolicyValueNet.load(SELFPLAY), 6, seed=3, report=lambda p, _: seen.append(p))
@@ -234,3 +261,7 @@ def test_the_loop_learns_from_the_last_iterations_and_reports_their_battles(
     assert seen[0].turns == 20.0 and seen[0].draws == 0.5
     assert (seen[0].policy_loss, seen[0].value_loss) == (0.1, 0.2)
     assert seen[0].entropy == pytest.approx(np.log(2))
+    # The new decisions are measured before they are learned: how well the network does on
+    # battles it has not learned from.
+    assert order[:4] == ["measure 1", "learn", "measure 2", "learn"]
+    assert (seen[0].fresh_policy, seen[0].fresh_value) == (1.5, 0.25)

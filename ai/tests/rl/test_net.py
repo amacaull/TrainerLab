@@ -101,3 +101,31 @@ def test_in_an_attention_network_a_pokemon_reads_the_foes_team() -> None:
         mine = net.pokemon_tokens(pokemon, ids, field)[0, 3]
         after = net.pokemon_tokens(pokemon, other, field)[0, 3]
     assert not torch.allclose(mine, after)
+
+
+def test_a_network_made_before_the_matchup_columns_reads_the_columns_before_them() -> None:
+    from trainerlab.bots.roster import SELFPLAY
+
+    old = PolicyValueNet.load(SELFPLAY)
+    pokemon, ids, field, mask = _batch()
+    assert pokemon.shape[-1] == old.shape.pokemon + 10  # the 10 matchup columns
+
+    with torch.no_grad():
+        logits, value = old(pokemon, ids, field, mask)
+        same, _ = old(pokemon[..., : old.shape.pokemon], ids, field, mask)
+    assert torch.equal(logits, same) and value.shape == (6,)
+
+
+def test_a_network_with_a_foe_head_guesses_the_foe_s_option_among_its_legal_ones() -> None:
+    torch.manual_seed(6)
+    net = PolicyValueNet(Shape(**{**Shape.for_catalog().__dict__, "foe_head": True})).eval()
+    pokemon, ids, field, mask = _batch()
+    foe_mask = torch.zeros_like(mask)
+    foe_mask[:, [0, 5]] = 1
+
+    with torch.no_grad():
+        logits, value, foe = net.evaluate(pokemon, ids, field, mask, foe_mask)
+    assert foe is not None and foe.shape == (6, ACTIONS)
+    assert (foe[:, 1] == MASKED).all() and (foe[:, 0] > MASKED).all()
+    assert torch.equal(logits, net(pokemon, ids, field, mask)[0])
+    assert PolicyValueNet(Shape.for_catalog()).evaluate(pokemon, ids, field, mask)[2] is None

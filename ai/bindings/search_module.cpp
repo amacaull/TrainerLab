@@ -327,6 +327,8 @@ PYBIND11_MODULE(_search, m) {
             out["mask"] = array(data.mask, {rows, actions});
             out["policy"] = array(data.policy, {rows, actions});
             out["result"] = array(data.result, {rows});
+            out["foe"] = array(data.foe, {rows});
+            out["foe_mask"] = array(data.foeMask, {rows, actions});
             out["game"] = array(data.game, {rows});
             out["turns"] = array(data.turns, {static_cast<py::ssize_t>(data.turns.size())});
             out["winner"] = array(data.winner, {static_cast<py::ssize_t>(data.winner.size())});
@@ -337,7 +339,8 @@ PYBIND11_MODULE(_search, m) {
           py::arg("lanes") = 16, py::arg("fast") = 0, py::arg("full_share") = 1.0,
           "The AlphaZero loop's games (search/include/search/self_play.hpp): rule 11 against "
           "itself, with noise at the root; per decision the encoding, the mask, the share of "
-          "visits per option (policy) and the result for that side; per battle its turns and "
+          "visits per option (policy), the result for that side and what the foe played (foe, "
+          "foe_mask); per battle its turns and "
           "winner (-1 for a draw). Each thread plays `lanes` battles side by side, their network "
           "queries batched. With `fast`, only a share `full_share` of the searches are full and "
           "recorded; the others search `fast` simulations, unrecorded.");
