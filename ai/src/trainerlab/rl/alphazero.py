@@ -25,7 +25,10 @@ from trainerlab.rl.planner import to_cpp
 
 GAMES = 960  # battles per iteration: 6 rounds of 16 battles side by side on 10 threads
 WINDOW = 4  # iterations whose decisions are learned from
-EPOCHS = 2  # passes over the window per iteration
+# Palier 10.2: one pass over the window per iteration (two before), and the value's loss weighed
+# 0.25 (1 before), as Leela Chess Zero does: a network with attention learnt the battles' results
+# by heart when each decision came back eight times, and its search drifted.
+EPOCHS = 1  # passes over the window per iteration
 BATCH = 1024
 RATE = 1e-4  # low: the loop starts from a network already trained (rule 10)
 DECAY = 1e-4
@@ -37,6 +40,7 @@ NOISE = 0.25
 
 Rows = dict[str, npt.NDArray[np.generic]]
 KEYS = ("pokemon", "ids", "field", "mask", "policy", "result", "foe", "foe_mask")
+VALUE_WEIGHT = 0.25  # of the value's loss, beside the policy's
 FOE_WEIGHT = 0.5  # of the foe head's loss, beside the policy's and the value's (palier 10.2)
 
 
@@ -48,6 +52,8 @@ class Progress:
     turns: float  # mean turns per battle
     draws: float  # share of battles stopped at the turn limit or drawn
     entropy: float  # of the search's visits, per decision recorded: how decided the targets are
+    fresh_policy: float  # the losses on this iteration's decisions, before learning them: on
+    fresh_value: float  # battles the network has not learned from (learning by heart shows here)
     policy_loss: float  # cross-entropy against the search's visits, on the last pass
     value_loss: float
 
@@ -95,6 +101,24 @@ def losses(
     return policy_loss, functional.mse_loss(value, result), foe_loss
 
 
+def measure(net: PolicyValueNet, rows: Rows, *, batch: int = BATCH) -> tuple[float, float]:
+    """The network's mean policy cross-entropy and value squared error on these decisions."""
+    on = next(net.parameters()).device
+    totals, n = np.zeros(2), len(rows["result"])
+    net.eval()
+    with torch.no_grad():
+        for start in range(0, n, batch):
+            part = slice(start, min(start + batch, n))
+            tensors = [torch.from_numpy(rows[key][part].astype(_dtype(key))).to(on) for key in KEYS]
+            policy_loss, value_loss, _ = losses(net, tensors)
+            totals += [
+                policy_loss.item() * (part.stop - start),
+                value_loss.item() * (part.stop - start),
+            ]
+    mean = totals / max(n, 1)
+    return float(mean[0]), float(mean[1])
+
+
 def foe_loss(net: PolicyValueNet, rows: Rows) -> float:
     """The foe head's cross-entropy on these decisions (0 without a foe head)."""
     with torch.no_grad():
@@ -123,7 +147,8 @@ def learn(
             i = torch.from_numpy(order[start : start + BATCH])
             policy_loss, value_loss, foe = losses(net, [tensors[key][i].to(on) for key in KEYS])
             optimizer.zero_grad()
-            (policy_loss + value_loss + FOE_WEIGHT * foe).backward()  # type: ignore[no-untyped-call]
+            loss = policy_loss + VALUE_WEIGHT * value_loss + FOE_WEIGHT * foe
+            loss.backward()  # type: ignore[no-untyped-call]
             optimizer.step()
             totals += [policy_loss.item() * len(i), value_loss.item() * len(i)]
             count += len(i)
@@ -165,9 +190,10 @@ def loop(
             fast=fast,
             share=share,
         )
+        fresh = measure(net, played)
         window = [*window, played][-WINDOW:]
         rows = {key: np.concatenate([w[key] for w in window]) for key in KEYS}
-        losses = learn(net, optimizer, rows, rng=rng)
+        learned = learn(net, optimizer, rows, rng=rng)
         if report is not None:
             turns, winner = played["turns"], played["winner"].astype(np.int64)
             report(
@@ -178,7 +204,8 @@ def loop(
                     float(turns.mean()) if len(turns) else 0.0,
                     float((winner < 0).mean()) if len(winner) else 0.0,
                     entropy(played["policy"]),
-                    *losses,
+                    *fresh,
+                    *learned,
                 ),
                 net,
             )

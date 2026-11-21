@@ -84,16 +84,7 @@ def _batch(rows: Rows, index: np.ndarray, on: torch.device) -> list[torch.Tensor
 
 def losses(net: PolicyValueNet, rows: Rows, *, batch: int = BATCH) -> tuple[float, float]:
     """The network's mean policy cross-entropy and value squared error on these decisions."""
-    on = next(net.parameters()).device
-    totals, n = np.zeros(2), len(rows["result"])
-    net.eval()
-    with torch.no_grad():
-        for start in range(0, n, batch):
-            index = np.arange(start, min(start + batch, n))
-            policy_loss, value_loss, _ = alphazero.losses(net, _batch(rows, index, on))
-            totals += [policy_loss.item() * len(index), value_loss.item() * len(index)]
-    mean = totals / max(n, 1)
-    return float(mean[0]), float(mean[1])
+    return alphazero.measure(net, rows, batch=batch)
 
 
 def rate(step: int, steps: int) -> float:
