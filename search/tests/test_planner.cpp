@@ -33,6 +33,15 @@ TEST_CASE("the network masks illegal options and values within -1 and 1") {
   CHECK(std::abs(out.value) <= 1.0f);
 }
 
+TEST_CASE("a network made before the matchup columns reads the columns before them") {
+  const search::Network old = search::testing::randomNetwork(game(), 0, false);
+  const engine::BattleState state = search::openings(game(), 1)[0];
+  std::vector<float> mask(search::Encoding::kActions);
+  search::Encoding::mask(game().rules().legalActions(state, 0), mask.data());
+  const auto out = old.evaluate(engine::observe(state, 0), 0, mask.data());
+  CHECK(std::abs(out.value) < 1.0f);
+}
+
 TEST_CASE("a network made for another encoding is refused") {
   CHECK_THROWS_AS(search::Network(game().encoding(), {}), std::invalid_argument);
 }

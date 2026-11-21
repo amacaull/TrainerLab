@@ -10,7 +10,7 @@ import torch
 import trainerlab.rl
 from trainerlab.bots.roster import SELFPLAY
 from trainerlab.commands import alphazero as command
-from trainerlab.rl import alphazero
+from trainerlab.rl import alphazero, distill
 from trainerlab.rl.net import PolicyValueNet
 
 # A small search (4 simulations, 2 worlds, fast searches of 2): rule 10's network plays the battles
@@ -29,6 +29,21 @@ def test_self_play_gives_a_policy_and_a_result_per_decision() -> None:
     assert (rows["policy"][rows["mask"] == 0] == 0).all()
     assert set(np.unique(rows["result"])) <= {-1.0, 0.0, 1.0}
     assert len(rows["turns"]) == len(rows["winner"]) == 2
+    assert rows["foe"].shape == (n,) and rows["foe_mask"].shape == (n, 10)
+    assert (rows["foe_mask"][np.arange(n), rows["foe"]] == 1).all()
+
+
+def test_a_network_with_a_foe_head_learns_what_the_foe_played() -> None:
+    torch.manual_seed(0)
+    rows = alphazero.play(PolicyValueNet.load(SELFPLAY), 2, seed=4, threads=2, **SMALL, share=1.0)
+    net = distill.student(layers=0)
+    assert net.shape.foe_head
+    optimizer = torch.optim.Adam(net.parameters(), lr=1e-3)
+    rng = np.random.default_rng(0)
+
+    before = alphazero.foe_loss(net, rows)
+    alphazero.learn(net, optimizer, rows, epochs=5, rng=rng)
+    assert alphazero.foe_loss(net, rows) < before
 
 
 def test_only_the_full_searches_are_recorded() -> None:

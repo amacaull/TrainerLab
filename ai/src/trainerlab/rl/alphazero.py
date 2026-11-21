@@ -36,7 +36,8 @@ WORLDS = 8
 NOISE = 0.25
 
 Rows = dict[str, npt.NDArray[np.generic]]
-KEYS = ("pokemon", "ids", "field", "mask", "policy", "result")
+KEYS = ("pokemon", "ids", "field", "mask", "policy", "result", "foe", "foe_mask")
+FOE_WEIGHT = 0.5  # of the foe head's loss, beside the policy's and the value's (palier 10.2)
 
 
 @dataclass(frozen=True)
@@ -78,6 +79,30 @@ def entropy(policy: npt.NDArray[np.generic]) -> float:
     return float(-(p * logs).sum() / len(p))
 
 
+def _dtype(key: str) -> type:
+    return np.int64 if key in ("ids", "foe") else np.float32
+
+
+def losses(
+    net: PolicyValueNet, batch: list[torch.Tensor]
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """On a batch (KEYS' tensors): the policy's cross-entropy against the search's visits, the
+    value's squared error, and with a foe head its cross-entropy against what the foe played."""
+    pokemon, ids, field, mask, policy, result, foe, foe_mask = batch
+    logits, value, guess = net.evaluate(pokemon, ids, field, mask, foe_mask)
+    policy_loss = -(policy * functional.log_softmax(logits, dim=-1)).sum(-1).mean()
+    foe_loss = functional.cross_entropy(guess, foe) if guess is not None else logits.new_zeros(())
+    return policy_loss, functional.mse_loss(value, result), foe_loss
+
+
+def foe_loss(net: PolicyValueNet, rows: Rows) -> float:
+    """The foe head's cross-entropy on these decisions (0 without a foe head)."""
+    with torch.no_grad():
+        on = next(net.parameters()).device
+        batch = [torch.from_numpy(rows[key].astype(_dtype(key))).to(on) for key in KEYS]
+        return float(losses(net, batch)[2])
+
+
 def learn(
     net: PolicyValueNet,
     optimizer: torch.optim.Optimizer,
@@ -88,10 +113,7 @@ def learn(
 ) -> tuple[float, float]:
     """`epochs` passes over `rows`; the mean policy and value losses of the last pass."""
     on = next(net.parameters()).device
-    tensors = {
-        key: torch.from_numpy(rows[key].astype(np.int64 if key == "ids" else np.float32))
-        for key in KEYS
-    }
+    tensors = {key: torch.from_numpy(rows[key].astype(_dtype(key))) for key in KEYS}
     net.train()
     totals, count = np.zeros(2), 0
     for _ in range(epochs):
@@ -99,12 +121,9 @@ def learn(
         order = rng.permutation(len(rows["result"]))
         for start in range(0, len(order), BATCH):
             i = torch.from_numpy(order[start : start + BATCH])
-            pokemon, ids, field, mask, policy, result = (tensors[key][i].to(on) for key in KEYS)
-            logits, value = net(pokemon, ids, field, mask)
-            policy_loss = -(policy * functional.log_softmax(logits, dim=-1)).sum(-1).mean()
-            value_loss = functional.mse_loss(value, result)
+            policy_loss, value_loss, foe = losses(net, [tensors[key][i].to(on) for key in KEYS])
             optimizer.zero_grad()
-            (policy_loss + value_loss).backward()  # type: ignore[no-untyped-call]
+            (policy_loss + value_loss + FOE_WEIGHT * foe).backward()  # type: ignore[no-untyped-call]
             optimizer.step()
             totals += [policy_loss.item() * len(i), value_loss.item() * len(i)]
             count += len(i)

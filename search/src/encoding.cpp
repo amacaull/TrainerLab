@@ -1,6 +1,7 @@
 #include "search/encoding.hpp"
 
 #include "engine/model/move.hpp"
+#include "engine/model/stats.hpp"
 
 #include <algorithm>
 #include <array>
@@ -24,6 +25,13 @@ constexpr double kPriorityScale = 5.0;
 
 size_t at(int i) { return static_cast<size_t>(i); }
 int32_t idOf(int catalogIndex) { return catalogIndex < 0 ? 0 : catalogIndex + 1; }
+
+constexpr int kMatchups = 2 + 2 * engine::kMaxMovesPerPokemon; // the columns after the others
+
+// A stat with its stage: atk 0, def 1, spa 2, spd 3, spe 4.
+double staged(int stat, const BattlePokemon &p, int stage) {
+  return stat * static_cast<double>(engine::stageMultiplier(p.stat_stages[at(stage)]));
+}
 
 // Writes values one after the other: the order is the order of the names.
 struct Writer {
@@ -58,6 +66,15 @@ Encoding::Encoding(const engine::DataLoader &data) : data_(data) {
     for (const char *t : kTypes)
       p.push_back(move + "type_" + t);
   }
+
+  // Palier 10.2: the arithmetic, so that the network spends itself on strategy.
+  p.push_back("vs_faster");
+  for (int m = 1; m <= engine::kMaxMovesPerPokemon; ++m) {
+    const std::string move = "move" + std::to_string(m) + "_";
+    p.push_back(move + "effect");
+    p.push_back(move + "damage");
+  }
+  p.push_back("vs_best_taken");
 
   auto &f = fieldNames_;
   for (const char *w : kWeathers)
@@ -120,6 +137,74 @@ void Encoding::encodePokemon(const BattlePokemon &p, bool present, bool active, 
   }
 }
 
+double Encoding::estimate(const engine::BattleState &view, const BattlePokemon &user,
+                          const BattlePokemon &target, int moveIndex, double &effect) const {
+  effect = 0.0;
+  const int moveId = user.move_ids[at(moveIndex)];
+  if (moveId == engine::kNoMove || target.currentHp <= 0)
+    return 0.0;
+  const engine::Move &move = data_.moveByIndex(moveId);
+  const engine::Species &defender = data_.speciesByIndex(target.species_id);
+  effect = data_.typeChart().effectiveness(move.type, defender.type1, defender.type2);
+  if (move.power <= 0 || move.category == engine::MoveCategory::Status || effect <= 0.0)
+    return 0.0;
+  const bool physical = move.category == engine::MoveCategory::Physical;
+  const double attack =
+      physical ? staged(user.stats.atk, user, 0) : staged(user.stats.specAtk, user, 2);
+  const double defence =
+      physical ? staged(target.stats.def, target, 1) : staged(target.stats.specDef, target, 3);
+  const engine::Species &attacker = data_.speciesByIndex(user.species_id);
+  double damage = (2.0 * user.level / 5 + 2) * move.power * attack / defence / 50 + 2;
+  if (move.type == attacker.type1 || move.type == attacker.type2)
+    damage *= 1.5;
+  damage *= effect * 0.925; // the mean roll
+  if (physical && user.status == engine::Status::Burn)
+    damage *= 0.5;
+  const bool water = move.type == engine::Type::Water, fire = move.type == engine::Type::Fire;
+  if (view.weather == engine::Weather::Rain)
+    damage *= water ? 1.5 : fire ? 0.5 : 1.0;
+  if (view.weather == engine::Weather::Sun)
+    damage *= fire ? 1.5 : water ? 0.5 : 1.0;
+  return std::min(damage / target.currentHp, 2.0);
+}
+
+// What each Pokemon could do to the opposing active, and take from it: the effectiveness of each
+// of its moves (over 4) and the damage the formula gives at the mean roll, without abilities or
+// items (as a share of the target's HP, at most 2); whether it is faster (1, 0.5 for a tie); the
+// most the opposing active's moves would take from it, as a share of its own HP. 0 for a Pokemon
+// or a target not seen.
+void Encoding::encodeMatchups(const engine::BattleState &view, int side, float *pokemon) const {
+  const size_t width = pokemonNames_.size(), first = width - kMatchups;
+  for (int p = 0; p < 2; ++p) {
+    const int s = p == 0 ? side : 1 - side;
+    const BattlePokemon &opposing = view.teams[at(1 - s)][at(view.activeIndex[at(1 - s)])];
+    for (int i = 0; i < view.team_size[at(s)]; ++i) {
+      const BattlePokemon &mon = view.teams[at(s)][at(i)];
+      if (mon.isEmpty() || opposing.isEmpty() || mon.isFainted() || opposing.isFainted())
+        continue;
+      Writer w{pokemon + at(p * engine::kTeamSize + i) * width + first};
+      const double mine =
+          staged(mon.stats.speed, mon, 4) * (mon.status == engine::Status::Paralysis ? 0.5 : 1.0);
+      const double theirs = staged(opposing.stats.speed, opposing, 4) *
+                            (opposing.status == engine::Status::Paralysis ? 0.5 : 1.0);
+      w.put(mine > theirs ? 1.0 : mine == theirs ? 0.5 : 0.0);
+      for (int m = 0; m < engine::kMaxMovesPerPokemon; ++m) {
+        double effect = 0.0;
+        const double damage = estimate(view, mon, opposing, m, effect);
+        w.put(effect / 4);
+        w.put(damage);
+      }
+      double taken = 0.0;
+      for (int m = 0; m < engine::kMaxMovesPerPokemon; ++m) {
+        double effect = 0.0;
+        taken = std::max(taken, static_cast<double>(
+                                    static_cast<float>(estimate(view, opposing, mon, m, effect))));
+      }
+      w.put(taken);
+    }
+  }
+}
+
 void Encoding::encode(const engine::BattleState &view, int side, float *pokemon, int32_t *ids,
                       float *field) const {
   const size_t width = pokemonNames_.size();
@@ -132,6 +217,7 @@ void Encoding::encode(const engine::BattleState &view, int side, float *pokemon,
                     ids + at(slot) * kIds);
     }
   }
+  encodeMatchups(view, side, pokemon);
 
   Writer w{field};
   w.oneHot(static_cast<int>(view.weather) - 1, kWeathers.size());

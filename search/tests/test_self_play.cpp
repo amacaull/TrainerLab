@@ -50,6 +50,21 @@ TEST_CASE("self-play records a policy over the legal options and each side's res
   }
 }
 
+TEST_CASE("each row records what the foe played that turn, among its legal options") {
+  const search::Network net = search::testing::randomNetwork(game());
+  const search::SelfPlayData data = search::selfPlay(game(), net, small(), 3, 9, 1);
+  const size_t rows = static_cast<size_t>(data.rows());
+  constexpr size_t actions = search::Encoding::kActions;
+  REQUIRE(rows > 0);
+  REQUIRE(data.foe.size() == rows);
+  REQUIRE(data.foeMask.size() == rows * actions);
+  for (size_t r = 0; r < rows; ++r) {
+    REQUIRE(data.foe[r] >= 0);
+    REQUIRE(data.foe[r] < static_cast<int32_t>(actions));
+    CHECK(data.foeMask[r * actions + static_cast<size_t>(data.foe[r])] == 1.0f);
+  }
+}
+
 TEST_CASE("self-play's rows are the same for any number of threads") {
   const search::Network net = search::testing::randomNetwork(game());
   const search::SelfPlayData one = search::selfPlay(game(), net, small(40, 2, 4), 4, 3, 1);

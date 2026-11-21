@@ -49,6 +49,7 @@ class Shape:
     trunk: int = 256
     layers: int = 0  # of attention over the Pokemon and the field (palier 10)
     feedforward: int = 256  # each layer's
+    foe_head: bool = False  # a head guessing the foe's option, learned beside (palier 10.2)
 
     @classmethod
     def for_catalog(cls) -> "Shape":
@@ -124,6 +125,8 @@ class PolicyValueNet(nn.Module):
         )
         self.switch = nn.Sequential(nn.Linear(shape.trunk + h, h), nn.ReLU(), nn.Linear(h, 1))
         self.value = nn.Linear(shape.trunk, 1)
+        if shape.foe_head:
+            self.foe = nn.Linear(shape.trunk, ACTIONS)
 
     def pokemon_tokens(
         self, pokemon: torch.Tensor, ids: torch.Tensor, field: torch.Tensor
@@ -135,6 +138,7 @@ class PolicyValueNet(nn.Module):
         self, pokemon: torch.Tensor, ids: torch.Tensor, field: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Each Pokemon (B x 12 x H) and the field (B x F, or B x H after attention)."""
+        pokemon = pokemon[..., : self.shape.pokemon]  # a network made before the matchup columns
         embedded = torch.cat(
             [
                 self.species(ids[..., 0]),
@@ -157,6 +161,18 @@ class PolicyValueNet(nn.Module):
         self, pokemon: torch.Tensor, ids: torch.Tensor, field: torch.Tensor, mask: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """pokemon[B, 12, P], ids[B, 12, 7], field[B, F], mask[B, 10] -> logits[B, 10], value[B]."""
+        logits, value, _ = self.evaluate(pokemon, ids, field, mask)
+        return logits, value
+
+    def evaluate(
+        self,
+        pokemon: torch.Tensor,
+        ids: torch.Tensor,
+        field: torch.Tensor,
+        mask: torch.Tensor,
+        foe_mask: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None]:
+        """As forward, and with a foe head, its logits over the foe's options in foe_mask."""
         each, field_part = self._read(pokemon, ids, field)
         active = pokemon[..., self._active].unsqueeze(-1)
         present = pokemon[..., self._present].unsqueeze(-1)
@@ -193,7 +209,13 @@ class PolicyValueNet(nn.Module):
         )
         logits = torch.cat([self.moves(moves).squeeze(-1), switches], dim=-1)
         logits = logits.masked_fill(mask == 0, MASKED)
-        return logits, torch.tanh(self.value(trunk)).squeeze(-1)
+        value = torch.tanh(self.value(trunk)).squeeze(-1)
+        if not self.shape.foe_head:
+            return logits, value, None
+        foe: torch.Tensor = self.foe(trunk)
+        if foe_mask is not None:
+            foe = foe.masked_fill(foe_mask == 0, MASKED)
+        return logits, value, foe
 
     def save(self, path: Path) -> None:
         torch.save({"shape": asdict(self.shape), "weights": self.state_dict()}, path)

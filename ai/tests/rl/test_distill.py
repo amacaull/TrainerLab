@@ -80,6 +80,10 @@ def test_the_command_generates_once_then_teaches_from_the_saved_decisions(
     assert command.main([*argv, "--out", str(out), "--data", str(data)], shown.append) == 0
     assert shown[0].startswith(f"{len(np.load(data)['result'])} decisions from {data}")
 
+    no_attention = [*argv[:5], "--layers", "0", "--threads", "2"]
+    assert command.main([*no_attention, "--out", str(out), "--data", str(data)], shown.append) == 0
+    assert PolicyValueNet.load(out).shape.layers == 0 and PolicyValueNet.load(out).shape.foe_head
+
 
 def test_without_pytorch_the_command_says_how_to_get_it(monkeypatch: pytest.MonkeyPatch) -> None:
     import sys

@@ -11,10 +11,11 @@
 #include <vector>
 
 namespace search::testing {
-// `layers` of attention (palier 10) over the 12 Pokemon and the field, if any.
-inline Network randomNetwork(const Game &game, int layers = 0) {
+// `layers` of attention (palier 10) over the 12 Pokemon and the field, if any; `matchups`: reads
+// the matchup columns (palier 10.2), as a network made since.
+inline Network randomNetwork(const Game &game, int layers = 0, bool matchups = true) {
   const auto &e = game.encoding();
-  const int p = static_cast<int>(e.pokemonNames().size());
+  const int p = static_cast<int>(e.pokemonNames().size()) - (matchups ? 0 : 10);
   const int f = static_cast<int>(e.fieldNames().size());
   const auto &data = game.data();
   const int emb = 16, hidden = 128, trunk = 256;
