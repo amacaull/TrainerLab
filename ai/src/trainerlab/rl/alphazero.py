@@ -30,7 +30,9 @@ WINDOW = 4  # iterations whose decisions are learned from
 # by heart when each decision came back eight times, and its search drifted.
 EPOCHS = 1  # passes over the window per iteration
 BATCH = 1024
-RATE = 1e-4  # low: the loop starts from a network already trained (rule 10)
+# Palier 10.2: fast, then finer. 3e-4 the first half of the iterations, 1e-4 the next quarter, 3e-5
+# the last (1e-4 throughout before: its policy loss stopped falling halfway).
+RATES = ((0.5, 3e-4), (0.75, 1e-4), (1.0, 3e-5))
 DECAY = 1e-4
 SIMULATIONS = 800  # a full search, recorded
 FAST = 100  # a fast search, unrecorded
@@ -127,6 +129,12 @@ def foe_loss(net: PolicyValueNet, rows: Rows) -> float:
         return float(losses(net, batch)[2])
 
 
+def rate(iteration: int, iterations: int) -> float:
+    """The learning rate of iteration `iteration` (from 1) of `iterations`."""
+    done = (iteration - 1) / iterations
+    return next(value for until, value in RATES if done < until)
+
+
 def learn(
     net: PolicyValueNet,
     optimizer: torch.optim.Optimizer,
@@ -176,7 +184,9 @@ def loop(
     torch.manual_seed(seed)
     rng = np.random.default_rng(seed)
     net = net.to(on).eval()
-    optimizer = torch.optim.Adam(net.parameters(), lr=RATE, weight_decay=DECAY)
+    optimizer = torch.optim.Adam(
+        net.parameters(), lr=rate(1, max(iterations, 1)), weight_decay=DECAY
+    )
     window: list[Rows] = []
     for iteration in range(1, iterations + 1):
         # Battle numbers seed' x 1000003 + g, far from the duels' seeds (below 1000003).
@@ -191,6 +201,8 @@ def loop(
             share=share,
         )
         fresh = measure(net, played)
+        for group in optimizer.param_groups:
+            group["lr"] = rate(iteration, iterations)
         window = [*window, played][-WINDOW:]
         rows = {key: np.concatenate([w[key] for w in window]) for key in KEYS}
         learned = learn(net, optimizer, rows, rng=rng)
