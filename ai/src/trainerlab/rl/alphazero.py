@@ -30,9 +30,9 @@ WINDOW = 4  # iterations whose decisions are learned from
 # by heart when each decision came back eight times, and its search drifted.
 EPOCHS = 1  # passes over the window per iteration
 BATCH = 1024
-# Palier 10.2: fast, then finer. 3e-4 the first half of the iterations, 1e-4 the next quarter, 3e-5
-# the last (1e-4 throughout before: its policy loss stopped falling halfway).
-RATES = ((0.5, 3e-4), (0.75, 1e-4), (1.0, 3e-5))
+# 1e-4 throughout: 3e-4 the first half (then 1e-4, 3e-5) made the network with attention worse on
+# battles it had not learned from, its value learning them by heart again.
+RATES = ((1.0, 1e-4),)
 DECAY = 1e-4
 SIMULATIONS = 800  # a full search, recorded
 FAST = 100  # a fast search, unrecorded
@@ -41,7 +41,10 @@ WORLDS = 8
 NOISE = 0.25
 
 Rows = dict[str, npt.NDArray[np.generic]]
-KEYS = ("pokemon", "ids", "field", "mask", "policy", "result", "foe", "foe_mask")
+KEYS = ("pokemon", "ids", "field", "mask", "policy", "result", "foe", "foe_mask", "search_value")
+# Palier 10.2: the value learns the mean of the battle's result and the search's value of the
+# position: the result alone is noisy (the dice), the search's value averages hundreds of lines.
+SEARCH_SHARE = 0.5
 VALUE_WEIGHT = 0.25  # of the value's loss, beside the policy's
 FOE_WEIGHT = 0.5  # of the foe head's loss, beside the policy's and the value's (palier 10.2)
 
@@ -92,19 +95,22 @@ def _dtype(key: str) -> type:
 
 
 def losses(
-    net: PolicyValueNet, batch: list[torch.Tensor]
+    net: PolicyValueNet, batch: list[torch.Tensor], *, search_share: float = SEARCH_SHARE
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """On a batch (KEYS' tensors): the policy's cross-entropy against the search's visits, the
-    value's squared error, and with a foe head its cross-entropy against what the foe played."""
-    pokemon, ids, field, mask, policy, result, foe, foe_mask = batch
+    value's squared error against the result mixed with the search's value (`search_share` of
+    it), and with a foe head its cross-entropy against what the foe played."""
+    pokemon, ids, field, mask, policy, result, foe, foe_mask, searched = batch
+    target = (1 - search_share) * result + search_share * searched
     logits, value, guess = net.evaluate(pokemon, ids, field, mask, foe_mask)
     policy_loss = -(policy * functional.log_softmax(logits, dim=-1)).sum(-1).mean()
     foe_loss = functional.cross_entropy(guess, foe) if guess is not None else logits.new_zeros(())
-    return policy_loss, functional.mse_loss(value, result), foe_loss
+    return policy_loss, functional.mse_loss(value, target), foe_loss
 
 
 def measure(net: PolicyValueNet, rows: Rows, *, batch: int = BATCH) -> tuple[float, float]:
-    """The network's mean policy cross-entropy and value squared error on these decisions."""
+    """The network's mean policy cross-entropy and value squared error on these decisions, the
+    value against the results alone: comparable from one loop to the next."""
     on = next(net.parameters()).device
     totals, n = np.zeros(2), len(rows["result"])
     net.eval()
@@ -112,7 +118,7 @@ def measure(net: PolicyValueNet, rows: Rows, *, batch: int = BATCH) -> tuple[flo
         for start in range(0, n, batch):
             part = slice(start, min(start + batch, n))
             tensors = [torch.from_numpy(rows[key][part].astype(_dtype(key))).to(on) for key in KEYS]
-            policy_loss, value_loss, _ = losses(net, tensors)
+            policy_loss, value_loss, _ = losses(net, tensors, search_share=0.0)
             totals += [
                 policy_loss.item() * (part.stop - start),
                 value_loss.item() * (part.stop - start),

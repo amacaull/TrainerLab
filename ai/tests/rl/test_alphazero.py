@@ -29,8 +29,26 @@ def test_self_play_gives_a_policy_and_a_result_per_decision() -> None:
     assert (rows["policy"][rows["mask"] == 0] == 0).all()
     assert set(np.unique(rows["result"])) <= {-1.0, 0.0, 1.0}
     assert len(rows["turns"]) == len(rows["winner"]) == 2
+    assert rows["search_value"].shape == (n,) and (np.abs(rows["search_value"]) <= 1).all()
     assert rows["foe"].shape == (n,) and rows["foe_mask"].shape == (n, 10)
     assert (rows["foe_mask"][np.arange(n), rows["foe"]] == 1).all()
+
+
+def test_the_value_learns_the_mean_of_the_result_and_the_search_s_value_and_is_measured_on_results(
+    played: dict[str, np.ndarray],
+) -> None:
+    # Palier 10.2: the result alone is noisy (the dice); the search's value averages hundreds of
+    # lines. The fresh losses stay measured on the results, comparable with the loops before.
+    net = PolicyValueNet.load(SELFPLAY).eval()
+    batch = [torch.from_numpy(played[k].astype(alphazero._dtype(k))) for k in alphazero.KEYS]
+    with torch.no_grad():
+        _, value = net(*batch[:4])
+        result, searched = batch[5], batch[alphazero.KEYS.index("search_value")]
+        mixed = float(((value - (result + searched) / 2) ** 2).mean())
+        on_results = float(((value - result) ** 2).mean())
+        assert float(alphazero.losses(net, batch)[1]) == pytest.approx(mixed, rel=1e-5)
+    assert alphazero.measure(net, played)[1] == pytest.approx(on_results, rel=1e-4)
+    assert mixed != pytest.approx(on_results)
 
 
 def test_a_network_with_a_foe_head_learns_what_the_foe_played() -> None:
@@ -169,7 +187,8 @@ def test_without_pytorch_the_command_says_how_to_get_it(
 
 
 def _losses(net: PolicyValueNet, rows: dict[str, np.ndarray]) -> tuple[float, float]:
-    """The policy's cross-entropy against the search's visits, and the value's squared error."""
+    """The policy's cross-entropy against the search's visits, and the value's squared error
+    against the mean of the result and the search's value."""
     with torch.no_grad():
         logits, value = net(
             torch.from_numpy(rows["pokemon"].astype(np.float32)),
@@ -179,6 +198,7 @@ def _losses(net: PolicyValueNet, rows: dict[str, np.ndarray]) -> tuple[float, fl
         )
         policy = torch.from_numpy(rows["policy"].astype(np.float32))
         result = torch.from_numpy(rows["result"].astype(np.float32))
+        result = (result + torch.from_numpy(rows["search_value"].astype(np.float32))) / 2
         cross_entropy = -(policy * torch.log_softmax(logits, dim=-1)).sum(-1).mean()
         return float(cross_entropy), float(((value - result) ** 2).mean())
 
@@ -267,6 +287,5 @@ def test_the_loop_learns_from_the_last_iterations_and_reports_their_battles(
     # The new decisions are measured before they are learned: how well the network does on
     # battles it has not learned from.
     assert order[:4] == ["measure 1", "learn", "measure 2", "learn"]
-    # Fast, then finer: 3e-4 the first half of the iterations, 1e-4 the next quarter, 3e-5 last.
-    assert rates == [3e-4, 3e-4, 3e-4, 1e-4, 1e-4, 3e-5]
+    assert rates == [1e-4] * 6  # back to 1e-4 throughout: 3e-4 made it worse
     assert (seen[0].fresh_policy, seen[0].fresh_value) == (1.5, 0.25)

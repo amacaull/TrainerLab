@@ -150,7 +150,11 @@ void Battle::record() {
   const size_t pokemonSize = Encoding::kSlots * encoding.pokemonNames().size();
   const size_t idsSize = Encoding::kSlots * Encoding::kIds;
   const size_t fieldSize = encoding.fieldNames().size();
-  const std::array<int, Encoding::kActions> counts = search_->analysis().visits;
+  const Planner::Analysis &analysis = search_->analysis();
+  const std::array<int, Encoding::kActions> counts = analysis.visits;
+  double searched = 0.0;
+  for (size_t a = 0; a < counts.size(); ++a)
+    searched += counts[a] * analysis.value[a];
   const int side = turnSide_;
   int total = 0;
   for (int n : counts)
@@ -164,6 +168,7 @@ void Battle::record() {
       break;
     }
   }
+  searched /= std::max(total, 1);
   search_.reset();
   ++turnSide_;
   if (!fullSearch_)
@@ -180,6 +185,7 @@ void Battle::record() {
   for (int n : counts)
     data_.policy.push_back(static_cast<float>(n) / static_cast<float>(total));
   data_.result.push_back(0.0f);
+  data_.searchValue.push_back(static_cast<float>(searched));
   data_.foe.push_back(-1);
   data_.foeMask.resize(data_.foeMask.size() + Encoding::kActions, 0.0f);
   data_.game.push_back(index_);
@@ -282,6 +288,7 @@ SelfPlayData selfPlay(const Game &game, const Network &network, const SelfPlaySe
     append(all.mask, b.mask);
     append(all.policy, b.policy);
     append(all.result, b.result);
+    append(all.searchValue, b.searchValue);
     append(all.foe, b.foe);
     append(all.foeMask, b.foeMask);
     append(all.game, b.game);
