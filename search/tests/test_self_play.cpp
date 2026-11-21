@@ -65,6 +65,19 @@ TEST_CASE("each row records what the foe played that turn, among its legal optio
   }
 }
 
+TEST_CASE("each row records the value the search found for the side, its visits' mean") {
+  const search::Network net = search::testing::randomNetwork(game());
+  const search::SelfPlayData data = search::selfPlay(game(), net, small(), 2, 13, 1);
+  REQUIRE(data.searchValue.size() == static_cast<size_t>(data.rows()));
+  bool some = false;
+  for (float v : data.searchValue) {
+    CHECK(v >= -1.0f);
+    CHECK(v <= 1.0f);
+    some = some || v != 0.0f;
+  }
+  CHECK(some);
+}
+
 TEST_CASE("self-play's rows are the same for any number of threads") {
   const search::Network net = search::testing::randomNetwork(game());
   const search::SelfPlayData one = search::selfPlay(game(), net, small(40, 2, 4), 4, 3, 1);

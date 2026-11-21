@@ -28,12 +28,13 @@ struct SelfPlaySettings {
 // its mask, the share of the search's visits each option got (the policy to learn), and the
 // result of the battle for that side (the value to learn: 1, -1 or 0 for a draw).
 struct SelfPlayData {
-  std::vector<float> pokemon; // rows x 12 x P
-  std::vector<int32_t> ids;   // rows x 12 x 7
-  std::vector<float> field;   // rows x F
-  std::vector<float> mask;    // rows x 10
-  std::vector<float> policy;  // rows x 10
-  std::vector<float> result;  // rows
+  std::vector<float> pokemon;     // rows x 12 x P
+  std::vector<int32_t> ids;       // rows x 12 x 7
+  std::vector<float> field;       // rows x F
+  std::vector<float> mask;        // rows x 10
+  std::vector<float> policy;      // rows x 10
+  std::vector<float> result;      // rows
+  std::vector<float> searchValue; // rows: the search's mean result for the side, over its visits
   std::vector<int32_t> foe;   // rows: the option the foe played that turn (Encoding's numbering)
   std::vector<float> foeMask; // rows x 10: the foe's legal options that turn
   std::vector<int32_t> game;  // rows: the battle each row comes from
