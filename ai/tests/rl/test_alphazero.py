@@ -232,10 +232,13 @@ def test_the_loop_learns_from_the_last_iterations_and_reports_their_battles(
         rows["policy"] = np.tile([0.5, 0.5, 0, 0, 0, 0, 0, 0, 0, 0], (n, 1))  # ln 2 each
         return rows
 
+    rates: list[float] = []
+
     def learn(
-        net: object, optimizer: object, rows: dict[str, np.ndarray], **kwargs: object
+        net: object, optimizer: torch.optim.Optimizer, rows: dict[str, np.ndarray], **kwargs: object
     ) -> tuple[float, float]:
         learned.append(len(rows["result"]))
+        rates.append(optimizer.param_groups[0]["lr"])
         return 0.1, 0.2
 
     order: list[str] = []
@@ -264,4 +267,6 @@ def test_the_loop_learns_from_the_last_iterations_and_reports_their_battles(
     # The new decisions are measured before they are learned: how well the network does on
     # battles it has not learned from.
     assert order[:4] == ["measure 1", "learn", "measure 2", "learn"]
+    # Fast, then finer: 3e-4 the first half of the iterations, 1e-4 the next quarter, 3e-5 last.
+    assert rates == [3e-4, 3e-4, 3e-4, 1e-4, 1e-4, 3e-5]
     assert (seen[0].fresh_policy, seen[0].fresh_value) == (1.5, 0.25)
