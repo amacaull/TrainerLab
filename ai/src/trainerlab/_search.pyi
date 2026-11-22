@@ -80,6 +80,10 @@ class Network:
         """
         A judge's look at a decision: (visits[10], value[10]) per option of `side` at the root of a search that tries every legal option at least `min_visits` times; the value is the mean result for `side`, in [-1, 1].
         """
+    def plan_replacement(self, view: trainerlab._engine.BattleState, side: typing.SupportsInt | typing.SupportsIndex, options: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex], seed: typing.SupportsInt | typing.SupportsIndex, simulations: typing.SupportsInt | typing.SupportsIndex) -> int:
+        """
+        Palier 10.4: the team index, among `options`, whose replacement leaves `side` the best value, each searched `simulations` simulations; the same seed makes the same choice.
+        """
     def plan_action(self, view: trainerlab._engine.BattleState, side: typing.SupportsInt | typing.SupportsIndex, legal: collections.abc.Sequence[trainerlab._engine.Action], seed: typing.SupportsInt | typing.SupportsIndex, simulations: typing.SupportsInt | typing.SupportsIndex = 200) -> int:
         """
         Rule 11: the index, in `legal`, of the option a tree search guided by this network visits most, after `simulations` simulations; the same seed makes the same decision.

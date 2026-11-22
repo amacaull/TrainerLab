@@ -106,3 +106,22 @@ def test_a_search_bot_searches_as_many_simulations_as_asked() -> None:
     assert plan.choose_action(0, view, legal) in legal
     with pytest.raises(ValueError, match="at least one simulation"):
         plan.network.plan_action(view, 0, legal, 1, 0)
+
+
+def test_alphazero_searches_its_replacements_and_the_bots_measured_do_not() -> None:
+    # Palier 10.4: a replacement after a knock-out was the network's favourite, never searched.
+    for name in ("planner", "rule12", "rule13", f"plan:{SELFPLAY}", "rule13@8"):
+        assert factory(name)(0)._replacements is False  # type: ignore[attr-defined]
+    for name in ("alphazero", "alphazero@8"):
+        assert factory(name)(0)._replacements is True  # type: ignore[attr-defined]
+
+    env = BattleEnvironment(["Snorlax", "Blissey", "Conkeldurr"], ["Excadrill"], seed=1)
+    view = env.observe(0)
+    snorlax = view.active(0)
+    snorlax.current_hp = 0
+    view.set_pokemon(0, 0, snorlax)
+    searching = Planner(SELFPLAY, seed=3, simulations=8, replacements=True)
+    choice = searching.choose_replacement(0, view, [1, 2])
+    assert choice in (1, 2)
+    again = Planner(SELFPLAY, seed=3, simulations=8, replacements=True)
+    assert again.choose_replacement(0, view, [1, 2]) == choice

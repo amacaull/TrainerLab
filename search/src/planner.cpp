@@ -69,6 +69,41 @@ int Planner::chooseReplacement(const BattleState &view, int side) const {
   return pickReplacement(network_.evaluate(view, side, mask.data()));
 }
 
+int Planner::searchReplacement(const BattleState &view, int side, const std::vector<int> &options,
+                               uint64_t seed, int simulations) const {
+  PlannerSettings settings = settings_;
+  settings.simulations = simulations;
+  settings.noise = 0.0;
+  settings.minRootVisits = 0;
+  const Planner searcher(game_, network_, settings);
+  int best = options.front();
+  double bestValue = -2.0;
+  for (size_t k = 0; k < options.size(); ++k) {
+    BattleState after = view;
+    game_.rules().resolveReplacement(after, side, options[k]);
+    double value = 0.0;
+    if (after.isOver()) {
+      value = endValue(after, side);
+    } else if (const std::vector<Action> legal = game_.rules().legalActions(after, side);
+               legal.size() < 2 || simulations < 2) {
+      std::array<float, Encoding::kActions> mask{};
+      Encoding::mask(legal, mask.data());
+      value = network_.evaluate(after, side, mask.data()).value;
+    } else {
+      const Analysis analysis = searcher.analyse(after, side, legal, seed + k);
+      int total = 0;
+      for (size_t a = 0; a < analysis.visits.size(); ++a) {
+        value += analysis.visits[a] * analysis.value[a];
+        total += analysis.visits[a];
+      }
+      value /= std::max(total, 1);
+    }
+    if (value > bestValue)
+      bestValue = value, best = options[k];
+  }
+  return best;
+}
+
 // Both sides' policies, given in one batch: the node's priors; its value is the mean of what each
 // side's network expects, for root.
 double Planner::expand(Node &node,
