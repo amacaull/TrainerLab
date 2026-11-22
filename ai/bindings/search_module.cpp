@@ -309,7 +309,6 @@ PYBIND11_MODULE(_search, m) {
           "self_play",
           [](const search::Network &net, int games, uint64_t seed, int threads, int simulations,
              int worlds, double noise, int max_turns, int lanes, int fast, double full_share,
-             const std::vector<engine::BattleState> &endgames, double endgame_share,
              int replacement_simulations, const std::vector<std::pair<int, double>> &team_sizes) {
             search::SelfPlaySettings settings;
             settings.planner.simulations = simulations;
@@ -319,13 +318,12 @@ PYBIND11_MODULE(_search, m) {
             settings.lanes = lanes;
             settings.fast = fast;
             settings.fullShare = full_share;
-            settings.endgameShare = endgame_share;
             settings.replacementSimulations = replacement_simulations;
             settings.teamSizes = team_sizes;
             search::SelfPlayData data;
             {
               const py::gil_scoped_release free; // the threads run without Python
-              data = search::selfPlay(loaded(), net, settings, games, seed, threads, endgames);
+              data = search::selfPlay(loaded(), net, settings, games, seed, threads);
             }
             const search::Encoding &e = loaded().encoding();
             const auto rows = static_cast<py::ssize_t>(data.rows());
@@ -352,17 +350,13 @@ PYBIND11_MODULE(_search, m) {
             out["game"] = array(data.game, {rows});
             out["turns"] = array(data.turns, {static_cast<py::ssize_t>(data.turns.size())});
             out["winner"] = array(data.winner, {static_cast<py::ssize_t>(data.winner.size())});
-            out["from_endgame"] =
-                array(data.fromEndgame, {static_cast<py::ssize_t>(data.fromEndgame.size())});
             out["team_size"] =
                 array(data.teamSize, {static_cast<py::ssize_t>(data.teamSize.size())});
-            out["endgames"] = py::cast(data.endgames);
             return out;
           },
           py::arg("games"), py::arg("seed"), py::arg("threads"), py::arg("simulations") = 200,
           py::arg("worlds") = 8, py::arg("noise") = 0.25, py::arg("max_turns") = 1000,
           py::arg("lanes") = 16, py::arg("fast") = 0, py::arg("full_share") = 1.0,
-          py::arg("endgames") = std::vector<engine::BattleState>{}, py::arg("endgame_share") = 0.25,
           py::arg("replacement_simulations") = 0,
           py::arg("team_sizes") = std::vector<std::pair<int, double>>{{engine::kTeamSize, 1.0}},
           "The AlphaZero loop's games (search/include/search/self_play.hpp): rule 11 against "
@@ -372,9 +366,7 @@ PYBIND11_MODULE(_search, m) {
           "foe_mask); per battle its turns and "
           "winner (-1 for a draw). Each thread plays `lanes` battles side by side, their network "
           "queries batched. With `fast`, only a share `full_share` of the searches are full and "
-          "recorded; the others search `fast` simulations, unrecorded. Each battle keeps its first "
-          "endgame (3 Pokemon or fewer standing a side: endgames, from_endgame per battle); "
-          "given `endgames`, a share `endgame_share` of the battles start from one of them. With "
+          "recorded; the others search `fast` simulations, unrecorded. With "
           "`replacement_simulations`, each replacement with a choice is searched and recorded "
           "(foe -1). Teams are cut to `team_sizes` (size, share) pairs, drawn per battle "
           "(team_size).");

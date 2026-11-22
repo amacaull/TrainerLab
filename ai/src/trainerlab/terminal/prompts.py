@@ -14,6 +14,8 @@ import questionary
 from prompt_toolkit.styles import Style
 from questionary.prompts import common
 
+from trainerlab.i18n import t
+
 # The look of the questions: the line under the cursor in cyan, the rest plain.
 STYLE = Style(
     [
@@ -26,6 +28,8 @@ STYLE = Style(
         ("instruction", "fg:ansibrightblack"),
     ]
 )
+# The lines of a list shown at once: a longer list scrolls with the cursor.
+WINDOW = 10
 # A label: plain text, or (style, text) pieces, prompt_toolkit's styles ("bold", "fg:ansired").
 Label = str | list[tuple[str, str]]
 
@@ -77,19 +81,43 @@ def flush_keyboard() -> None:
 
 
 _choice_tokens = common.InquirerControl._get_choice_tokens
-
-
-def _tokens_without_label(control: common.InquirerControl) -> Any:
-    """questionary writes "Description: " before an option's text: the cards go without."""
-    tokens = _choice_tokens(control)  # type: ignore[no-untyped-call]
-    style, text = tokens[-1]
-    if text.startswith(DESCRIPTION):
-        tokens[-1] = (style, text.removeprefix(DESCRIPTION))
-    return tokens
-
-
 DESCRIPTION = "  Description: "
-common.InquirerControl._get_choice_tokens = _tokens_without_label  # type: ignore[method-assign]
+NEWLINE = ("", "\n")
+Tokens = list[tuple[str, str]]
+
+
+def _windowed(control: common.InquirerControl) -> Tokens:
+    """A list as questionary draws it, but WINDOW lines at most around the cursor, with how
+    many are hidden above and below, then the highlighted option's card apart, without the
+    "Description: " questionary writes before it. A filter keeps searching the whole list."""
+    tokens: Tokens = _choice_tokens(control)  # type: ignore[no-untyped-call]
+    card = None
+    if tokens[-1][1].startswith(DESCRIPTION):
+        card = tokens.pop()[1].removeprefix(DESCRIPTION)
+    lines: list[Tokens] = [[]]
+    for token in tokens:
+        if token == NEWLINE:
+            lines.append([])
+        else:
+            lines[-1].append(token)
+    if not lines[-1]:
+        lines.pop()
+    start = min(max(control.pointed_at - WINDOW // 2, 0), max(len(lines) - WINDOW, 0))
+    hidden = len(lines) - start - WINDOW
+    shown = lines[start : start + WINDOW]
+    if start > 0:
+        shown.insert(0, [("class:instruction", "   " + t("more.above", count=start))])
+    if hidden > 0:
+        shown.append([("class:instruction", "   " + t("more.below", count=hidden))])
+    if card is not None:
+        shown += [[], [("class:text", card)]]
+    drawn: Tokens = []
+    for index, line in enumerate(shown):
+        drawn += ([NEWLINE] if index else []) + line
+    return drawn
+
+
+common.InquirerControl._get_choice_tokens = _windowed  # type: ignore[method-assign]
 
 
 class QuestionaryPrompter:

@@ -18,6 +18,7 @@ from trainerlab.terminal.render import (
     hp_bar,
     move_option,
     plain,
+    species_card,
     switch_options,
     team_dots,
 )
@@ -187,7 +188,27 @@ def test_the_switch_menu_lists_the_whole_team_and_greys_out_who_cannot_come_in()
         "HP",
         "PAR",
     ]
-    assert coming.description is not None and "◆ Leftovers" in coming.description
+    assert coming.description == species_card("Snorlax")
+
+
+def test_a_species_card_shows_its_stats_ability_item_and_moves() -> None:
+    words = " ".join(
+        word for word in species_card("Snorlax").split() if not set(word) <= set("│╭╮╰╯─")
+    )
+
+    assert words.startswith("Snorlax Normal HP 160 · Atk 110 · Def 65 · SpA 65 · SpD 110")
+    assert "Thick Fat: Halves the damage of Fire and Ice moves." in words
+    assert "◆ Leftovers: Restores 1/16 of max HP each turn." in words
+    assert "Curse · Ghost · Status Body Slam · Normal · Physical" in words
+
+
+def test_a_used_up_item_leaves_the_card() -> None:
+    assert "Leftovers" not in species_card("Snorlax", holding=False)
+
+
+def test_a_species_without_ability_or_item_shows_neither() -> None:
+    assert species_card("ZoroarkHisui").count(":") == 1  # the item alone
+    assert "◆" not in species_card("MegaMawile")
 
 
 def test_a_card_wraps_its_lines_in_a_frame() -> None:

@@ -217,3 +217,9 @@ about 7.5 minutes rather than 1.6. The matchup columns of 10.2 cost the encoding
 of a position about 1.2 µs more (0.71 million positions per second on this
 Linux machine), small next to the network.
 
+
+## Palier 10.5: team sizes
+
+With a quarter of the battles 4 against 4 and a quarter 2 against 2, battles are
+shorter: an iteration of the loop (960 battles, searched replacements included)
+takes about 5.9 minutes on the Mac, rather than 7.5.

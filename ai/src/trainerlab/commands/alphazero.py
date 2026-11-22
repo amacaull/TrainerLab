@@ -58,8 +58,8 @@ def main(argv: list[str] | None = None, write: Write = stdout) -> int:
     def report(progress: alphazero.Progress, net: PolicyValueNet) -> None:
         elapsed = time.monotonic() - start
         write(
-            f"iteration {progress.iteration}: {progress.games} battles, {progress.from_endgames} "
-            f"from endgames, {progress.small_teams} with small teams, {progress.decisions} "
+            f"iteration {progress.iteration}: {progress.games} battles, {progress.small_teams} "
+            f"with small teams, {progress.decisions} "
             f"decisions, {progress.turns:.1f} turns, draws {progress.draws:.3f}, entropy "
             f"{progress.entropy:.3f}, fresh {progress.fresh_policy:.3f}, "
             f"{progress.fresh_value:.3f}, policy loss "

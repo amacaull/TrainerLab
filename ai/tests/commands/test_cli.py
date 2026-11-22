@@ -12,6 +12,7 @@ from trainerlab.commands.cli import main, translate_argparse
 from trainerlab.commands.menu import BACK, OTHER, menu
 from trainerlab.i18n import settings
 from trainerlab.terminal.prompts import Line, Option, Separator, plain
+from trainerlab.terminal.render import species_card
 
 
 @pytest.fixture(autouse=True)
@@ -143,6 +144,9 @@ def test_a_team_is_built_from_the_list_and_a_pokemon_can_be_taken_out() -> None:
     assert message == "Quel Pokémon ? (tape pour filtrer)"
     first = [o for o in options if isinstance(o, Option)][0]
     assert plain(first.label).split()[0] == "Arcanin" and "Feu / Roche" in plain(first.label)
+    assert first.description == species_card(first.value)
+    removed = [o for o in prompter.asked[9][2] if isinstance(o, Option)][0]
+    assert removed.description == species_card("Gyarados")
     assert "Ton équipe (1/2) : Léviator" in prompter.messages()
 
 
@@ -264,8 +268,8 @@ def test_bots_lists_every_bot_with_its_rule_by_section() -> None:
 
     shown = text(console)
     rows = [line.strip("│ ").split() for line in shown.splitlines()]
-    rows = [row for row in rows if row and row[0] in ("1", "16")]
-    assert rows[0][:2] == ["1", "hitter"] and rows[1][:2] == ["16", "alphazero"]
+    rows = [row for row in rows if row and row[0] in ("1", "17")]
+    assert rows[0][:2] == ["1", "hitter"] and rows[1][:2] == ["17", "alphazero"]
     assert shown.index("Hand-written rules") < shown.index("Search") < shown.index("Neural")
     assert all(name in shown for name in BOTS)
 

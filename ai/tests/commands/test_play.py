@@ -13,7 +13,8 @@ from trainerlab.commands.play import main
 from trainerlab.game.environment import DATA_DIR, BattleEnvironment
 from trainerlab.game.events import EventKind as K
 from trainerlab.i18n import names
-from trainerlab.terminal.render import HP_LOSSES, Narration
+from trainerlab.terminal.prompts import Option
+from trainerlab.terminal.render import HP_LOSSES, Narration, species_card
 from trainerlab.terminal.screen import CLEAR, Screen
 
 
@@ -223,6 +224,8 @@ def test_the_player_chooses_who_goes_first() -> None:
     shown = _play(["--seed", "3", "--against", "hitter"], prompter)[1]
 
     assert prompter.asked[0][1] == "Who goes first?"
+    lead = prompter.asked[0][2][2]
+    assert isinstance(lead, Option) and lead.description == species_card(team[2])
     assert re.search(rf"You +{re.escape(names.species_name(team[2]))}", shown)
 
 

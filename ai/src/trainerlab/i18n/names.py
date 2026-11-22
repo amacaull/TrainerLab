@@ -1,7 +1,8 @@
 """The names of the engine's species, moves, items, abilities and types, in either language.
 
 The tables (names.json) come from PokeAPI's official names; the descriptions of the moves
-(descriptions.json) are written for this engine, from what each move does in it.
+(descriptions.json), of the abilities and of the items (effects.json) are written for this
+engine, from what each one does in it.
 """
 
 import json
@@ -57,6 +58,16 @@ def item(item_id: int) -> str:
 
 def ability(ability_id: int) -> str:
     return _name("abilities", _engine.ability_name(ability_id))
+
+
+def ability_effect(key: str) -> str:
+    """What an ability does, by the engine's name of it (ThickFat)."""
+    return str(_table("effects.json")["abilities"][key][language()])
+
+
+def item_effect(key: str) -> str:
+    """What an item does, by the engine's name of it (Leftovers)."""
+    return str(_table("effects.json")["items"][key][language()])
 
 
 def type_name(type_id: int) -> str:

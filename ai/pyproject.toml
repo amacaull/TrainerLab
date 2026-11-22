@@ -7,7 +7,7 @@ name = "trainerlab"
 version = "0.1.0"
 description = "AI agents for a Pokemon-style battle engine"
 requires-python = ">=3.11"
-dependencies = ["numpy>=1.26", "rich>=13", "questionary>=2"]
+dependencies = ["numpy>=1.26", "rich>=13", "questionary>=2.1.1,<2.2"]
 
 [project.scripts]
 trainerlab = "trainerlab.commands.cli:main"
