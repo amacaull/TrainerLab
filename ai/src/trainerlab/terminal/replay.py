@@ -1,6 +1,7 @@
 """A battle between two bots, replayed turn by turn: the board, what each bot chose, then what
 happened. Watched at one's pace (Enter, autoplay, quit), or told at once into a pipe."""
 
+import time
 from collections.abc import Callable
 
 from trainerlab import _engine
@@ -10,8 +11,6 @@ from trainerlab.game.player import Bot
 from trainerlab.i18n import names, t
 from trainerlab.terminal.render import Style, Teller, board
 from trainerlab.terminal.screen import Screen
-
-AUTOPLAY_PAUSE = 1.5  # seconds between two turns in autoplay
 
 
 class ReplayStopped(Exception):  # noqa: N818 (a stop, not an error)
@@ -54,15 +53,18 @@ def replay(
     screen: Screen,
     style: Style,
     pause: Callable[[str], str] | None = None,
-    sleep: Callable[[float], None] | None = None,
+    *,
+    autoplay: float = 0.0,
+    sleep: Callable[[float], None] = time.sleep,
 ) -> int | None:
     """Plays the battle, told from bot A's side; returns the winner. With `pause`, waits after
-    each turn for Enter (next), a (autoplay) or q (quit: ReplayStopped)."""
+    each turn for Enter (next), a (autoplay, `autoplay` seconds between two turns) or q (quit:
+    ReplayStopped)."""
     trainers = (bot_names[0], bot_names[1])
     teller = Teller(a_side, style, trainers)
     chosen: list[str] = []
     before = env.observe(a_side)
-    autoplay = [False]
+    auto = [False]
     a_name, b_name = bot_names[a_side], bot_names[1 - a_side]
 
     def tell(events: list[_engine.Event]) -> None:
@@ -78,13 +80,13 @@ def replay(
         before = after
         if pause is None or env.is_over():
             return
-        if autoplay[0]:
-            (sleep or (lambda s: None))(AUTOPLAY_PAUSE)
+        if auto[0]:
+            sleep(autoplay)
             return
         key = pause(t("watch.keys") + " ")
         if key == "q":
             raise ReplayStopped
-        autoplay[0] = key == "a"
+        auto[0] = key == "a"
 
     after = env.observe(a_side)
     screen.narrate(teller.narrate(list(env.opening_events), before, after))

@@ -1,5 +1,7 @@
 import io
+import termios
 
+import pytest
 from rich.console import Console
 
 from trainerlab.terminal.render import Narration
@@ -85,3 +87,31 @@ def test_without_a_log_only_the_screen_shows() -> None:
     Screen(Console(file=output, color_system=None), sleep=lambda s: None).message("x")
 
     assert output.getvalue() == "x\n"
+
+
+def test_keys_pressed_while_a_turn_is_typed_out_are_neither_shown_nor_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings: list[list[object]] = []
+    monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+    monkeypatch.setattr("sys.stdin.fileno", lambda: 0)
+    flags = termios.ECHO | termios.ICANON | 1
+    monkeypatch.setattr(termios, "tcgetattr", lambda fd: [0, 0, 0, flags, 0, 0, []])
+    monkeypatch.setattr(termios, "tcsetattr", lambda fd, when, attrs: settings.append(list(attrs)))
+
+    Terminal().screen().narrate([_line("Hi!")])
+
+    assert [attrs[3] for attrs in settings] == [1, flags]  # echo and lines off, then back
+
+
+def test_a_transcript_keeps_what_was_shown_once_without_colours() -> None:
+    terminal = Terminal()
+    screen = terminal.screen()
+    screen.message("before")
+    screen.start_transcript()
+
+    screen.message("[red]Seed[/] 3")
+    screen.narrate([_line("[cyan]Hi![/]")])
+    screen.lines(["a reminder"])
+
+    assert screen.transcript() == "Seed 3\n  Hi!\n"

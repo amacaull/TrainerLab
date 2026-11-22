@@ -76,7 +76,8 @@ def test_a_pokemon_is_found_by_its_name_in_either_language() -> None:
     assert names.species_key("Méga-Dracaufeu X") == "MegaCharizardX"
     assert names.species_key("Pikachu") is None
     i18n.set_language("fr")
-    assert "Léviator" in names.all_species()
+    assert names.species_name("Gyarados") == "Léviator"
+    assert names.species_keys()[0] == "ArcanineHisui"  # Arcanin de Hisui, first in French
 
 
 def test_the_language_is_kept_in_the_config_file(

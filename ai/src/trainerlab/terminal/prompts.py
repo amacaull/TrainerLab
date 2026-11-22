@@ -4,15 +4,17 @@ Every question goes through a `Prompter`, so that the screens are tested with sc
 the real one asks with questionary (arrow keys, Enter, filtering as one types).
 """
 
+import sys
+import termios
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol
 
 import questionary
 from prompt_toolkit.styles import Style
+from questionary.prompts import common
 
-# The look of the questions: the line under the cursor in cyan; the default is preselected,
-# not painted as already chosen (questionary's "selected" is reversed: a white block).
+# The look of the questions: the line under the cursor in cyan, the rest plain.
 STYLE = Style(
     [
         ("selected", "noreverse"),
@@ -50,17 +52,9 @@ Line = Option | Separator
 
 
 class Prompter(Protocol):
-    def select(
-        self, message: str, options: Sequence[Line], default: Any = None, *, search: bool = False
-    ) -> Any: ...
+    def select(self, message: str, options: Sequence[Line], *, search: bool = False) -> Any: ...
 
-    def text(
-        self, message: str, default: str = "", valid: Callable[[str], bool] | None = None
-    ) -> str: ...
-
-    def autocomplete(
-        self, message: str, choices: list[str], valid: Callable[[str], bool]
-    ) -> str: ...
+    def text(self, message: str, valid: Callable[[str], bool] | None = None) -> str: ...
 
     def pause(self, hint: str) -> str: ...
 
@@ -75,27 +69,49 @@ def _asked(answer: Any) -> Any:
     return answer
 
 
+def flush_keyboard() -> None:
+    """Forgets the keys pressed while the screen was busy (Enter while a turn was typed out):
+    they must not answer the next question."""
+    if sys.stdin.isatty():
+        termios.tcflush(sys.stdin, termios.TCIFLUSH)
+
+
+_choice_tokens = common.InquirerControl._get_choice_tokens
+
+
+def _tokens_without_label(control: common.InquirerControl) -> Any:
+    """questionary writes "Description: " before an option's text: the cards go without."""
+    tokens = _choice_tokens(control)  # type: ignore[no-untyped-call]
+    style, text = tokens[-1]
+    if text.startswith(DESCRIPTION):
+        tokens[-1] = (style, text.removeprefix(DESCRIPTION))
+    return tokens
+
+
+DESCRIPTION = "  Description: "
+common.InquirerControl._get_choice_tokens = _tokens_without_label  # type: ignore[method-assign]
+
+
 class QuestionaryPrompter:
-    def select(
-        self, message: str, options: Sequence[Line], default: Any = None, *, search: bool = False
-    ) -> Any:
+    """Asks with questionary: no answer preselected, the keys pressed before forgotten."""
+
+    def select(self, message: str, options: Sequence[Line], *, search: bool = False) -> Any:
         choices: list[questionary.Choice | questionary.Separator] = []
-        chosen = None
         for line in options:
             if isinstance(line, Separator):
                 choices.append(questionary.Separator(line.title and f"── {line.title} ──"))
                 continue
             # questionary filters a list on its titles as text: no styled pieces then.
             label = plain(line.label) if search else line.label
-            choice = questionary.Choice(
-                label, line.value, disabled=line.disabled, description=line.description
+            choices.append(
+                questionary.Choice(
+                    label, line.value, disabled=line.disabled, description=line.description
+                )
             )
-            chosen = choice if line.value == default and default is not None else chosen
-            choices.append(choice)
+        flush_keyboard()
         question = questionary.select(
             message,
             choices,
-            default=chosen,
             use_search_filter=search,
             use_jk_keys=not search,
             instruction=" ",
@@ -103,19 +119,11 @@ class QuestionaryPrompter:
         )
         return _asked(question.ask())
 
-    def text(
-        self, message: str, default: str = "", valid: Callable[[str], bool] | None = None
-    ) -> str:
+    def text(self, message: str, valid: Callable[[str], bool] | None = None) -> str:
         check = valid or (lambda answer: True)
-        return str(
-            _asked(questionary.text(message, default=default, validate=check, style=STYLE).ask())
-        )
-
-    def autocomplete(self, message: str, choices: list[str], valid: Callable[[str], bool]) -> str:
-        question = questionary.autocomplete(
-            message, choices, validate=valid, ignore_case=True, match_middle=True, style=STYLE
-        )
-        return str(_asked(question.ask()))
+        flush_keyboard()
+        return str(_asked(questionary.text(message, validate=check, style=STYLE).ask()))
 
     def pause(self, hint: str) -> str:
+        flush_keyboard()
         return input(hint).strip().lower()

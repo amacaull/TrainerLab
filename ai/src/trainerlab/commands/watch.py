@@ -24,9 +24,11 @@ from trainerlab.terminal.progress import progress_bar
 from trainerlab.terminal.prompts import Line, Option, Prompter, QuestionaryPrompter, Separator
 from trainerlab.terminal.render import Style
 from trainerlab.terminal.replay import ReplayStopped, replay
-from trainerlab.terminal.screen import Screen
+from trainerlab.terminal.screen import SPEEDS, Screen
 
 BACK = "back"
+# Seconds between two turns in autoplay, by text speed.
+AUTOPLAY = {"slow": 4.0, "normal": 2.5, "fast": 1.2, "instant": 0.0}
 ENDINGS = {0: "watch.won", 1: "watch.lost_in", None: "watch.drew"}
 
 
@@ -44,6 +46,7 @@ def main(
     mode.add_argument("--losses", action="store_true", help=t("opt.losses"))
     parser.add_argument("--side", type=int, choices=(0, 1), default=0, help=t("opt.side"))
     add_pairs(parser, SCANNED_PAIRS)
+    parser.add_argument("--speed", choices=list(SPEEDS), default="normal", help=t("opt.speed"))
     args = parser.parse_args(argv)
     if console is None:
         quiet_on_closed_pipe()
@@ -53,6 +56,7 @@ def main(
     watcher = Watcher(
         args.bot_a, args.bot_b, console, prompter or QuestionaryPrompter(), interactive
     )
+    watcher.speed = args.speed
     if args.losses:
         watcher.losses(seeds_of(args))
     else:
@@ -67,6 +71,7 @@ class Watcher:
         self.bot_a, self.bot_b = bot_a, bot_b
         self.console, self.prompter, self.interactive = console, prompter, interactive
         self.style = Style(enabled=console.is_terminal)
+        self.speed = "normal"
 
     def losses(self, seeds: range) -> None:
         if not self.interactive:
@@ -112,7 +117,8 @@ class Watcher:
         )
         _, env, bot0, bot1 = next(battle for battle in battles if battle[0] == a_side)
         bot_names = (self.bot_a, self.bot_b) if a_side == 0 else (self.bot_b, self.bot_a)
-        screen = Screen(self.console, speed="instant", clear=self.interactive)
+        speed = self.speed if self.interactive else "instant"  # a pipe gets it all at once
+        screen = Screen(self.console, speed=speed, clear=self.interactive)
         screen.message(t("watch.header", seed=seed, a=self.bot_a, side=a_side, b=self.bot_b))
         for side in (a_side, 1 - a_side):
             team = ", ".join(
@@ -122,7 +128,16 @@ class Watcher:
             screen.message(t("watch.teams", bot=bot_names[side], team=team))
         pause = self.prompter.pause if self.interactive else None
         try:
-            winner = replay(env, (bot0, bot1), bot_names, a_side, screen, self.style, pause)
+            winner = replay(
+                env,
+                (bot0, bot1),
+                bot_names,
+                a_side,
+                screen,
+                self.style,
+                pause,
+                autoplay=AUTOPLAY[speed],
+            )
         except ReplayStopped:
             return
         result = None if winner is None else int(winner != a_side)

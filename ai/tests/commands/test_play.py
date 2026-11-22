@@ -92,7 +92,7 @@ def test_hp_lost_over_a_battle_never_exceeds_a_pokemon_max_hp(
         elif line.kind == K.HEALED:
             lost[(line.side, line.slot)] = lost.get((line.side, line.slot), 0) - line.amount
 
-    final = env_seen[0].observe(0)
+    final = env_seen[-1].observe(0)  # the battle's, after the check of the teams
     assert lost
     assert all(total <= final.pokemon(*key).stats.hp for key, total in lost.items())
 
@@ -143,10 +143,10 @@ def test_a_rematch_plays_a_new_battle_and_the_same_one_replays_the_seed() -> Non
     answers = iter(["same", "rematch", "leave"])
 
     class Again(First):
-        def select(self, message, options, default=None, *, search=False):  # type: ignore[no-untyped-def]
+        def select(self, message, options, *, search=False):  # type: ignore[no-untyped-def]
             if message == "Play again?":
                 return next(answers)
-            return super().select(message, options, default, search=search)
+            return super().select(message, options, search=search)
 
     _, shown = _play(["--seed", "3", "--against", "hitter"], Again())
 
@@ -159,7 +159,7 @@ def test_from_the_menu_the_last_choice_goes_back_to_it() -> None:
     prompter = First()
     _play(["--seed", "3", "--against", "hitter"], prompter, in_menu=True)
 
-    options = [o for kind, message, o, _ in prompter.asked if message == "Play again?"][0]
+    options = [o for kind, message, o in prompter.asked if message == "Play again?"][0]
     assert [getattr(o, "label", None) for o in options][-1] == "Back to the menu"
 
 
@@ -202,7 +202,48 @@ def test_a_draw_says_so(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_running_away_ends_the_battle_as_lost_and_offers_to_play_again() -> None:
     from trainerlab.terminal.human import FLEE
 
-    code, shown = _play(["--seed", "3", "--against", "hitter"], First([FLEE, True]))
+    code, shown = _play(["--seed", "3", "--against", "hitter"], First([0, FLEE, True]))
 
     assert code == 0
     assert f"You ran away! {names.leader(3)} (hitter) wins." in shown
+
+
+def test_the_teams_can_be_smaller_than_six() -> None:
+    shown = _play(["--seed", "3", "--against", "hitter", "--size", "2"])[1]
+
+    assert "●●" in shown and "●●●" not in shown
+
+
+def test_the_player_chooses_who_goes_first() -> None:
+    from trainerlab.game.environment import random_team_pair
+
+    team = random_team_pair(3)[0]
+    prompter = First([2])
+
+    shown = _play(["--seed", "3", "--against", "hitter"], prompter)[1]
+
+    assert prompter.asked[0][1] == "Who goes first?"
+    assert re.search(rf"You +{re.escape(names.species_name(team[2]))}", shown)
+
+
+def test_a_battle_can_be_saved_once_played(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from trainerlab.commands.play import slug
+
+    monkeypatch.setenv("TRAINERLAB_GAMES", str(tmp_path / "games"))
+    prompter = First(again="save")
+    answers = iter(["save", "leave"])
+
+    class Saving(First):
+        def select(self, message, options, *, search=False):  # type: ignore[no-untyped-def]
+            if message == "Play again?":
+                return next(answers)
+            return super().select(message, options, search=search)
+
+    shown = _play(["--seed", "3", "--against", "hitter"], Saving())[1]
+
+    (saved,) = (tmp_path / "games").iterdir()
+    assert saved.name.endswith(f"_{slug(names.leader(3))}-hitter_3.txt")
+    assert "Turn 1 · against hitter" in saved.read_text() and "Victory!" in saved.read_text()
+    assert f"Battle saved: {saved}" in shown.replace("\n", "")
+    assert slug("Lt. Surge") == "lt-surge" and slug("Érika") == "erika"
+    del prompter

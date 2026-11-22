@@ -13,6 +13,7 @@ from rich.table import Table
 from rich.text import Text
 
 from trainerlab import _engine
+from trainerlab.game.environment import DATA_DIR
 from trainerlab.game.events import EventKind as K
 from trainerlab.i18n import names, t
 from trainerlab.terminal.prompts import Label, Option
@@ -137,6 +138,13 @@ def species_types(species_id: int, style: Style) -> str:
     entry = _engine.species_entry(species_id)
     first, second = style.type_name(entry.type1), style.type_name(entry.type2)
     return first if entry.type1 == entry.type2 else f"{first} / {second}"
+
+
+def species_label(key: str) -> str:
+    """A species in a list to choose from: its name and its types, by the engine's id of it."""
+    _engine.engine_init(str(DATA_DIR))
+    species_id = _engine.find_species_id(key)
+    return f"{names.species_name(key):<22}{species_types(species_id, Style(enabled=False))}"
 
 
 def team_dots(view: _engine.BattleState, side: int) -> str:

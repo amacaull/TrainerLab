@@ -70,5 +70,5 @@ class HumanPlayer:
     def _confirm_flight(self) -> None:
         """Raises Fled if the player confirms; returns to the menu otherwise."""
         answers = [Option(False, t("no")), Option(True, t("yes"))]
-        if self._prompter.select(t("battle.flee_confirm"), answers, default=False):
+        if self._prompter.select(t("battle.flee_confirm"), answers):
             raise Fled

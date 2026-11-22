@@ -45,6 +45,9 @@ from trainerlab.terminal import reports
 from trainerlab.terminal.prompts import Prompter, QuestionaryPrompter
 
 INTERRUPTED = 130  # the exit status of a program stopped by Ctrl-C
+# The commands that end on a choice of the player's (back to the menu among others): the others
+# wait for Enter, so that their result is read before the menu takes the screen again.
+ENDED_BY_CHOICE = ("play", "watch")
 
 
 class Context(NamedTuple):
@@ -144,6 +147,8 @@ def main(
                 _run(command, Context(prompter, console, in_menu=True))
                 shown = shlex.join(["trainerlab", *command])
                 console.print(f"[dim]{t('menu.command', command=shown)}[/]", highlight=False)
+                if command[0] not in ENDED_BY_CHOICE:
+                    prompter.pause(t("menu.back_to_menu") + " ")
     except (EOFError, KeyboardInterrupt):
         console.print()
         return INTERRUPTED

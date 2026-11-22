@@ -63,9 +63,14 @@ def type_name(type_id: int) -> str:
     return _name("types", TYPES[type_id])
 
 
-def all_species() -> list[str]:
-    """Every species' name in the language chosen, sorted: what the player can type."""
-    return sorted(entry[language()] for entry in _table("names.json")["species"].values())
+def species_name(key: str) -> str:
+    """A species' name from the engine's id of it (Gyarados -> Léviator in French)."""
+    return _name("species", key)
+
+
+def species_keys() -> list[str]:
+    """The engine's id of every species, sorted by their names in the language chosen."""
+    return sorted(_table("names.json")["species"], key=species_name)
 
 
 def species_key(name: str) -> str | None:

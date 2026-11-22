@@ -6,8 +6,12 @@ the screen can be tested without a terminal and without waiting. A second consol
 colours, keeps a copy of everything shown (play --log).
 """
 
+import io
+import sys
+import termios
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 
 from rich.console import Console, RenderableType
 from rich.panel import Panel
@@ -25,6 +29,24 @@ SPEEDS = {
 }
 
 
+@contextmanager
+def keys_silenced() -> Iterator[None]:
+    """While the screen writes: the keys pressed are not echoed, and wait unread (the next
+    question forgets them, prompts.flush_keyboard)."""
+    if not sys.stdin.isatty():
+        yield
+        return
+    fd = sys.stdin.fileno()
+    before = termios.tcgetattr(fd)
+    quiet = list(before)
+    quiet[3] = before[3] & ~(termios.ECHO | termios.ICANON)
+    termios.tcsetattr(fd, termios.TCSANOW, quiet)
+    try:
+        yield
+    finally:
+        termios.tcsetattr(fd, termios.TCSANOW, before)
+
+
 class Screen:
     def __init__(
         self,
@@ -39,18 +61,30 @@ class Screen:
         self._char_delay, self._line_pause, self._emphasis_pause = SPEEDS[speed]
         self._clear = clear
         self._sleep = sleep
-        self._log = log
+        self._logs = [log] if log is not None else []
         self._history: list[str] = []
+        self.start_transcript()
 
     def clear(self) -> None:
         """Starts a fresh screen, in a real terminal only."""
         if self._clear:
             self.console.file.write(CLEAR)
 
+    def start_transcript(self) -> None:
+        """From now on, keeps a copy of what is shown, without colours, for `transcript`."""
+        self._kept = io.StringIO()
+        self._transcript = Console(
+            file=self._kept, color_system=None, width=self.console.width, highlight=False
+        )
+
+    def transcript(self) -> str:
+        """What was shown since `start_transcript`, as the log has it: the battle, once."""
+        return self._kept.getvalue()
+
     def show(self, renderable: RenderableType) -> None:
         self.console.print(renderable)
-        if self._log is not None:
-            self._log.print(renderable)
+        for log in (*self._logs, self._transcript):
+            log.print(renderable)
 
     def panel(self, title: str, body: RenderableType, style: str = "") -> None:
         panel = Panel(body, title=title, title_align="left", border_style=style or "none")
@@ -67,6 +101,11 @@ class Screen:
 
     def narrate(self, lines: list[Narration]) -> None:
         """The lines of a turn typed out, then kept for the next `take_history`."""
+        with keys_silenced():
+            self._type_out(lines)
+        self._history += [line.text for line in lines]
+
+    def _type_out(self, lines: list[Narration]) -> None:
         for line in lines:
             text = Text.from_markup("  " + line.text)
             if self._char_delay:
@@ -77,10 +116,9 @@ class Screen:
                 self.console.print()
             else:
                 self.console.print(text)
-            if self._log is not None:
-                self._log.print(text)
+            for log in (*self._logs, self._transcript):
+                log.print(text)
             self._sleep(self._emphasis_pause if line.emphasis else self._line_pause)
-        self._history += [line.text for line in lines]
 
     def take_history(self) -> list[str]:
         """The lines told since the last call: the turn the player has just watched."""

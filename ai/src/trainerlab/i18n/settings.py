@@ -26,3 +26,9 @@ def save_language(chosen: str) -> None:
     path = config_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(f'language = "{chosen}"\n')
+
+
+def games_dir() -> Path:
+    """Where the battles saved go; TRAINERLAB_GAMES moves it (the tests do)."""
+    moved = os.environ.get("TRAINERLAB_GAMES")
+    return Path(moved) if moved else Path.home() / "TrainerLab" / "parties"

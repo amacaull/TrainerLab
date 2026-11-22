@@ -22,6 +22,7 @@ def english() -> Iterator[None]:
 
 def _run(argv: list[str], prompter: Scripted | None = None, interactive: bool = False) -> str:
     console = recording()
+    argv = [*argv, "--speed", "instant"] if interactive else argv
     assert (
         main(argv, prompter=prompter or Scripted(), console=console, interactive=interactive) == 0
     )
@@ -168,3 +169,22 @@ def test_by_default_the_output_goes_to_the_terminal(
     assert capsys.readouterr().out.endswith("of 2 battles against random.\n")
     # Piped into head, the command stops quietly instead of raising BrokenPipeError.
     assert handlers == [(signal.SIGPIPE, signal.SIG_DFL)]
+
+
+def test_on_a_terminal_the_replay_goes_at_the_speed_chosen(monkeypatch: pytest.MonkeyPatch) -> None:
+    from trainerlab.commands import watch as module
+
+    seen: list[tuple[float, float]] = []
+
+    def replay(env, bots, names, side, screen, style, pause, *, autoplay):  # type: ignore[no-untyped-def]
+        seen.append((screen._char_delay, autoplay))
+        return 0
+
+    monkeypatch.setattr(module, "replay", replay)
+    viewer = Viewer([])
+    console = recording()
+    argv = ["hitter", "random", "--seed", "3", "--speed", "slow"]
+    assert main(argv, prompter=viewer, console=console, interactive=True) == 0
+    assert main(argv, prompter=viewer, console=console, interactive=False) == 0
+
+    assert seen == [(0.035, module.AUTOPLAY["slow"]), (0.0, 0.0)]  # a pipe: all at once

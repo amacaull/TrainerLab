@@ -25,7 +25,7 @@ def test_the_battle_menu_lists_the_moves_then_one_entry_to_switch() -> None:
     assert _act(prompter, drawn) == waterfall
 
     assert drawn == [0]
-    kind, message, options, _ = prompter.asked[0]
+    kind, message, options = prompter.asked[0]
     assert message == "What will Gyarados do?"
     labels = [plain(o.label).split()[0] for o in options if isinstance(o, Option)]
     assert labels == ["Dragon", "Waterfall", "Earthquake", "Ice", "Switch", "Run"]
@@ -39,7 +39,7 @@ def test_switching_opens_the_team_and_sends_in_the_one_chosen() -> None:
     prompter = Scripted([SWITCH, 2])
 
     assert _act(prompter) == Action.switch(2)
-    _, message, options, _ = prompter.asked[1]
+    _, message, options = prompter.asked[1]
     assert message == "Who comes in instead of Gyarados?"
     assert [o.value for o in options if isinstance(o, Option)] == [0, 1, 2, BACK]
 
@@ -61,7 +61,7 @@ def test_a_replacement_offers_the_team_without_a_way_back() -> None:
 
     assert HumanPlayer(prompter, lambda v: None).choose_replacement(0, view, [1, 2]) == 1
 
-    _, message, options, _ = prompter.asked[0]
+    _, message, options = prompter.asked[0]
     assert message == "Who comes in?"
     assert [o.value for o in options if isinstance(o, Option)] == [0, 1, 2, FLEE]
 
