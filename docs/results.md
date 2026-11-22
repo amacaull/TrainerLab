@@ -847,3 +847,73 @@ Played by a human (one battle, which measures nothing but shows something), rule
 13 lost, sending its Kommo-o, four times weak to Fairy, in front of an
 Azumarill: its replacements are its network's favourite, never searched.
 
+
+## Palier 10.5: replacements, team sizes, and rule 17
+
+The commands above name the bots as they were then. Palier 11 renamed them:
+`rule12` is now `zero`, `rule13` `deepzero`, `rule14` `focus`; rule 15 is
+`scout`, rule 16 `scholar`, and `alphazero` is always the strongest, rule 17.
+
+Rule 14 still sent in its network's favourite after a knock-out, never searched,
+and self-play never recorded those choices: the network hardly learnt them. Four
+changes followed, each measured by one duel of 2000 pairs against the rule
+before it.
+
+### Real endgames replayed: measured negative
+
+Palier 7 found the network weakest in long endgames. Each self-play battle kept
+its first endgame (3 Pokémon or fewer standing on each side, a turn to play), and
+a quarter of the next iteration's battles started from one of them, with dice of
+their own. 70 iterations from rule 14 scored **0.511** against it, the interval
+reaching below 0.5: not kept as a rule. The code was removed with rule 17.
+
+### Rule 15: searched replacements
+
+After a knock-out with a choice, the planner plays each option on the view and
+searches the position it leaves, a quarter of a decision's simulations each,
+and sends in the best value. Rule 14's network, unchanged:
+
+| Duel | Score | 95 % interval |
+|---|---|---|
+| **rule 15 vs rule 14** | **0.549** | [0.534, 0.565] |
+
+5 points from one decision in a few dozen: the replacement after a knock-out
+decides much (rule 13's Kommo-o in front of an Azumarill).
+
+### Rule 16: the replacements learnt
+
+Self-play now searches its replacements too (50 simulations, no noise), and
+each becomes a row: the replacing side's view, its options, the chosen one as
+the policy target, the best value beside the result. 40 iterations from rule
+15, with the endgames replayed in a quarter of the battles:
+
+| Duel | Score | 95 % interval |
+|---|---|---|
+| **rule 16 vs rule 15** | **0.540** | [0.524, 0.555] |
+
+### Rule 17: teams of 2 to 6, a lower rate at the end
+
+Self-play played only teams of six, and the endgames above did not pay. Half
+the battles are now 6 against 6, a quarter 4 against 4, a quarter 2 against 2;
+no endgame replayed; the learning rate falls from 1e-4 to 3e-5 for the last
+quarter of the iterations. 40 iterations from rule 16, about 5.9 minutes each
+on the Mac (235 minutes):
+
+```bash
+trainerlab alphazero runs/rule16.pt --iterations 40 --out runs/rule17.pt --against alphazero
+trainerlab duel plan:runs/rule17.pt alphazero --pairs 2000 --from 330000
+```
+
+The follow-ups against rule 16, every 5 iterations, 100 pairs each (noisy, not the measure): 0.485,
+0.517, 0.600, 0.532, 0.535, 0.512, 0.520, 0.517.
+
+| Duel | Score | 95 % interval | Record (W / D / L) |
+|---|---|---|---|
+| **rule 17 vs rule 16** | **0.517** | [0.502, 0.532] | 2060 / 16 / 1924 |
+
+**Rule 17 beats rule 16**, narrowly: the whole interval is above 0.5, by two
+tenths of a point. The gains shrink rule after rule (5.5, 4, then 1.7 points);
+what the loop can still teach this network with these settings is little.
+
+Chained, each rule against the one before: rule 14 +3.9 points, rule 15 +4.9,
+rule 16 +4.0, rule 17 +1.7.

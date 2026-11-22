@@ -18,7 +18,7 @@ from trainerlab.commands.options import PAIRS, SCANNED_PAIRS, count, seed
 from trainerlab.commands.usage import PAIRS as USAGE_PAIRS
 from trainerlab.i18n import LANGUAGES, language, names, set_language, settings, t
 from trainerlab.terminal.prompts import Label, Line, Option, Prompter, Separator
-from trainerlab.terminal.render import species_label
+from trainerlab.terminal.render import species_card, species_label
 
 OTHER = "other"  # the entry that opens the list of every bot
 BACK = "back"  # the last entry of every question's list
@@ -192,11 +192,13 @@ def _builder(prompter: Prompter, answers: Answers) -> list[str]:
             return picked
         if action == "add":
             keys = [key for key in names.species_keys() if key not in picked]
-            listed: list[Line] = [Option(key, species_label(key)) for key in keys]
+            listed: list[Line] = [
+                Option(key, species_label(key), species_card(key)) for key in keys
+            ]
             listed += [Separator(), Option(BACK, t("back"))]
             added = prompter.select(t("menu.team_pick"), listed, search=True)
         else:
-            listed = [Option(key, names.species_name(key)) for key in picked]
+            listed = [Option(key, names.species_name(key), species_card(key)) for key in picked]
             listed += [Separator(), Option(BACK, t("back"))]
             added = prompter.select(t("menu.team_which"), listed)
             if added != BACK:

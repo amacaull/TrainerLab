@@ -5,8 +5,10 @@ rich's markup ([red]...[/]) when colours are on, plain text otherwise; the words
 trainerlab.i18n, in the language chosen. The battle is told from the side of `me`.
 """
 
+import json
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import cache
 from typing import Protocol
 
 from rich.table import Table
@@ -145,6 +147,40 @@ def species_label(key: str) -> str:
     _engine.engine_init(str(DATA_DIR))
     species_id = _engine.find_species_id(key)
     return f"{names.species_name(key):<22}{species_types(species_id, Style(enabled=False))}"
+
+
+@cache
+def _species_data(key: str) -> dict[str, object]:
+    loaded: dict[str, object] = json.loads((DATA_DIR / "pokemon" / f"{key}.json").read_text())
+    return loaded
+
+
+def species_card(key: str, *, holding: bool = True) -> str:
+    """A species, under a list: its types, base stats, ability, item and moves, with what the
+    ability and the item do. `holding` False leaves out an item used up in battle."""
+    _engine.engine_init(str(DATA_DIR))
+    species_id = _engine.find_species_id(key)
+    data = _species_data(key)
+    base: dict[str, int] = data["baseStats"]  # type: ignore[assignment]
+    stats = t(
+        "card.stats",
+        hp=base["hp"], atk=base["atk"], df=base["def"],
+        spa=base["specAtk"], spd=base["specDef"], spe=base["speed"],
+    )  # fmt: skip
+    ability = str(data["ability"])
+    lines = [species_types(species_id, Style(enabled=False)), stats]
+    if ability:
+        ability_name = names.ability(_engine.find_ability_id(ability))
+        lines.append(f"{ability_name}: {names.ability_effect(ability)}")
+    item = data.get("item")
+    if item and holding:
+        item_name = names.item(_engine.find_item_id(str(item)))
+        lines.append(f"{ITEM} {item_name}: {names.item_effect(str(item))}")
+    for move_id in _engine.make_combatant(species_id).move_ids:
+        move = _engine.move_entry(move_id)
+        category = t(f"category.{move.category}")
+        lines.append(f"{names.move(move_id)} · {names.type_name(move.type)} · {category}")
+    return card(names.species_name(key), lines)
 
 
 def team_dots(view: _engine.BattleState, side: int) -> str:
@@ -291,9 +327,8 @@ def switch_options(view: _engine.BattleState, me: int, legal: list[int]) -> list
             (f"fg:ansi{hp_colour(ratio)}", hp_bar(pokemon.current_hp, pokemon.stats.hp)),
             ("", f"  {hp_text(pokemon)}{status}"),
         ]
-        moves = " · ".join(names.move(move_id) for move_id in pokemon.move_ids)
-        lines = [moves] + ([f"{ITEM} {names.item(pokemon.item_id)}"] if holds_item(pokemon) else [])
-        options.append(Option(index, label, card(names.species(pokemon.species_id), lines)))
+        key = _engine.species_id_string(pokemon.species_id)
+        options.append(Option(index, label, species_card(key, holding=holds_item(pokemon))))
     return options
 
 

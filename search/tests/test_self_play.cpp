@@ -79,47 +79,6 @@ TEST_CASE("each row records the value the search found for the side, its visits'
   CHECK(some);
 }
 
-namespace {
-int alive(const engine::BattleState &state, int side) {
-  int n = 0;
-  for (int i = 0; i < state.team_size[static_cast<size_t>(side)]; ++i)
-    n += !state.teams[static_cast<size_t>(side)][static_cast<size_t>(i)].isFainted();
-  return n;
-}
-} // namespace
-
-TEST_CASE("self-play keeps each battle's first endgame, and battles can start from them") {
-  const search::Network net = search::testing::randomNetwork(game());
-  const search::SelfPlayData first = search::selfPlay(game(), net, small(200), 6, 21, 2);
-  REQUIRE(!first.endgames.empty());
-  CHECK(first.endgames.size() <= 6);
-  for (const engine::BattleState &state : first.endgames) {
-    CHECK(!state.isOver());
-    for (int side : {0, 1}) {
-      CHECK(alive(state, side) <= 3);
-      CHECK(!state.active(side).isFainted());
-    }
-  }
-  REQUIRE(first.fromEndgame.size() == 6);
-  for (int8_t flag : first.fromEndgame)
-    CHECK(flag == 0); // no endgames given: every battle from its start
-
-  search::SelfPlaySettings again = small(200);
-  again.endgameShare = 1.0;
-  const search::SelfPlayData replayed =
-      search::selfPlay(game(), net, again, 4, 22, 2, first.endgames);
-  for (int8_t flag : replayed.fromEndgame)
-    CHECK(flag == 1);
-  for (size_t g = 0; g < replayed.turns.size(); ++g)
-    CHECK(replayed.turns[g] > 0);
-  const search::SelfPlayData alone = search::selfPlay(game(), net, again, 4, 22, 1, first.endgames);
-  CHECK(alone.policy == replayed.policy); // the same for any number of threads
-
-  again.endgameShare = 1.5;
-  CHECK_THROWS_AS(search::selfPlay(game(), net, again, 1, 0, 1, first.endgames),
-                  std::invalid_argument);
-}
-
 TEST_CASE("searched replacements are rows: the switch the search chose, no foe's option") {
   const search::Network net = search::testing::randomNetwork(game());
   search::SelfPlaySettings settings = small(200);

@@ -3,7 +3,7 @@ import pytest
 import torch
 
 from trainerlab import _engine, _search
-from trainerlab.bots.roster import ALPHAZERO, RULE12, RULE13, RULE14, SELFPLAY, factory
+from trainerlab.bots.roster import ALPHAZERO, RULE12, RULE13, RULE14, RULE16, SELFPLAY, factory
 from trainerlab.experiments import judge
 from trainerlab.game.environment import BattleEnvironment, random_team_pair
 from trainerlab.rl.net import PolicyValueNet, Shape
@@ -89,6 +89,7 @@ def test_plan_searches_with_the_network_of_a_file() -> None:
 
 def test_alphazero_is_the_planner_with_rule_14_s_network_and_rule12_rule13_with_theirs() -> None:
     assert ALPHAZERO.is_file() and RULE12.is_file() and RULE13.is_file() and RULE14.is_file()
+    assert RULE16.is_file()
     assert isinstance(factory("alphazero")(0), Planner)
     assert isinstance(factory("zero@8")(0), Planner)
     assert isinstance(factory("deepzero@8")(0), Planner)
@@ -114,7 +115,14 @@ def test_alphazero_searches_its_replacements_and_the_bots_measured_do_not() -> N
     # and plan:FILE.pt.
     for name in ("planner", "zero", "deepzero", "focus", "focus@8"):
         assert factory(name)(0)._replacements is False  # type: ignore[attr-defined]
-    for name in ("scout", "alphazero", "alphazero@8", f"plan:{SELFPLAY}", f"plan:{SELFPLAY}@4"):
+    for name in (
+        "scout",
+        "scholar",
+        "alphazero",
+        "alphazero@8",
+        f"plan:{SELFPLAY}",
+        f"plan:{SELFPLAY}@4",
+    ):
         assert factory(name)(0)._replacements is True  # type: ignore[attr-defined]
 
     env = BattleEnvironment(["Snorlax", "Blissey", "Conkeldurr"], ["Excadrill"], seed=1)

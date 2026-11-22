@@ -42,17 +42,22 @@ mutmut results                            # the survivors; mutmut show ID for on
 
 ## One command
 
-`trainerlab` with no argument opens a menu: the mode (play, duel, watch,
-audit, dataset, train), then its options one at a time, each with a default
-that Enter keeps. Before running, it prints the same command in one line,
-which runs directly, as in scripts and in this README. `trainerlab --help`
-lists the commands, `trainerlab duel --help` the options of one.
+`trainerlab` with no argument opens a menu, in English or in French (chosen in
+the menu, or `--lang en|fr`, kept in `~/.config/trainerlab/config.toml`): play a
+bot, or measure them (duel, watch), the training commands hidden behind
+"Other". Each option is asked in turn, nothing preselected; Back, or Ctrl-C,
+returns to the question before. Long lists scroll ten lines at a time, typing
+filters the whole list, and the card of the line under the cursor stays below:
+a Pokémon's types, base stats, ability and item with what they do, and its four
+moves. Before running, the menu prints the same command in one line, which runs
+directly, as in scripts and in this README. `trainerlab --help` lists the
+commands, `trainerlab duel --help` the options of one.
 
 | Command | What it does |
 |---|---|
-| `play [--against BOT] [--seed N] [--team A,B,…]` | a battle against a bot in the terminal |
+| `play [--against BOT] [--seed N] [--team A,B,…] [--size N]` | a battle against a bot in the terminal, teams of `--size` Pokémon (1 to 6) |
 | `duel BOT_A BOT_B` | bot A's score against bot B, with its 95 % interval |
-| `watch BOT_A BOT_B --losses` / `--seed N --side S` | the battles A lost, or one replayed with what each bot saw |
+| `watch BOT_A BOT_B --losses` / `--seed N --side S` | the battles A lost, or one replayed with what each bot saw (`--speed slow\|normal\|fast\|instant`) |
 | `audit BOT_A BOT_B` | situations a program can spot in bot A's play (moves that fail or hit an immunity, boosts and what came of them, sure knock-outs left unplayed…): a description of how it plays, not how badly (palier 7) |
 | `usage BOT_A BOT_B` | the kinds of moves bot A plays (attacks, hazards, boosts, statuses…), and how often each was an option |
 | `dataset BOT_A BOT_B` | every decision of the battles, as a learning dataset (`.npz`) |
@@ -73,10 +78,14 @@ swapped) and `--from SEED`, the seed of the first pair: `--pairs 5000 --from
 every core (`--jobs N` to choose); a pair depends on its seed alone, so the
 results are the same whatever the number of processes.
 
-In `play`, you see exactly what the bots see: the board, your moves tagged with
-their type effectiveness (`x2`, `x1/2`…; `--no-hints` hides it), `?` for their
-details, then the turn typed out (`--speed instant|fast|normal|slow`). A seed
-replays the same battle; `--log FILE` keeps it as text.
+In `play`, you see exactly what the bots see: the board, with the exact HP and
+◆ by a Pokémon holding an item; your moves with their type and category, the
+card of each under the list; Switch for your team, Run away to give up. The
+bot is named after a gym leader drawn from the seed. You choose your lead, the
+turn is typed out (`--speed slow|normal|fast|instant`), and at the end: a
+rematch, the same battle again, or the battle saved as text in
+`~/TrainerLab/parties` (`TRAINERLAB_GAMES` to change it). A seed replays the
+same battle; `--team` takes the names in either language.
 
 ## The bots
 
@@ -94,9 +103,12 @@ replays the same battle; `--log FILE` keeps it as text.
 | `mcts` | **Rule 9.** A Monte Carlo tree search over simultaneous moves, three turns deep, guessing the foe's unseen Pokémon as legal teams; the model rates where each simulation stops. |
 | `selfplay` | **Rule 10.** A policy network trained by imitation of `forecaster`, then by self-play with PPO; plays its best option without any search (needs the `rl` extras). |
 | `planner` | **Rule 11.** Rule 9's tree search over simultaneous moves, guided by rule 10's network: its policy gives each option a prior, its value rates each new position (PUCT, as in AlphaZero); both run in C++. |
-| `rule12` | **Rule 12.** Rule 11, with a network trained on its own search: rule 11 played itself, the network learned the search's choices and the results, 20 times over (`trainerlab alphazero`). The judge searches with its network. |
-| `rule13` | **Rule 13.** Rule 12, its network trained 140 iterations more by the faster loop of palier 8, on searches four times deeper. |
-| `alphazero` | **Rule 14.** Rule 11's search with a new network: 2 layers of attention over the 12 Pokémon and the field, the matchups computed for it (each move's effectiveness and damage against the opposing active, who is faster, what it would take), taught rule 13's search (`trainerlab distill`), then 66 iterations of the loop. The strongest bot. |
+| `zero` | **Rule 12.** Rule 11, with a network trained on its own search: rule 11 played itself, the network learned the search's choices and the results, 20 times over (`trainerlab alphazero`). The judge searches with its network. |
+| `deepzero` | **Rule 13.** Rule 12, its network trained 140 iterations more by the faster loop of palier 8, on searches four times deeper. |
+| `focus` | **Rule 14.** Rule 11's search with a new network: 2 layers of attention over the 12 Pokémon and the field, the matchups computed for it (each move's effectiveness and damage against the opposing active, who is faster, what it would take), taught rule 13's search (`trainerlab distill`), then 66 iterations of the loop. |
+| `scout` | **Rule 15.** Rule 14, but searches its replacement after a knock-out: each option played on the view and searched, a quarter of a decision's simulations each. |
+| `scholar` | **Rule 16.** Rule 15, its network trained 40 iterations more on its searched replacements. |
+| `alphazero` | **Rule 17.** Rule 16, trained 40 iterations more on teams of 2 to 6, its learning rate lowered for the last quarter. The strongest bot. |
 
 Rules 1 to 5 are each three choices assembled in a `RuleBot`: a switch it may
 make before moving, its move, its replacement. `calculator()` is
@@ -108,7 +120,7 @@ play with another model instead.
 
 `net:FILE.pt` plays a policy network alone, greedily, without any search: the network
 made by `trainerlab pretrain`; `plan:FILE.pt` is rule 11's search guided by the network in that
-file (`trainerlab alphazero`). A search bot (`planner`, `rule12`, `rule13`, `alphazero`, `plan:FILE.pt`) takes `@N` to
+file (`trainerlab alphazero`). A search bot (`planner`, `zero` to `alphazero`, `plan:FILE.pt`) takes `@N` to
 search N simulations per decision instead of 200: `alphazero@800`. PyTorch comes with the `rl` extras; `pytest --cov` needs them.
 
 ## Method

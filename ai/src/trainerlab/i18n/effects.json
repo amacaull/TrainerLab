@@ -1,0 +1,238 @@
+{
+  "abilities": {
+    "Adaptability": {
+      "en": "Its moves of its own type deal ×2 instead of ×1.5.",
+      "fr": "Ses capacités de son type infligent ×2 au lieu de ×1,5."
+    },
+    "Berserk": {
+      "en": "+1 Sp. Atk when a direct hit takes it below half HP.",
+      "fr": "+1 en Attaque Spéciale quand un coup direct le fait passer sous la moitié de ses PV."
+    },
+    "Blaze": {
+      "en": "Fire moves deal ×1.5 at 1/3 HP or less.",
+      "fr": "Ses capacités Feu infligent ×1,5 à 1/3 de ses PV ou moins."
+    },
+    "Bulletproof": {
+      "en": "Immune to ball and bomb moves.",
+      "fr": "Insensible aux capacités de type balle et bombe."
+    },
+    "ClearBody": {
+      "en": "Its stats cannot be lowered by the foe.",
+      "fr": "Ses statistiques ne peuvent pas être baissées par l'adversaire."
+    },
+    "Defiant": {
+      "en": "+2 Attack when the foe lowers one of its stats.",
+      "fr": "+2 en Attaque quand l'adversaire baisse une de ses statistiques."
+    },
+    "DeltaStream": {
+      "en": "Strong winds while it is on the field: moves super effective on Flying become neutral.",
+      "fr": "Vents forts tant qu'il est sur le terrain : les capacités super efficaces sur le type Vol deviennent neutres."
+    },
+    "Disguise": {
+      "en": "The first hit is absorbed: it loses 1/8 of its max HP instead.",
+      "fr": "Le premier coup est encaissé : il perd 1/8 de ses PV max à la place."
+    },
+    "Drizzle": {
+      "en": "Brings rain for 5 turns when it comes in.",
+      "fr": "Déclenche la pluie pendant 5 tours en entrant."
+    },
+    "ElectricSurge": {
+      "en": "Sets Electric Terrain for 5 turns when it comes in: Electric moves ×1.3, no sleep, for those on the ground.",
+      "fr": "Crée un Champ Électrifié pendant 5 tours en entrant : capacités Électrik ×1,3 et pas de sommeil pour ceux au sol."
+    },
+    "EmergencyExit": {
+      "en": "Switches out to the first healthy teammate at half HP or less.",
+      "fr": "Se retire au profit du premier allié en forme à la moitié de ses PV ou moins."
+    },
+    "FlashFire": {
+      "en": "Immune to Fire; once hit by Fire, its Fire moves deal ×1.5.",
+      "fr": "Insensible au Feu ; une fois touché par le Feu, ses capacités Feu infligent ×1,5."
+    },
+    "Guts": {
+      "en": "Physical moves deal ×1.5 while it has a status; a burn does not weaken it.",
+      "fr": "Ses capacités physiques infligent ×1,5 quand il a un statut ; la brûlure ne l'affaiblit pas."
+    },
+    "HugePower": {
+      "en": "Its Attack is doubled.",
+      "fr": "Son Attaque est doublée."
+    },
+    "Intimidate": {
+      "en": "Lowers the foe's Attack by 1 when it comes in.",
+      "fr": "Baisse l'Attaque de l'adversaire de 1 en entrant."
+    },
+    "IronFist": {
+      "en": "Punching moves deal ×1.2.",
+      "fr": "Ses capacités de poing infligent ×1,2."
+    },
+    "LeafGuard": {
+      "en": "Cannot get a status in sunlight.",
+      "fr": "Ne peut pas subir de statut au soleil."
+    },
+    "Levitate": {
+      "en": "Immune to Ground moves.",
+      "fr": "Insensible aux capacités Sol."
+    },
+    "LightningRod": {
+      "en": "Immune to Electric: an Electric move gives it +1 Sp. Atk instead.",
+      "fr": "Insensible à l'Électrik : une capacité Électrik lui donne +1 en Attaque Spéciale à la place."
+    },
+    "MagicBounce": {
+      "en": "Sends back the status moves aimed at it.",
+      "fr": "Renvoie les capacités de statut qui le visent."
+    },
+    "Magician": {
+      "en": "Steals the target's item when it hits, if it holds none itself.",
+      "fr": "Vole l'objet de sa cible quand il la touche, s'il n'en tient pas."
+    },
+    "Moxie": {
+      "en": "+1 Attack each time it knocks out a foe.",
+      "fr": "+1 en Attaque à chaque adversaire mis K.O."
+    },
+    "NaturalCure": {
+      "en": "Its status is cured when it switches out.",
+      "fr": "Son statut est soigné quand il se retire."
+    },
+    "Overgrow": {
+      "en": "Grass moves deal ×1.5 at 1/3 HP or less.",
+      "fr": "Ses capacités Plante infligent ×1,5 à 1/3 de ses PV ou moins."
+    },
+    "Prankster": {
+      "en": "Its status moves get +1 priority.",
+      "fr": "Ses capacités de statut gagnent +1 en priorité."
+    },
+    "Pressure": {
+      "en": "The foe's moves use more PP.",
+      "fr": "Les capacités de l'adversaire consomment plus de PP."
+    },
+    "Regenerator": {
+      "en": "Restores 1/3 of its max HP when it switches out.",
+      "fr": "Récupère 1/3 de ses PV max quand il se retire."
+    },
+    "RockHead": {
+      "en": "Takes no recoil damage.",
+      "fr": "Ne subit pas de dégâts de contrecoup."
+    },
+    "RoughSkin": {
+      "en": "A foe that touches it loses 1/8 of its max HP.",
+      "fr": "Un adversaire qui le touche perd 1/8 de ses PV max."
+    },
+    "SandRush": {
+      "en": "Speed doubled in a sandstorm.",
+      "fr": "Vitesse doublée dans une tempête de sable."
+    },
+    "SandStream": {
+      "en": "Brings a sandstorm for 5 turns when it comes in.",
+      "fr": "Déclenche une tempête de sable pendant 5 tours en entrant."
+    },
+    "Sharpness": {
+      "en": "Slicing moves deal ×1.5.",
+      "fr": "Ses capacités tranchantes infligent ×1,5."
+    },
+    "SlushRush": {
+      "en": "Speed doubled in snow.",
+      "fr": "Vitesse doublée sous la neige."
+    },
+    "SnowWarning": {
+      "en": "Brings snow for 5 turns when it comes in.",
+      "fr": "Déclenche la neige pendant 5 tours en entrant."
+    },
+    "Static": {
+      "en": "A foe that touches it is paralysed 30 % of the time.",
+      "fr": "Un adversaire qui le touche est paralysé 30 % du temps."
+    },
+    "Swarm": {
+      "en": "Bug moves deal ×1.5 at 1/3 HP or less.",
+      "fr": "Ses capacités Insecte infligent ×1,5 à 1/3 de ses PV ou moins."
+    },
+    "SwiftSwim": {
+      "en": "Speed doubled in rain.",
+      "fr": "Vitesse doublée sous la pluie."
+    },
+    "Technician": {
+      "en": "Moves of power 60 or less deal ×1.5.",
+      "fr": "Ses capacités de puissance 60 ou moins infligent ×1,5."
+    },
+    "ThickFat": {
+      "en": "Halves the damage of Fire and Ice moves.",
+      "fr": "Divise par deux les dégâts des capacités Feu et Glace."
+    },
+    "Torrent": {
+      "en": "Water moves deal ×1.5 at 1/3 HP or less.",
+      "fr": "Ses capacités Eau infligent ×1,5 à 1/3 de ses PV ou moins."
+    },
+    "ToughClaws": {
+      "en": "Contact moves deal ×1.3.",
+      "fr": "Ses capacités de contact infligent ×1,3."
+    },
+    "Unaware": {
+      "en": "Ignores the foe's stat changes.",
+      "fr": "Ignore les changements de statistiques de l'adversaire."
+    },
+    "Unnerve": {
+      "en": "The foe cannot eat its berry.",
+      "fr": "L'adversaire ne peut pas manger sa baie."
+    },
+    "VesselOfRuin": {
+      "en": "The foe's Sp. Atk is ×0.75.",
+      "fr": "L'Attaque Spéciale de l'adversaire est ×0,75."
+    },
+    "VoltAbsorb": {
+      "en": "Immune to Electric: an Electric move restores 1/4 of its max HP instead.",
+      "fr": "Insensible à l'Électrik : une capacité Électrik lui rend 1/4 de ses PV max à la place."
+    }
+  },
+  "items": {
+    "BlackSludge": {
+      "en": "Restores 1/16 of max HP each turn to a Poison type; others lose 1/8.",
+      "fr": "Rend 1/16 des PV max à chaque tour à un Pokémon Poison ; les autres perdent 1/8."
+    },
+    "ChoiceBand": {
+      "en": "Attack ×1.5, but locks the holder into the move it uses first.",
+      "fr": "Attaque ×1,5, mais bloque le porteur sur la première capacité utilisée."
+    },
+    "ChoiceScarf": {
+      "en": "Speed ×1.5, but locks the holder into the move it uses first.",
+      "fr": "Vitesse ×1,5, mais bloque le porteur sur la première capacité utilisée."
+    },
+    "ChoiceSpecs": {
+      "en": "Sp. Atk ×1.5, but locks the holder into the move it uses first.",
+      "fr": "Attaque Spéciale ×1,5, mais bloque le porteur sur la première capacité utilisée."
+    },
+    "FlameOrb": {
+      "en": "Burns the holder at the end of the turn.",
+      "fr": "Brûle le porteur à la fin du tour."
+    },
+    "FocusSash": {
+      "en": "At full HP, survives a hit that would knock it out, with 1 HP. Once.",
+      "fr": "À PV max, survit avec 1 PV à un coup qui le mettrait K.O. Une fois."
+    },
+    "HeavyDutyBoots": {
+      "en": "The holder takes no harm from hazards.",
+      "fr": "Le porteur ne subit pas les pièges posés au sol."
+    },
+    "Leftovers": {
+      "en": "Restores 1/16 of max HP each turn.",
+      "fr": "Rend 1/16 de ses PV max à chaque tour."
+    },
+    "LifeOrb": {
+      "en": "Moves deal ×1.3; the holder loses 1/10 of its max HP after each damaging move.",
+      "fr": "Capacités ×1,3 ; le porteur perd 1/10 de ses PV max après chaque attaque."
+    },
+    "LightClay": {
+      "en": "Its screens last 3 more turns.",
+      "fr": "Ses écrans durent 3 tours de plus."
+    },
+    "LoadedDice": {
+      "en": "Multi-hit moves hit at least 4 times, and every hit lands.",
+      "fr": "Les capacités à coups multiples frappent au moins 4 fois, et chaque coup touche."
+    },
+    "SitrusBerry": {
+      "en": "Restores 1/4 of max HP at half HP or less. Once.",
+      "fr": "Rend 1/4 des PV max à la moitié des PV ou moins. Une fois."
+    },
+    "ThickClub": {
+      "en": "Doubles the holder's Attack.",
+      "fr": "Double l'Attaque du porteur."
+    }
+  }
+}

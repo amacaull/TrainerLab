@@ -21,7 +21,7 @@ from trainerlab.game.environment import BattleEnvironment, random_team_pair
 from trainerlab.i18n import names, settings, t
 from trainerlab.terminal.human import Fled
 from trainerlab.terminal.prompts import Option, Prompter, QuestionaryPrompter
-from trainerlab.terminal.render import Style, species_label
+from trainerlab.terminal.render import Style, species_card, species_label
 from trainerlab.terminal.screen import SPEEDS, Screen
 from trainerlab.terminal.session import play_session
 
@@ -113,7 +113,9 @@ def lead_first(prompter: Prompter, team: list[str]) -> list[str]:
     """The team, the Pokemon the player sends in first at its head."""
     if len(team) == 1:
         return team
-    options = [Option(index, species_label(key)) for index, key in enumerate(team)]
+    options = [
+        Option(index, species_label(key), species_card(key)) for index, key in enumerate(team)
+    ]
     lead = int(prompter.select(t("play.lead"), options))
     return [team[lead], *team[:lead], *team[lead + 1 :]]
 

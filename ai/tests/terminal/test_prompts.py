@@ -143,3 +143,54 @@ def test_an_option_s_card_shows_without_questionary_s_label() -> None:
 def test_options_say_how_they_read_as_text() -> None:
     assert prompts.plain("x") == "x"
     assert prompts.plain([("bold", "a"), ("", "b")]) == "ab"
+
+
+def _shown(control: InquirerControl) -> list[str]:
+    tokens = control._get_choice_tokens()  # type: ignore[no-untyped-call]
+    return "".join(text for _, text in tokens).splitlines()
+
+
+def _numbers(count: int) -> list[questionary.Choice]:
+    return [questionary.Choice(f"item {n}", n, description="card") for n in range(count)]
+
+
+def test_a_long_list_shows_a_window_that_follows_the_cursor() -> None:
+    control = InquirerControl(_numbers(30), use_indicator=False)
+
+    shown = _shown(control)
+    assert [line.strip() for line in shown] == [
+        *[f"» item {n}" if n == 0 else f"item {n}" for n in range(prompts.WINDOW)],
+        "↓ 20 more",
+        "",
+        "card",
+    ]
+
+    control.pointed_at = 15
+    shown = [line.strip() for line in _shown(control)]
+    assert shown[0] == "↑ 10 more" and "» item 15" in shown
+    assert shown[prompts.WINDOW + 1] == "↓ 10 more"
+
+    control.pointed_at = 29
+    shown = [line.strip() for line in _shown(control)]
+    assert shown[0] == "↑ 20 more" and shown[prompts.WINDOW] == "» item 29"
+
+
+def test_the_filter_searches_the_whole_list_not_the_window() -> None:
+    control = InquirerControl(_numbers(30), use_indicator=False)
+    control.search_filter = "2"
+
+    shown = [line.strip() for line in _shown(control)]
+
+    assert "» item 2" in shown and "item 22" in shown
+    assert "↓ 2 more" in shown  # 12 items hold a 2: 10 shown
+
+
+def test_a_short_list_shows_whole() -> None:
+    control = InquirerControl(_numbers(3), use_indicator=False)
+    assert [line.strip() for line in _shown(control)] == [
+        "» item 0",
+        "item 1",
+        "item 2",
+        "",
+        "card",
+    ]

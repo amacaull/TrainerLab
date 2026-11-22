@@ -90,6 +90,7 @@ def test_every_bot_has_its_rule_and_the_featured_ones_are_bots() -> None:
     from trainerlab.bots.roster import FEATURED, RULES
 
     assert set(RULES) == set(BOTS)
-    assert RULES["random"] is None and RULES["hitter"] == 1 and RULES["alphazero"] == 16
-    assert [RULES[name] for name in ("zero", "deepzero", "focus", "scout")] == [12, 13, 14, 15]
+    assert RULES["random"] is None and RULES["hitter"] == 1 and RULES["alphazero"] == 17
+    names = ("zero", "deepzero", "focus", "scout", "scholar")
+    assert [RULES[name] for name in names] == [12, 13, 14, 15, 16]
     assert FEATURED == ["alphazero", "mcts", "forecaster", "calculator", "hitter", "random"]

@@ -63,6 +63,17 @@ def test_every_species_move_item_ability_and_type_of_the_engine_has_both_names()
             assert names.type_name(type_id)
 
 
+def test_every_ability_and_item_of_the_engine_is_described_in_both_languages() -> None:
+    i18n.set_language("fr")
+    assert names.item_effect("Leftovers") == "Rend 1/16 de ses PV max à chaque tour."
+    for language in i18n.LANGUAGES:
+        i18n.set_language(language)
+        for ability_id in range(_engine.ability_count()):
+            assert names.ability_effect(_engine.ability_name(ability_id))
+        for item_id in range(_engine.item_count()):
+            assert names.item_effect(_engine.item_name(item_id))
+
+
 def test_english_names_are_the_official_ones() -> None:
     assert names.species(_engine.find_species_id("KommoO")) == "Kommo-o"
     assert names.move(_engine.STRUGGLE) == "Struggle"

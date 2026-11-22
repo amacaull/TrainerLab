@@ -30,6 +30,8 @@ RULE13 = SELFPLAY.with_name("rule13.pt")
 # plays it too, its replacements searched.
 RULE14 = SELFPLAY.with_name("rule14.pt")
 # Rule 16's network: rule 14's, the loop learning its searched replacements (docs/results.md).
+RULE16 = SELFPLAY.with_name("rule16.pt")
+# Rule 17's network: rule 16's, the loop also on teams of 2 and 4 (docs/results.md).
 ALPHAZERO = SELFPLAY.with_name("alphazero.pt")
 
 BOTS: dict[str, BotFactory] = {
@@ -49,7 +51,8 @@ BOTS: dict[str, BotFactory] = {
     "deepzero": lambda seed: _planner(str(RULE13), seed),  # rule 13, needs [rl]
     "focus": lambda seed: _planner(str(RULE14), seed),  # rule 14, needs [rl]
     "scout": lambda seed: _planner(str(RULE14), seed, replacements=True),  # rule 15
-    "alphazero": lambda seed: _planner(str(ALPHAZERO), seed, replacements=True),  # rule 16
+    "scholar": lambda seed: _planner(str(RULE16), seed, replacements=True),  # rule 16
+    "alphazero": lambda seed: _planner(str(ALPHAZERO), seed, replacements=True),  # rule 17
 }
 
 # The rule each bot stands for (docs/results.md); the words saying what each does are in
@@ -57,7 +60,7 @@ BOTS: dict[str, BotFactory] = {
 RULES: dict[str, int | None] = {
     "random": None, "hitter": 1, "dodger": 2, "matcher": 3, "survivor": 4, "calculator": 5,
     "forecaster": 6, "strategist": 7, "nash": 8, "mcts": 9, "selfplay": 10, "planner": 11,
-    "zero": 12, "deepzero": 13, "focus": 14, "scout": 15, "alphazero": 16,
+    "zero": 12, "deepzero": 13, "focus": 14, "scout": 15, "scholar": 16, "alphazero": 17,
 }  # fmt: skip
 # The bots the menus offer first; every other one is a name to type.
 FEATURED = ["alphazero", "mcts", "forecaster", "calculator", "hitter", "random"]
@@ -83,11 +86,12 @@ SEARCHERS = {
     "deepzero": RULE13,
     "focus": RULE14,
     "scout": RULE14,
+    "scholar": RULE16,
     "alphazero": ALPHAZERO,
 }
 # Those that search their replacements after a knock-out (palier 10.4), and plan:FILE.pt; the
 # bots measured before send in their network's favourite.
-REPLACING = {"scout", "alphazero", PLAN}
+REPLACING = {"scout", "scholar", "alphazero", PLAN}
 
 
 def factory(spec: str) -> BotFactory:
