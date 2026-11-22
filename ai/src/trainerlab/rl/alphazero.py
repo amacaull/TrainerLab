@@ -50,6 +50,9 @@ SEARCH_SHARE = 0.5
 # standing a side) the battles of the iteration before reached, with dice of their own: the
 # network sees many more of the long endgames it judged worst (palier 7).
 ENDGAME_SHARE = 0.25
+# Palier 10.4: after a knock-out with a choice, each option searched this many simulations and the
+# best sent in, a row to learn from (the network never learnt its replacements before).
+REPLACEMENTS = 50
 VALUE_WEIGHT = 0.25  # of the value's loss, beside the policy's
 FOE_WEIGHT = 0.5  # of the foe head's loss, beside the policy's and the value's (palier 10.2)
 
@@ -80,6 +83,7 @@ def play(
     fast: int = FAST,
     share: float = FULL_SHARE,
     endgames: list[Any] | None = None,
+    replacements: int = REPLACEMENTS,
 ) -> Rows:
     """`games` battles of rule 11 against itself with this network, and what they leave; given
     endgames, a share ENDGAME_SHARE of the battles start from one of them."""
@@ -94,6 +98,7 @@ def play(
         full_share=share,
         endgames=endgames or [],
         endgame_share=ENDGAME_SHARE,
+        replacement_simulations=replacements,
     )
     return rows
 
@@ -121,7 +126,11 @@ def losses(
     target = (1 - search_share) * result + search_share * searched
     logits, value, guess = net.evaluate(pokemon, ids, field, mask, foe_mask)
     policy_loss = -(policy * functional.log_softmax(logits, dim=-1)).sum(-1).mean()
-    foe_loss = functional.cross_entropy(guess, foe) if guess is not None else logits.new_zeros(())
+    known = foe >= 0  # a replacement has no foe's option to guess
+    if guess is not None and bool(known.any()):
+        foe_loss = functional.cross_entropy(guess[known], foe[known])
+    else:
+        foe_loss = logits.new_zeros(())
     return policy_loss, functional.mse_loss(value, target), foe_loss
 
 
@@ -199,6 +208,7 @@ def loop(
     worlds: int = WORLDS,
     fast: int = FAST,
     share: float = FULL_SHARE,
+    replacements: int = REPLACEMENTS,
     on: torch.device | None = None,
     report: Callable[[Progress, PolicyValueNet], None] | None = None,
 ) -> PolicyValueNet:
@@ -224,6 +234,7 @@ def loop(
             fast=fast,
             share=share,
             endgames=endgames,
+            replacements=replacements,
         )
         endgames = list(played["endgames"])
         fresh = measure(net, played)

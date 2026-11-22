@@ -309,7 +309,8 @@ PYBIND11_MODULE(_search, m) {
           "self_play",
           [](const search::Network &net, int games, uint64_t seed, int threads, int simulations,
              int worlds, double noise, int max_turns, int lanes, int fast, double full_share,
-             const std::vector<engine::BattleState> &endgames, double endgame_share) {
+             const std::vector<engine::BattleState> &endgames, double endgame_share,
+             int replacement_simulations) {
             search::SelfPlaySettings settings;
             settings.planner.simulations = simulations;
             settings.planner.worlds = worlds;
@@ -319,6 +320,7 @@ PYBIND11_MODULE(_search, m) {
             settings.fast = fast;
             settings.fullShare = full_share;
             settings.endgameShare = endgame_share;
+            settings.replacementSimulations = replacement_simulations;
             search::SelfPlayData data;
             {
               const py::gil_scoped_release free; // the threads run without Python
@@ -358,6 +360,7 @@ PYBIND11_MODULE(_search, m) {
           py::arg("worlds") = 8, py::arg("noise") = 0.25, py::arg("max_turns") = 1000,
           py::arg("lanes") = 16, py::arg("fast") = 0, py::arg("full_share") = 1.0,
           py::arg("endgames") = std::vector<engine::BattleState>{}, py::arg("endgame_share") = 0.25,
+          py::arg("replacement_simulations") = 0,
           "The AlphaZero loop's games (search/include/search/self_play.hpp): rule 11 against "
           "itself, with noise at the root; per decision the encoding, the mask, the share of "
           "visits per option (policy), the result for that side, the search's value for it "
@@ -367,7 +370,9 @@ PYBIND11_MODULE(_search, m) {
           "queries batched. With `fast`, only a share `full_share` of the searches are full and "
           "recorded; the others search `fast` simulations, unrecorded. Each battle keeps its first "
           "endgame (3 Pokemon or fewer standing a side: endgames, from_endgame per battle); "
-          "given `endgames`, a share `endgame_share` of the battles start from one of them.");
+          "given `endgames`, a share `endgame_share` of the battles start from one of them. With "
+          "`replacement_simulations`, each replacement with a choice is searched and recorded "
+          "(foe -1).");
 
   m.def(
       "openings", [](int count, int turns) { return search::openings(loaded(), count, turns); },

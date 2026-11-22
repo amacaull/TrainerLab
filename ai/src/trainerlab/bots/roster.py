@@ -44,7 +44,8 @@ BOTS: dict[str, BotFactory] = {
     "planner": lambda seed: _planner(str(SELFPLAY), seed),  # rule 11, needs [rl]
     "rule12": lambda seed: _planner(str(RULE12), seed),  # rule 12, needs [rl]
     "rule13": lambda seed: _planner(str(RULE13), seed),  # rule 13, needs [rl]
-    "alphazero": lambda seed: _planner(str(ALPHAZERO), seed, replacements=True),  # rule 14
+    "rule14": lambda seed: _planner(str(ALPHAZERO), seed),  # rule 14, needs [rl]
+    "alphazero": lambda seed: _planner(str(ALPHAZERO), seed, replacements=True),  # rule 15
 }
 
 # One line each, shown by the menu and by `trainerlab bots`.
@@ -63,7 +64,8 @@ DESCRIPTIONS: dict[str, str] = {
     "planner": "rule 11: a tree search over simultaneous moves guided by rule 10's network",
     "rule12": "rule 12: rule 11, its network trained on its own search (AlphaZero)",
     "rule13": "rule 13: rule 12, its network trained further on deeper searches",
-    "alphazero": "rule 14: a network with attention that sees the matchups, trained on its search",
+    "rule14": "rule 14: a network with attention that sees the matchups, trained on its search",
+    "alphazero": "rule 15: rule 14, its replacements after a knock-out searched",
 }
 
 DEFAULT_OPPONENT = "forecaster"  # beats every bot but strategist, head to head
@@ -81,10 +83,16 @@ NET = "net"
 PLAN = "plan"
 # The bots that search a tree with a network, by the network they search with. Any of them, and
 # plan:FILE.pt, takes @N to search N simulations per decision instead of 200: alphazero@800.
-SEARCHERS = {"planner": SELFPLAY, "rule12": RULE12, "rule13": RULE13, "alphazero": ALPHAZERO}
-# Those that search their replacements after a knock-out (palier 10.4); the others, and
-# plan:FILE.pt, send in their network's favourite.
-REPLACING = {"alphazero"}
+SEARCHERS = {
+    "planner": SELFPLAY,
+    "rule12": RULE12,
+    "rule13": RULE13,
+    "rule14": ALPHAZERO,
+    "alphazero": ALPHAZERO,
+}
+# Those that search their replacements after a knock-out (palier 10.4), and plan:FILE.pt; the
+# bots measured before send in their network's favourite.
+REPLACING = {"alphazero", PLAN}
 
 
 def factory(spec: str) -> BotFactory:
@@ -100,7 +108,7 @@ def factory(spec: str) -> BotFactory:
         return _net_bot(str(Path(model).resolve()))
     if name == PLAN:
         path = str(Path(model).resolve())
-        return lambda seed: _planner(path, seed)
+        return lambda seed: _planner(path, seed, replacements=True)
     if not model:
         return BOTS[name]
     path, make = str(Path(model).resolve()), MODEL_BOTS[name]

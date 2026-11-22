@@ -27,6 +27,11 @@ struct SelfPlaySettings {
   // endgameShare of the battles start from one of them, with dice of their own.
   int endgameAlive = 3;
   double endgameShare = 0.25;
+  // Palier 10.4: after a knock-out with a choice, each option searched replacementSimulations
+  // simulations (no noise) and the best sent in, a row to learn from: the replacing side's view,
+  // its switches, the chosen one as the policy, no foe's option (foe -1). 0: the network's
+  // favourite, unrecorded.
+  int replacementSimulations = 0;
 };
 
 // What self-play leaves to learn from, one row per decision: the encoding of what the side saw,

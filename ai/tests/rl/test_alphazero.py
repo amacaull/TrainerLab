@@ -15,7 +15,7 @@ from trainerlab.rl.net import PolicyValueNet
 
 # A small search (4 simulations, 2 worlds, fast searches of 2): rule 10's network plays the battles
 # quickly.
-SMALL: dict[str, Any] = {"simulations": 4, "worlds": 2, "fast": 2}
+SMALL: dict[str, Any] = {"simulations": 4, "worlds": 2, "fast": 2, "replacements": 0}
 
 
 def test_self_play_gives_a_policy_and_a_result_per_decision() -> None:
@@ -50,6 +50,24 @@ def test_the_value_learns_the_mean_of_the_result_and_the_search_s_value_and_is_m
         assert float(alphazero.losses(net, batch)[1]) == pytest.approx(mixed, rel=1e-5)
     assert alphazero.measure(net, played)[1] == pytest.approx(on_results, rel=1e-4)
     assert mixed != pytest.approx(on_results)
+
+
+def test_searched_replacements_are_learned_and_the_foe_head_skips_them() -> None:
+    # Palier 10.4: after a knock-out, each option searched, the best a row (foe -1).
+    net = PolicyValueNet.load(SELFPLAY)
+    small = {**SMALL, "replacements": 4}
+    rows = alphazero.play(net, 3, seed=8, threads=2, **small, share=1.0)
+    replaced = np.asarray(rows["foe"], dtype=np.int64) < 0
+    assert replaced.any() and (rows["mask"][replaced][:, :4] == 0).all()
+    assert np.allclose(rows["policy"][replaced].max(1), 1)
+
+    student = distill.student(layers=0)
+    batch = [torch.from_numpy(rows[k].astype(alphazero._dtype(k))) for k in alphazero.KEYS]
+    with torch.no_grad():
+        foe = alphazero.losses(student, batch)[2]
+    assert torch.isfinite(foe) and foe.item() > 0
+    only = [t[torch.from_numpy(replaced)] for t in batch]  # replacements alone: nothing to guess
+    assert float(alphazero.losses(student, only)[2]) == 0.0
 
 
 def test_a_network_with_a_foe_head_learns_what_the_foe_played() -> None:
