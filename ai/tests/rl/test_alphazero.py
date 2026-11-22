@@ -31,6 +31,7 @@ def test_self_play_gives_a_policy_and_a_result_per_decision() -> None:
     assert len(rows["turns"]) == len(rows["winner"]) == 2
     assert rows["search_value"].shape == (n,) and (np.abs(rows["search_value"]) <= 1).all()
     assert rows["from_endgame"].shape == (2,) and len(rows["endgames"]) <= 2
+    assert set(rows["team_size"]) <= {6, 4, 2}
     assert rows["foe"].shape == (n,) and rows["foe_mask"].shape == (n, 10)
     assert (rows["foe_mask"][np.arange(n), rows["foe"]] == 1).all()
 
@@ -171,7 +172,7 @@ def test_the_command_measures_every_few_iterations_and_after_the_last(
         net: object, iterations: int, *, report: Callable[..., None], **kwargs: object
     ) -> None:
         for i in range(1, iterations + 1):
-            report(alphazero.Progress(i, 2, 4, 10.0, 0.0, 1.2, 1.4, 0.45, 0.5, 0.3, 1), net)
+            report(alphazero.Progress(i, 2, 4, 10.0, 0.0, 1.2, 1.4, 0.45, 0.5, 0.3, 1, 1), net)
 
     monkeypatch.setattr(command, "duel", duel)
     monkeypatch.setattr(alphazero, "loop", loop)
@@ -184,7 +185,7 @@ def test_the_command_measures_every_few_iterations_and_after_the_last(
     assert measured == [f"plan:{tmp_path / f'az-{i}.pt'}" for i in (3, 6, 7)]
     assert opponents == [f"plan:{SELFPLAY}"] * 3  # the network it started from
     assert "entropy 1.200" in shown[1] and "fresh 1.400, 0.450" in shown[1]
-    assert "1 from endgames" in shown[1]
+    assert "1 from endgames" in shown[1] and "1 with small teams" in shown[1]
     assert (tmp_path / "az-1.pt").is_file()  # saved each iteration
 
     opponents.clear()
@@ -274,6 +275,7 @@ def test_the_loop_learns_from_the_last_iterations_and_reports_their_battles(
         rows["winner"] = np.array([-1, 0], dtype=np.int8)  # one draw, one win for side 0
         rows["policy"] = np.tile([0.5, 0.5, 0, 0, 0, 0, 0, 0, 0, 0], (n, 1))  # ln 2 each
         rows["from_endgame"] = np.array([0, n > 1], dtype=np.int8)
+        rows["team_size"] = np.array([6, 2], dtype=np.int8)
         rows["endgames"] = [f"endgame of iteration {n}"]  # type: ignore[assignment]
         return rows
 
@@ -312,8 +314,10 @@ def test_the_loop_learns_from_the_last_iterations_and_reports_their_battles(
     # The new decisions are measured before they are learned: how well the network does on
     # battles it has not learned from.
     assert order[:4] == ["measure 1", "learn", "measure 2", "learn"]
-    assert rates == [1e-4] * 6  # back to 1e-4 throughout: 3e-4 made it worse
+    # 1e-4, then 3e-5 the last quarter of the iterations, to settle.
+    assert rates == [1e-4] * 5 + [3e-5]
     assert (seen[0].fresh_policy, seen[0].fresh_value) == (1.5, 0.25)
     # Each iteration replays the endgames the one before kept (palier 10.3).
     assert given[:3] == [[], ["endgame of iteration 1"], ["endgame of iteration 2"]]
     assert [p.from_endgames for p in seen[:2]] == [0, 1]
+    assert seen[0].small_teams == 1  # one of the two battles with teams of 2

@@ -26,7 +26,10 @@ RULE12 = SELFPLAY.with_name("rule12.pt")
 # alphazero rule12.pt --iterations 140 (docs/results.md).
 RULE13 = SELFPLAY.with_name("rule13.pt")
 # Rule 14's network (palier 10): attention over the Pokemon, the matchups computed for it, taught
-# rule 13's search (trainerlab distill), then 66 iterations of the loop (docs/results.md).
+# rule 13's search (trainerlab distill), then 66 iterations of the loop (docs/results.md). Rule 15
+# plays it too, its replacements searched.
+RULE14 = SELFPLAY.with_name("rule14.pt")
+# Rule 16's network: rule 14's, the loop learning its searched replacements (docs/results.md).
 ALPHAZERO = SELFPLAY.with_name("alphazero.pt")
 
 BOTS: dict[str, BotFactory] = {
@@ -44,8 +47,9 @@ BOTS: dict[str, BotFactory] = {
     "planner": lambda seed: _planner(str(SELFPLAY), seed),  # rule 11, needs [rl]
     "rule12": lambda seed: _planner(str(RULE12), seed),  # rule 12, needs [rl]
     "rule13": lambda seed: _planner(str(RULE13), seed),  # rule 13, needs [rl]
-    "rule14": lambda seed: _planner(str(ALPHAZERO), seed),  # rule 14, needs [rl]
-    "alphazero": lambda seed: _planner(str(ALPHAZERO), seed, replacements=True),  # rule 15
+    "rule14": lambda seed: _planner(str(RULE14), seed),  # rule 14, needs [rl]
+    "rule15": lambda seed: _planner(str(RULE14), seed, replacements=True),  # rule 15
+    "alphazero": lambda seed: _planner(str(ALPHAZERO), seed, replacements=True),  # rule 16
 }
 
 # One line each, shown by the menu and by `trainerlab bots`.
@@ -65,7 +69,8 @@ DESCRIPTIONS: dict[str, str] = {
     "rule12": "rule 12: rule 11, its network trained on its own search (AlphaZero)",
     "rule13": "rule 13: rule 12, its network trained further on deeper searches",
     "rule14": "rule 14: a network with attention that sees the matchups, trained on its search",
-    "alphazero": "rule 15: rule 14, its replacements after a knock-out searched",
+    "rule15": "rule 15: rule 14, its replacements after a knock-out searched",
+    "alphazero": "rule 16: rule 15, its network trained on its searched replacements",
 }
 
 DEFAULT_OPPONENT = "forecaster"  # beats every bot but strategist, head to head
@@ -87,12 +92,13 @@ SEARCHERS = {
     "planner": SELFPLAY,
     "rule12": RULE12,
     "rule13": RULE13,
-    "rule14": ALPHAZERO,
+    "rule14": RULE14,
+    "rule15": RULE14,
     "alphazero": ALPHAZERO,
 }
 # Those that search their replacements after a knock-out (palier 10.4), and plan:FILE.pt; the
 # bots measured before send in their network's favourite.
-REPLACING = {"alphazero", PLAN}
+REPLACING = {"rule15", "alphazero", PLAN}
 
 
 def factory(spec: str) -> BotFactory:

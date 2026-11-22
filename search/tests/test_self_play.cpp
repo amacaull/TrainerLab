@@ -5,6 +5,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cmath>
+#include <map>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -151,6 +152,33 @@ TEST_CASE("searched replacements are rows: the switch the search chose, no foe's
   CHECK_THROWS_AS(search::selfPlay(game(), net, settings, 1, 0, 1), std::invalid_argument);
 }
 
+TEST_CASE("battles are played with the team sizes asked, in their shares") {
+  const search::Network net = search::testing::randomNetwork(game());
+  search::SelfPlaySettings settings = small(60);
+  settings.teamSizes = {{6, 0.5}, {4, 0.25}, {2, 0.25}};
+  const search::SelfPlayData data = search::selfPlay(game(), net, settings, 24, 41, 2);
+  REQUIRE(data.teamSize.size() == 24);
+  std::map<int, int> count;
+  for (int8_t size : data.teamSize)
+    ++count[size];
+  CHECK(count.size() == 3);
+  CHECK(count[6] + count[4] + count[2] == 24);
+  CHECK(count[6] > count[2]); // half the battles, against a quarter
+  const search::SelfPlayData alone = search::selfPlay(game(), net, settings, 24, 41, 1);
+  CHECK(alone.teamSize == data.teamSize);
+  CHECK(alone.policy == data.policy);
+
+  settings.teamSizes = {{2, 1.0}};
+  for (int8_t size : search::selfPlay(game(), net, settings, 3, 42, 1).teamSize)
+    CHECK(size == 2);
+  for (int8_t size : search::selfPlay(game(), net, small(), 2, 42, 1).teamSize)
+    CHECK(size == 6); // by default, full teams
+  settings.teamSizes = {{7, 1.0}};
+  CHECK_THROWS_AS(search::selfPlay(game(), net, settings, 1, 0, 1), std::invalid_argument);
+  settings.teamSizes = {{6, 0.5}, {2, 0.25}};
+  CHECK_THROWS_AS(search::selfPlay(game(), net, settings, 1, 0, 1), std::invalid_argument);
+}
+
 TEST_CASE("self-play's rows are the same for any number of threads") {
   const search::Network net = search::testing::randomNetwork(game());
   const search::SelfPlayData one = search::selfPlay(game(), net, small(40, 2, 4), 4, 3, 1);
@@ -165,8 +193,10 @@ TEST_CASE("self-play's rows are the same for any number of threads") {
 
 TEST_CASE("battles played side by side, their queries batched, play as they do one by one") {
   // Bit for bit with our kernel; BLAS sums a batch in its own order (network.hpp).
-  if (std::string(search::Network::backend()) != "kernel")
-    SKIP("the layers go through BLAS");
+  if (std::string(search::Network::backend()) != "kernel") {
+    WARN("not checked: the layers go through BLAS, which sums a batch in its own order");
+    return; // not SKIP: ctest would read Catch2's exit code 4 as skipped for any 4 failures
+  }
   const search::Network net = search::testing::randomNetwork(game());
   const search::SelfPlayData alone = search::selfPlay(game(), net, small(40, 1), 5, 11, 2);
   const search::SelfPlayData together = search::selfPlay(game(), net, small(40, 4), 5, 11, 2);

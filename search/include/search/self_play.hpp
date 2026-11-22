@@ -5,6 +5,7 @@
 #include "search/planner.hpp"
 
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 namespace search {
@@ -32,6 +33,9 @@ struct SelfPlaySettings {
   // its switches, the chosen one as the policy, no foe's option (foe -1). 0: the network's
   // favourite, unrecorded.
   int replacementSimulations = 0;
+  // Palier 10.5: the teams' sizes, each with its share of the battles (summing to 1), drawn from
+  // the battle's number; both sides alike, the random battle's teams cut to that size.
+  std::vector<std::pair<int, double>> teamSizes{{engine::kTeamSize, 1.0}};
 };
 
 // What self-play leaves to learn from, one row per decision: the encoding of what the side saw,
@@ -51,6 +55,7 @@ struct SelfPlayData {
   std::vector<int32_t> turns; // per battle
   std::vector<int8_t> winner; // per battle: 0, 1, or -1 for a draw
   std::vector<int8_t> fromEndgame;           // per battle: 1 if it started from an endgame given
+  std::vector<int8_t> teamSize;              // per battle: the size of the teams
   std::vector<engine::BattleState> endgames; // the battles' first endgames, in battle order
 
   int rows() const { return static_cast<int>(result.size()); }

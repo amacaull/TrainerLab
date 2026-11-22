@@ -3,7 +3,7 @@ import pytest
 import torch
 
 from trainerlab import _engine, _search
-from trainerlab.bots.roster import ALPHAZERO, RULE12, RULE13, SELFPLAY, factory
+from trainerlab.bots.roster import ALPHAZERO, RULE12, RULE13, RULE14, SELFPLAY, factory
 from trainerlab.experiments import judge
 from trainerlab.game.environment import BattleEnvironment, random_team_pair
 from trainerlab.rl.net import PolicyValueNet, Shape
@@ -88,7 +88,7 @@ def test_plan_searches_with_the_network_of_a_file() -> None:
 
 
 def test_alphazero_is_the_planner_with_rule_14_s_network_and_rule12_rule13_with_theirs() -> None:
-    assert ALPHAZERO.is_file() and RULE12.is_file() and RULE13.is_file()
+    assert ALPHAZERO.is_file() and RULE12.is_file() and RULE13.is_file() and RULE14.is_file()
     assert isinstance(factory("alphazero")(0), Planner)
     assert isinstance(factory("rule12@8")(0), Planner)
     assert isinstance(factory("rule13@8")(0), Planner)
@@ -110,10 +110,11 @@ def test_a_search_bot_searches_as_many_simulations_as_asked() -> None:
 
 def test_alphazero_searches_its_replacements_and_the_bots_measured_do_not() -> None:
     # Palier 10.4: a replacement after a knock-out was the network's favourite, never searched.
-    # rule14 is rule 15's network as rule 14 played it; plan:FILE.pt searches them, as alphazero.
+    # rule14 and rule15 share a network: rule 15 searches its replacements; so do alphazero (rule
+    # 16) and plan:FILE.pt.
     for name in ("planner", "rule12", "rule13", "rule14", "rule14@8"):
         assert factory(name)(0)._replacements is False  # type: ignore[attr-defined]
-    for name in ("alphazero", "alphazero@8", f"plan:{SELFPLAY}", f"plan:{SELFPLAY}@4"):
+    for name in ("rule15", "alphazero", "alphazero@8", f"plan:{SELFPLAY}", f"plan:{SELFPLAY}@4"):
         assert factory(name)(0)._replacements is True  # type: ignore[attr-defined]
 
     env = BattleEnvironment(["Snorlax", "Blissey", "Conkeldurr"], ["Excadrill"], seed=1)
