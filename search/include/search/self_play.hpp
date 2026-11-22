@@ -22,6 +22,11 @@ struct SelfPlaySettings {
   // 0: every search full.
   int fast = 100;
   double fullShare = 0.25;
+  // Palier 10.3: endgames. Each battle keeps its first position with endgameAlive Pokemon or fewer
+  // standing on each side (a turn to play, no replacement pending); given such positions, a share
+  // endgameShare of the battles start from one of them, with dice of their own.
+  int endgameAlive = 3;
+  double endgameShare = 0.25;
 };
 
 // What self-play leaves to learn from, one row per decision: the encoding of what the side saw,
@@ -40,6 +45,8 @@ struct SelfPlayData {
   std::vector<int32_t> game;  // rows: the battle each row comes from
   std::vector<int32_t> turns; // per battle
   std::vector<int8_t> winner; // per battle: 0, 1, or -1 for a draw
+  std::vector<int8_t> fromEndgame;           // per battle: 1 if it started from an endgame given
+  std::vector<engine::BattleState> endgames; // the battles' first endgames, in battle order
 
   int rows() const { return static_cast<int>(result.size()); }
 };
@@ -54,5 +61,6 @@ struct SelfPlayData {
 // `lanes` battles are shared among `threads` threads; the rows come in battle order, the same for
 // any number of threads.
 SelfPlayData selfPlay(const Game &game, const Network &network, const SelfPlaySettings &settings,
-                      int games, uint64_t seed, int threads);
+                      int games, uint64_t seed, int threads,
+                      const std::vector<engine::BattleState> &endgames = {});
 } // namespace search

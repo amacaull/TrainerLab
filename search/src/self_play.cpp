@@ -35,10 +35,12 @@ int keyOf(const Action &action) {
 class Battle {
 public:
   Battle(const Game &game, const Planner &full, const Planner &fast,
-         const SelfPlaySettings &settings, uint64_t number, int index)
+         const SelfPlaySettings &settings, uint64_t number, int index,
+         const BattleState *start = nullptr)
       : game_(game), full_(full), fast_(fast), settings_(settings), number_(number), index_(index),
-        state_(game.randomBattle(number)), dice_(number), draws_(number ^ 0x9E3779B97F4A7C15ULL),
-        caps_(number ^ 0xC2B2AE3D27D4EB4FULL) {
+        state_(start ? *start : game.randomBattle(number)), dice_(number),
+        draws_(number ^ 0x9E3779B97F4A7C15ULL), caps_(number ^ 0xC2B2AE3D27D4EB4FULL),
+        fromEndgame_(start != nullptr), kept_(start != nullptr) {
     advance();
   }
   Battle(const Battle &) = delete;
@@ -54,6 +56,12 @@ public:
 private:
   void advance();
   void record(); // the option drawn from the search's visits; a row if the search was full
+  int standing(int side) const {
+    int n = 0;
+    for (int i = 0; i < state_.team_size[at(side)]; ++i)
+      n += !state_.teams[at(side)][at(i)].isFainted();
+    return n;
+  }
   void finish();
 
   const Game &game_;
@@ -67,6 +75,7 @@ private:
   std::mt19937_64 caps_; // which searches are full
   uint64_t decision_ = 0;
   bool fullSearch_ = true;
+  bool fromEndgame_, kept_; // started from an endgame; its first endgame kept (or not to keep)
   SelfPlayData data_;
   std::vector<int> sides_;       // the side of each row, for its result
   std::vector<size_t> turnRows_; // the rows of the turn under way, to learn what the foe played
@@ -94,6 +103,11 @@ void Battle::advance() {
       if (state_.isOver() || state_.turn >= settings_.maxTurns) {
         finish();
         return;
+      }
+      if (!state_.active(0).isFainted() && !state_.active(1).isFainted() && !kept_ &&
+          standing(0) <= settings_.endgameAlive && standing(1) <= settings_.endgameAlive) {
+        data_.endgames.push_back(state_);
+        kept_ = true;
       }
       if (state_.active(0).isFainted() || state_.active(1).isFainted()) {
         const int first = rules.fasterSide(state_, dice_);
@@ -200,6 +214,7 @@ void Battle::finish() {
     data_.result[r] = winner < 0 ? 0.0f : (sides_[r] == winner ? 1.0f : -1.0f);
   data_.turns.push_back(state_.turn);
   data_.winner.push_back(static_cast<int8_t>(winner));
+  data_.fromEndgame.push_back(fromEndgame_);
   done_ = true;
 }
 
@@ -207,11 +222,19 @@ void Battle::finish() {
 // waits on, all evaluated in one batch, in battle order.
 void playTogether(const Game &game, const Network &network, const Planner &full,
                   const Planner &fast, const SelfPlaySettings &settings, uint64_t seed, int first,
-                  int count, std::vector<SelfPlayData> &battles) {
+                  int count, std::vector<SelfPlayData> &battles,
+                  const std::vector<BattleState> &endgames) {
   std::vector<std::unique_ptr<Battle>> lanes;
-  for (int g = first; g < first + count; ++g)
-    lanes.push_back(std::make_unique<Battle>(game, full, fast, settings,
-                                             seed * 1'000'003 + static_cast<uint64_t>(g), g));
+  for (int g = first; g < first + count; ++g) {
+    const uint64_t number = seed * 1'000'003 + static_cast<uint64_t>(g);
+    const BattleState *start = nullptr;
+    if (!endgames.empty()) { // an endgame drawn for a share of the battles
+      std::mt19937_64 pick(number ^ 0x5851F42D4C957F2DULL);
+      if (static_cast<double>(pick() >> 11) * 0x1.0p-53 < settings.endgameShare)
+        start = &endgames[pick() % endgames.size()];
+    }
+    lanes.push_back(std::make_unique<Battle>(game, full, fast, settings, number, g, start));
+  }
   std::vector<Network::Query> queries;
   std::vector<Network::Output> outputs;
   while (true) {
@@ -242,12 +265,13 @@ template <typename T> void append(std::vector<T> &to, const std::vector<T> &from
 } // namespace
 
 SelfPlayData selfPlay(const Game &game, const Network &network, const SelfPlaySettings &settings,
-                      int games, uint64_t seed, int threads) {
+                      int games, uint64_t seed, int threads,
+                      const std::vector<BattleState> &endgames) {
   if (games < 0 || threads < 1 || settings.planner.simulations < 2 || settings.lanes < 1 ||
       settings.fast == 1 || settings.fast < 0 || !(settings.fullShare >= 0.0) ||
-      settings.fullShare > 1.0)
+      settings.fullShare > 1.0 || !(settings.endgameShare >= 0.0) || settings.endgameShare > 1.0)
     throw std::invalid_argument("selfPlay: games >= 0, threads >= 1, simulations >= 2, lanes "
-                                ">= 1, fast 0 or >= 2, full share in [0, 1]");
+                                ">= 1, fast 0 or >= 2, full and endgame shares in [0, 1]");
   const Planner full(game, network, settings.planner);
   PlannerSettings quick = settings.planner;
   quick.simulations = settings.fast;
@@ -263,7 +287,7 @@ SelfPlayData selfPlay(const Game &game, const Network &network, const SelfPlaySe
       for (int g = next++; g < groups; g = next++) {
         const int first = g * settings.lanes;
         playTogether(game, network, full, fast, settings, seed, first,
-                     std::min(settings.lanes, games - first), battles);
+                     std::min(settings.lanes, games - first), battles, endgames);
       }
     } catch (...) {
       const std::lock_guard<std::mutex> lock(failureLock);
@@ -294,6 +318,8 @@ SelfPlayData selfPlay(const Game &game, const Network &network, const SelfPlaySe
     append(all.game, b.game);
     append(all.turns, b.turns);
     append(all.winner, b.winner);
+    append(all.fromEndgame, b.fromEndgame);
+    append(all.endgames, b.endgames);
   }
   return all;
 }
