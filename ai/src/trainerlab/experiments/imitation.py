@@ -61,7 +61,7 @@ def build_block(bot_a: str, bot_b: str, seeds: range) -> Rows:
 
 
 def generate(
-    bot_a: str, bot_b: str, seeds: range, jobs: int, progress: parallel.Progress | None = None
+    bot_a: str, bot_b: str, seeds: range, jobs: int, progress: parallel.Meter | None = None
 ) -> Rows:
     """Bot A's decisions over the pairs of these seeds, played on `jobs` processes."""
     parts = parallel.run(build_block, bot_a, bot_b, seeds, jobs, progress)

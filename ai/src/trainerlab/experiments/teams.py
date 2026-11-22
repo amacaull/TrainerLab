@@ -53,7 +53,7 @@ def play_block(bot: str, _: str, seeds: range) -> list[float]:
 
 
 def record(
-    bot: str, seeds: range, jobs: int, progress: parallel.Progress | None = None
+    bot: str, seeds: range, jobs: int, progress: parallel.Meter | None = None
 ) -> tuple[npt.NDArray[np.int64], Floats]:
     """The seed and the first team's points of every battle, two per pair, in seed order."""
     parts = parallel.run(play_block, bot, bot, seeds, jobs, progress)

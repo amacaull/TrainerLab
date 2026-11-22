@@ -1,26 +1,35 @@
+import io
+from collections.abc import Iterator
 from dataclasses import dataclass
 
 import pytest
+from rich.console import Console
 
-from trainerlab import _engine
+from trainerlab import _engine, i18n
 from trainerlab.game.environment import BattleEnvironment
 from trainerlab.game.events import EventKind as K
+from trainerlab.terminal.prompts import plain as plain_label
 from trainerlab.terminal.render import (
     Style,
-    describe_board,
-    describe_effects,
-    describe_events,
+    Teller,
+    board,
+    card,
     describe_field,
-    describe_move,
-    describe_moves,
-    describe_pokemon,
-    describe_switch,
     hp_bar,
-    narrate,
-    readable,
+    move_option,
+    plain,
+    switch_options,
+    team_dots,
 )
 
 PLAIN = Style(enabled=False)
+BOT = (None, "Misty")  # the player at the keyboard, and the trainer of the foe
+
+
+@pytest.fixture(autouse=True)
+def english() -> Iterator[None]:
+    yield
+    i18n.set_language("en")
 
 
 @dataclass(frozen=True)
@@ -42,83 +51,65 @@ def _view(team: list[str], foe: list[str]) -> _engine.BattleState:
 
 
 def _lines(events: list[FakeEvent], view: _engine.BattleState) -> list[str]:
-    return describe_events(list(events), view, view, 0, PLAIN)
+    return [line.text for line in Teller(0, PLAIN, BOT).narrate(list(events), view, view)]
 
 
-def test_names_are_split_into_words() -> None:
-    assert readable("DragonDarts") == "Dragon Darts"
-    assert readable("Leftovers") == "Leftovers"
-    assert readable("UTurn") == "U-turn"
-    assert readable("WillOWisp") == "Will-O-Wisp"
+def _shown(renderable: object) -> str:
+    console = Console(file=io.StringIO(), width=100, color_system=None)
+    console.print(renderable)
+    assert isinstance(console.file, io.StringIO)
+    return console.file.getvalue()
 
 
 def test_the_hp_bar_fills_with_the_hp_left() -> None:
-    assert hp_bar(100, 100, width=10) == "[##########]"
-    assert hp_bar(50, 100, width=10) == "[#####.....]"
-    assert hp_bar(0, 100, width=10) == "[..........]"
+    assert hp_bar(100, 100, width=10) == "██████████"
+    assert hp_bar(50, 100, width=10) == "█████░░░░░"
+    assert hp_bar(0, 100, width=10) == "░░░░░░░░░░"
 
 
-def test_a_pokemon_shows_its_types_status_stat_stages_and_hp() -> None:
-    snorlax = _view(["Snorlax"], ["Blissey"]).active(0)
+def test_the_board_shows_both_actives_with_their_item_level_exact_hp_and_team() -> None:
+    view = _view(["Snorlax", "Gyarados"], ["Blissey", "Toxapex"])
+    snorlax = view.active(0)
     snorlax.current_hp = 262
     snorlax.status = 4  # paralysis
     snorlax.stat_stages = (2, 0, 0, 0, -1, 0, 0)
+    view.set_pokemon(0, 0, snorlax)
 
-    assert describe_pokemon(snorlax, PLAIN) == [
-        "Snorlax  Normal  PAR  +2 Atk, -1 Spe",
-        "[##########..........] 262/524 HP",
-    ]
+    shown = _shown(board(view, 0, PLAIN, BOT))
 
-
-def test_a_dual_type_shows_both_types() -> None:
-    (line, _) = describe_pokemon(_view(["TapuKoko"], ["Blissey"]).active(0), PLAIN)
-
-    assert line == "Tapu Koko  Electric/Fairy"
+    misty, *rest = [line.strip() for line in shown.splitlines() if line.strip()]
+    assert misty.split() == ["Misty", "Blissey", "◆", "L100", "█" * 24, "714/714", "HP", "●●"]
+    assert rest[0].split()[:4] == ["You", "Snorlax", "◆", "L100"]
+    assert "262/524 HP" in rest[0] and rest[0].endswith("●●")
+    assert rest[1] == "PAR · Atk +2 · Spe -1"
 
 
-@pytest.mark.parametrize(
-    ("hp", "colour"), [(400, "32"), (263, "32"), (262, "33"), (105, "33"), (104, "31")]
-)
-def test_the_hp_bar_turns_yellow_then_red(hp: int, colour: str) -> None:
-    # Snorlax has 524 HP: green above half (262), yellow above a fifth (104.8), red below.
-    snorlax = _view(["Snorlax"], ["Blissey"]).active(0)
-    snorlax.current_hp = hp
+def test_a_pokemon_without_an_item_has_no_mark_and_a_fainted_one_is_a_hollow_dot() -> None:
+    view = _view(["Snorlax", "Gyarados"], ["Blissey"])
+    snorlax = view.active(0)
+    snorlax.item_consumed = True
+    view.set_pokemon(0, 0, snorlax)
+    gyarados = view.pokemon(0, 1)
+    gyarados.current_hp = 0
+    view.set_pokemon(0, 1, gyarados)
 
-    (_, bar) = describe_pokemon(snorlax, Style(enabled=True))
+    you = [line for line in _shown(board(view, 0, PLAIN, BOT)).splitlines() if "You" in line][0]
 
-    assert bar.startswith(f"\033[{colour}m[")
-
-
-def test_the_board_shows_both_actives_the_bench_and_what_is_unseen() -> None:
-    lines = describe_board(_view(["Snorlax", "Toxapex"], ["Blissey", "Gyarados"]), 0, PLAIN)
-
-    assert lines == [
-        "Foe  Blissey  Normal",
-        "     [####################] 714/714 HP",
-        "     1 seen standing, 1 not yet seen",
-        "",
-        "You  Snorlax  Normal",
-        "     [####################] 524/524 HP",
-        "     bench: Toxapex 304/304",
-    ]
+    assert "◆" not in you
+    assert team_dots(view, 0) == "●○"
 
 
-def test_a_lone_pokemon_has_no_bench() -> None:
-    lines = describe_board(_view(["Snorlax"], ["Blissey"]), 0, PLAIN)
+def test_in_french_the_board_says_pv_and_n() -> None:
+    i18n.set_language("fr")
 
-    assert lines[-1].strip() == "bench: none"
+    shown = _shown(board(_view(["Gyarados"], ["Snorlax"]), 0, PLAIN, (None, "Ondine")))
 
-
-def test_the_field_comes_last_on_the_board() -> None:
-    view = _view(["Snorlax"], ["Blissey"])
-    view.weather = 1
-
-    assert describe_board(view, 0, PLAIN)[-2:] == ["", "Weather: rain"]
+    assert "Ronflex" in shown and "Léviator" in shown and "N.100" in shown and "PV" in shown
 
 
 def test_the_field_lists_only_what_is_in_play() -> None:
-    view = _view(["Snorlax"], ["Blissey"])
-    assert describe_field(view, 0) == []
+    view = _view(["Gyarados"], ["Snorlax"])
+    assert describe_field(view, 0, BOT) == []
 
     view.weather = 1
     view.terrain = 1
@@ -126,157 +117,38 @@ def test_the_field_lists_only_what_is_in_play() -> None:
     foe_side.stealth_rock = 1
     foe_side.spikes = 2
     view.set_hazards(1, foe_side)
-    view.aurora_veil_turns = (5, 0)
+    view.aurora_veil_turns = (3, 0)
 
-    assert describe_field(view, 0) == [
+    assert describe_field(view, 0, BOT) == [
         "Weather: rain",
         "Terrain: Electric Terrain",
-        "On your team's side: Aurora Veil",
-        "On the foe's team's side: Stealth Rock, Spikes x2",
+        "Your side: Aurora Veil",
+        "Misty's side: Stealth Rock, Spikes ×2",
     ]
 
 
-def test_a_move_option_shows_its_type_power_and_pp() -> None:
+def test_a_move_option_reads_its_name_type_and_category_and_its_card_tells_the_rest() -> None:
     view = _view(["Gyarados"], ["Snorlax"])
+    slot = list(view.active(0).move_ids).index(_engine.find_move_id("Waterfall"))
 
-    assert describe_move(_engine.Action.move(1), view, 0) == (
-        "Waterfall (Water, 80 power, 15/15 PP)"
-    )
-    assert describe_move(_engine.Action.move(0), view, 0) == (
-        "Dragon Dance (Dragon, status, 20/20 PP)"
-    )
+    option = move_option(_engine.Action.move(slot), view, 0)
 
-
-def test_a_fixed_damage_move_is_not_called_a_status_move() -> None:
-    # Blissey's Seismic Toss has no power in the catalog, yet deals damage.
-    assert describe_move(_engine.Action.move(3), _view(["Blissey"], ["Snorlax"]), 0) == (
-        "Seismic Toss (Fighting, fixed damage, 20/20 PP)"
+    assert plain_label(option.label).split() == ["Waterfall", "Water", "Physical"]
+    assert option.description is not None
+    assert "Power 80 · Accuracy 100 % · PP 15/15" in option.description
+    assert "20% chance to make it flinch." in " ".join(
+        word for word in option.description.split() if word not in "│╭╮╰╯─"
     )
 
 
-@pytest.mark.parametrize(
-    ("attacker", "slot", "defender", "tag"),
-    [
-        ("Excadrill", 0, "Gyarados", "  x0"),  # Earthquake on a Flying type
-        ("Gyarados", 1, "Excadrill", "  x2"),  # Waterfall on Ground/Steel
-        ("Gyarados", 1, "Snorlax", ""),  # neutral: no tag
-        ("Gyarados", 0, "Snorlax", ""),  # Dragon Dance, a status move: no tag
-    ],
-)
-def test_hints_show_the_type_effectiveness_of_damaging_moves(
-    attacker: str, slot: int, defender: str, tag: str
-) -> None:
-    view = _view([attacker], [defender])
-    plain = describe_move(_engine.Action.move(slot), view, 0)
+def test_a_status_move_never_misses_and_has_no_power() -> None:
+    view = _view(["Gyarados"], ["Snorlax"])
+    slot = list(view.active(0).move_ids).index(_engine.find_move_id("DragonDance"))
 
-    assert describe_move(_engine.Action.move(slot), view, 0, hints=True) == plain + tag
+    option = move_option(_engine.Action.move(slot), view, 0)
 
-
-def test_the_help_details_every_move() -> None:
-    lines = describe_moves(_view(["Infernape"], ["Snorlax"]), 0)
-
-    assert lines[:2] == [
-        "Close Combat: Fighting, physical, 120 power, 100% accuracy, 5/5 PP",
-        "  Lower the user's Defense by 1 stage, lower the user's Sp. Def by 1 stage.",
-    ]
-    assert sum(not line.startswith("  ") for line in lines) == 4
-
-
-def test_the_help_tells_priority_and_moves_that_never_miss() -> None:
-    hoopa = describe_moves(_view(["HoopaUnbound"], ["Snorlax"]), 0)
-    mawile = describe_moves(_view(["MegaMawile"], ["Snorlax"]), 0)
-
-    assert "Aura Sphere: Fighting, special, 80 power, never misses, 20/20 PP" in hoopa
-    assert "Sucker Punch: Dark, physical, 70 power, 100% accuracy, priority +1, 5/5 PP" in mawile
-
-
-def test_a_move_whose_power_depends_on_weight_says_so() -> None:
-    view = _view(["TapuKoko"], ["Snorlax"])
-
-    assert describe_move(_engine.Action.move(3), view, 0) == (
-        "Grass Knot (Grass, power from weight, 20/20 PP)"
-    )
-
-
-@pytest.mark.parametrize(
-    ("attacker", "slot", "defender", "tag"),
-    [
-        ("Blissey", 3, "Snorlax", ""),  # Seismic Toss: fixed damage, Fighting x2 does not apply
-        ("Blissey", 3, "Dragapult", "  x0"),  # but a Ghost is still immune
-        ("TapuKoko", 3, "Starmie", "  x2"),  # Grass Knot: weight-based, types still count
-    ],
-)
-def test_hints_respect_how_a_move_deals_its_damage(
-    attacker: str, slot: int, defender: str, tag: str
-) -> None:
-    view = _view([attacker], [defender])
-    plain = describe_move(_engine.Action.move(slot), view, 0)
-
-    assert describe_move(_engine.Action.move(slot), view, 0, hints=True) == plain + tag
-
-
-@pytest.mark.parametrize(
-    ("move", "text"),
-    [
-        ("BodySlam", "30% chance to paralyze the target."),
-        ("FlareBlitz", "Take 1/3 of the damage dealt as recoil, 10% chance to burn the target."),
-        ("SwordsDance", "Raise the user's Attack by 2 stages."),
-        ("Crunch", "20% chance to lower the target's Defense by 1 stage."),
-        ("BanefulBunker", "Protect the user this turn and poison an attacker making contact."),
-        ("SeismicToss", "Deal damage equal to the user's level."),
-        ("Ruination", "Halve the target's HP."),
-        ("Defog", "Lower the target's evasiveness by 1 stage, clear hazards on both sides."),
-        ("RapidSpin", "Clear hazards, raise the user's Speed by 1 stage."),
-        ("StealthRock", "Set Stealth Rock around the foe."),
-        ("Earthquake", ""),
-    ],
-)
-def test_move_effects_read_as_a_sentence(move: str, text: str) -> None:
-    _view(["Snorlax"], ["Blissey"])  # initialises the engine
-
-    assert describe_effects(_engine.move_entry(_engine.find_move_id(move))) == text
-
-
-def test_every_move_of_the_catalog_can_be_described() -> None:
-    _view(["Snorlax"], ["Blissey"])
-
-    for move_id in range(_engine.move_count()):
-        describe_effects(_engine.move_entry(move_id))  # a new effect kind would raise here
-
-
-def test_a_switch_option_shows_who_comes_in_with_types_and_hp() -> None:
-    view = _view(["Gyarados", "TapuKoko"], ["Blissey"])
-
-    assert describe_switch(1, view, 0) == "Tapu Koko (Electric/Fairy, 281/281 HP)"
-
-
-def test_a_switch_option_shows_a_status() -> None:
-    view = _view(["Gyarados", "Snorlax"], ["Blissey"])
-    snorlax = view.pokemon(0, 1)
-    snorlax.status = 5  # sleep
-    view.set_pokemon(0, 1, snorlax)
-
-    assert describe_switch(1, view, 0) == "Snorlax (Normal, 524/524 HP, SLP)"
-
-
-@pytest.mark.parametrize(
-    ("candidate", "foe", "remark"),
-    [
-        ("Snorlax", "Infernape", "  weak to Fighting"),  # Fire/Fighting: Fire is neutral
-        ("Toxapex", "Infernape", "  resists Fire, resists Fighting"),
-        ("Dragapult", "Snorlax", "  immune to Normal"),
-        ("Gyarados", "TapuKoko", "  weak to Electric"),
-        ("Snorlax", "Blissey", ""),  # neutral: nothing to say
-    ],
-)
-def test_hints_tell_how_a_switch_in_takes_the_foes_types(
-    candidate: str, foe: str, remark: str
-) -> None:
-    view = _view(["Blissey", candidate], [foe])
-
-    with_hints = describe_switch(1, view, 0, hints=True)
-
-    assert with_hints == describe_switch(1, view, 0) + remark
+    assert option.description is not None
+    assert "Power — · Accuracy never misses" in option.description
 
 
 def test_the_forced_options_say_what_will_really_happen() -> None:
@@ -284,15 +156,53 @@ def test_the_forced_options_say_what_will_really_happen() -> None:
     gyarados = view.active(0)
     gyarados.pp = (0, 0, 0, 0)
     view.set_pokemon(0, 0, gyarados)
-    assert describe_move(_engine.Action.move(0), view, 0) == "Struggle (no PP left)"
+    assert plain_label(move_option(_engine.Action.move(0), view, 0).label) == "Struggle"
 
     gyarados.charging_move_id = _engine.find_move_id("PhantomForce")
     view.set_pokemon(0, 0, gyarados)
-    assert describe_move(_engine.Action.move(0), view, 0) == "Unleash Phantom Force"
+    assert plain_label(move_option(_engine.Action.move(0), view, 0).label).startswith(
+        "Phantom Force"
+    )
+
+
+def test_the_switch_menu_lists_the_whole_team_and_greys_out_who_cannot_come_in() -> None:
+    view = _view(["Gyarados", "Snorlax", "Blissey"], ["Toxapex"])
+    blissey = view.pokemon(0, 2)
+    blissey.current_hp = 0
+    view.set_pokemon(0, 2, blissey)
+    snorlax = view.pokemon(0, 1)
+    snorlax.status = 4
+    view.set_pokemon(0, 1, snorlax)
+
+    active, coming, fainted = switch_options(view, 0, [1])
+
+    assert active.disabled == "in battle" and fainted.disabled == "fainted"
+    assert coming.disabled is None and coming.value == 1
+    assert plain_label(coming.label).split() == [
+        "Snorlax",
+        "◆",
+        "Normal",
+        "█" * 24,
+        "524/524",
+        "HP",
+        "PAR",
+    ]
+    assert coming.description is not None and "◆ Leftovers" in coming.description
+
+
+def test_a_card_wraps_its_lines_in_a_frame() -> None:
+    assert card("Title", ["one two three"], width=12).splitlines() == [
+        "╭─ Title ──╮",
+        "│ one two  │",
+        "│ three    │",
+        "╰──────────╯",
+    ]
 
 
 @pytest.mark.parametrize("kind", list(K))
-def test_every_event_kind_reads_as_a_sentence(kind: K) -> None:
+@pytest.mark.parametrize("language", ["en", "fr"])
+def test_every_event_kind_reads_as_a_sentence(kind: K, language: str) -> None:
+    i18n.set_language(language)
     view = _view(["Gyarados"], ["Snorlax"])
     if kind in (K.MOVE_USED, K.MISSED, K.MOVE_FAILED, K.CHARGING):
         name_id = _engine.find_move_id("Waterfall")
@@ -319,9 +229,9 @@ def test_damage_never_exceeds_the_hp_left_and_is_followed_through_the_turn() -> 
     ]
 
     assert _lines(hits, view) == [
-        "The foe's Snorlax lost 400 HP.",
-        "The foe's Snorlax restored 50 HP.",
-        "The foe's Snorlax lost 174 HP.",
+        "Snorlax lost 400 HP.",
+        "Snorlax restored 50 HP.",
+        "Snorlax lost 174 HP.",
     ]
 
 
@@ -331,9 +241,9 @@ def test_a_foe_never_seen_before_enters_at_full_hp() -> None:
     after = BattleEnvironment(["Gyarados"], ["Snorlax", "Blissey"], seed=1).observe(1)
     hit = FakeEvent(K.HAZARD_DAMAGE, slot=1, i0=89, i1=0)  # Stealth Rock as Blissey enters
 
-    assert describe_events([hit], before, after, 0, PLAIN) == [
-        "The foe's Blissey is hurt by Stealth Rock (89 HP)."
-    ]
+    (line,) = Teller(0, PLAIN, BOT).narrate([hit], before, after)
+
+    assert line.text == "Blissey is hurt by Stealth Rock (89 HP)."
 
 
 def test_damage_tells_crits_and_type_effectiveness() -> None:
@@ -344,22 +254,38 @@ def test_damage_tells_crits_and_type_effectiveness() -> None:
     ]
 
     assert _lines(events, view) == [
-        "A critical hit! The foe's Snorlax lost 10 HP. It's super effective!",
-        "The foe's Snorlax lost 10 HP. It's not very effective...",
+        "A critical hit! Snorlax lost 10 HP. It's super effective!",
+        "Snorlax lost 10 HP. It's not very effective…",
     ]
 
 
 @pytest.mark.parametrize(
     ("delta", "verb"),
-    [(1, "rose"), (2, "rose sharply"), (3, "rose drastically"), (-1, "fell"), (-2, "harshly fell")]
-    + [(-3, "severely fell")],
+    [(1, "rose"), (2, "rose sharply"), (4, "rose drastically"), (-1, "fell")]
+    + [(-2, "harshly fell"), (-3, "severely fell")],
 )
 def test_stat_changes_say_how_much(delta: int, verb: str) -> None:
     (line,) = _lines(
         [FakeEvent(K.STAT_STAGE_CHANGED, i0=delta, i1=0)], _view(["Gyarados"], ["Snorlax"])
     )
 
-    assert line == f"The foe's Snorlax's Attack {verb}!"
+    assert line == f"Snorlax's Attack {verb}!"
+
+
+def test_in_french_a_turn_reads_in_french() -> None:
+    i18n.set_language("fr")
+    view = _view(["Gyarados"], ["Snorlax"])
+    events = [
+        FakeEvent(K.MOVE_USED, side=0, name_id=_engine.find_move_id("Waterfall")),
+        FakeEvent(K.DAMAGE_DEALT, i0=58, f0=1.0),
+        FakeEvent(K.STAT_STAGE_CHANGED, side=0, i0=1, i1=0),
+    ]
+
+    assert _lines(events, view) == [
+        "Léviator utilise Cascade !",
+        "Ronflex perd 58 PV.",
+        "L'Attaque de Léviator augmente !",
+    ]
 
 
 def test_struggle_and_its_recoil_have_names() -> None:
@@ -370,23 +296,29 @@ def test_struggle_and_its_recoil_have_names() -> None:
     ]
 
     assert _lines(events, view) == [
-        "The foe's Snorlax used Struggle!",
-        "The foe's Snorlax is hurt by struggle recoil (5 HP).",
+        "Snorlax used Struggle!",
+        "Snorlax is hurt by Struggle's recoil (5 HP).",
     ]
 
 
-def test_events_say_whose_pokemon_it_is() -> None:
+def test_switches_name_the_trainer_or_speak_to_the_player() -> None:
     view = _view(["Gyarados"], ["Snorlax"])
     events = [
-        FakeEvent(K.FAINTED, side=0),
-        FakeEvent(K.FAINTED, side=1),
+        FakeEvent(K.SWITCHED_IN, side=0),
+        FakeEvent(K.SWITCHED_IN, side=1),
+        FakeEvent(K.SWITCHED_OUT, side=0),
+        FakeEvent(K.SWITCHED_OUT, side=1),
         FakeEvent(K.HAZARD_SET, side=1, slot=-1, i0=0),
+        FakeEvent(K.HAZARD_SET, side=0, slot=-1, i0=1),
     ]
 
     assert _lines(events, view) == [
-        "Your Gyarados fainted!",
-        "The foe's Snorlax fainted!",
-        "Stealth Rock now lies around the foe's team.",
+        "Go, Gyarados!",
+        "Misty sends out Snorlax!",
+        "Gyarados, come back!",
+        "Misty withdraws Snorlax!",
+        "Stealth Rock now lies around Misty's team.",
+        "Spikes now lies around your team.",
     ]
 
 
@@ -396,14 +328,9 @@ def test_a_fainted_pokemon_leaving_the_field_is_not_told_again() -> None:
         FakeEvent(K.DAMAGE_DEALT, i0=600, f0=1.0),
         FakeEvent(K.FAINTED),
         FakeEvent(K.SWITCHED_OUT),
-        FakeEvent(K.SWITCHED_OUT, side=0),
     ]
 
-    assert _lines(events, view) == [
-        "The foe's Snorlax lost 524 HP.",
-        "The foe's Snorlax fainted!",
-        "Your Gyarados withdrew.",
-    ]
+    assert _lines(events, view) == ["Snorlax lost 524 HP.", "Snorlax fainted!"]
 
 
 def test_knockouts_crits_and_super_effective_hits_are_worth_a_pause() -> None:
@@ -416,23 +343,21 @@ def test_knockouts_crits_and_super_effective_hits_are_worth_a_pause() -> None:
         FakeEvent(K.WEATHER_STARTED, side=-1, slot=-1, i0=1),
     ]
 
-    lines = narrate(list(events), view, view, 0, PLAIN)
+    lines = Teller(0, PLAIN, BOT).narrate(list(events), view, view)
 
     assert [line.emphasis for line in lines] == [False, True, True, True, False]
     assert [line.amount for line in lines] == [10, 10, 10, 0, 0]
 
 
-def test_coloured_lines_keep_their_capital_letter() -> None:
-    view = _view(["Gyarados"], ["Snorlax"])
-
-    (line,) = describe_events([FakeEvent(K.FAINTED)], view, view, 0, Style(enabled=True))
-
-    assert line == "\033[31mThe foe's Snorlax\033[0m fainted!"
-
-
-def test_colours_are_ansi_codes_only_when_enabled() -> None:
-    assert Style(enabled=True).mine("x") == "\033[32mx\033[0m"
-    assert Style(enabled=True).theirs("x") == "\033[31mx\033[0m"
-    assert Style(enabled=True).bold("x") == "\033[1mx\033[0m"
-    assert Style(enabled=True).dim("x") == "\033[2mx\033[0m"
-    assert Style(enabled=False).mine("x") == "x"
+def test_colours_are_markup_only_when_enabled() -> None:
+    style = Style(enabled=True)
+    assert style.mine("x") == "[cyan]x[/]"
+    assert style.theirs("x") == "[red]x[/]"
+    assert style.bold("x") == "[bold]x[/]"
+    assert style.dim("x") == "[dim]x[/]"
+    assert style.hp("x", 0.6) == "[green]x[/]"
+    assert style.hp("x", 0.3) == "[yellow]x[/]"
+    assert style.hp("x", 0.1) == "[red]x[/]"
+    assert style.type_name(1) == "[#F08030]Fire[/]"
+    assert PLAIN.mine("x") == "x"
+    assert plain("[red]Snorlax[/] fainted!") == "Snorlax fainted!"

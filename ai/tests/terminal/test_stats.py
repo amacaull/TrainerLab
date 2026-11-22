@@ -65,14 +65,10 @@ def test_the_summary_names_the_most_decisive_pokemon() -> None:
         ]
     )
 
-    assert stats.summary(view, 0, turns=7) == [
-        "Turns played: 7",
-        "Pokemon knocked out: 1 of theirs, 0 of yours",
-        "Your MVP: Gyarados (1 KO, 100 HP dealt)",
-    ]
+    assert stats.mvp(view, 0) == "Your best Pokémon: Gyarados (1 KO, 100 HP dealt)"
 
 
 def test_without_damage_dealt_there_is_no_mvp() -> None:
     view = BattleEnvironment(["Snorlax"], ["Blissey"], seed=1).observe(0)
 
-    assert len(BattleStats().summary(view, 0, turns=0)) == 2
+    assert BattleStats().mvp(view, 0) is None

@@ -2,11 +2,11 @@
 
 trainerlab alphazero selfplay.pt --iterations 20 --out runs/alphazero.pt
 
-After each iteration, the network is saved to --out and to a copy per iteration
-(runs/alphazero-3.pt...). Every --follow iterations and after the last, the search it guides is
-measured against the network it started from (or --against) on a few pairs of held-out seeds
-(160000 and up), to follow the training; the measurement that counts comes after, with
-trainerlab duel plan:runs/alphazero.pt alphazero --pairs 2000.
+After each iteration, the network is saved to --out, and every 10 iterations and after the
+last to a copy (runs/alphazero-10.pt...). Every --follow iterations and after the last, the
+search it guides is measured against the network it started from (or --against) on a few pairs
+of held-out seeds (160000 and up), to follow the training; the measurement that counts comes
+after, with trainerlab duel plan:runs/alphazero.pt alphazero --pairs 2000.
 """
 
 import argparse
@@ -15,12 +15,12 @@ import time
 from pathlib import Path
 
 from trainerlab.bots.roster import bot_spec
-from trainerlab.commands.console import stdout
+from trainerlab.commands.console import Write, stdout
 from trainerlab.experiments.parallel import cores
 from trainerlab.experiments.tournament import duel
-from trainerlab.terminal.screen import Write
 
 FOLLOW_SEEDS = 160000
+KEEP = 10  # iterations between two copies of the network kept (and the last one)
 
 
 def main(argv: list[str] | None = None, write: Write = stdout) -> int:
@@ -67,9 +67,12 @@ def main(argv: list[str] | None = None, write: Write = stdout) -> int:
             f"{elapsed / 60:.1f} min\n"
         )
         net.save(args.out)
-        copy = args.out.with_stem(f"{args.out.stem}-{progress.iteration}")
-        shutil.copyfile(args.out, copy)
-        if progress.iteration % args.follow and progress.iteration != args.iterations:
+        last = progress.iteration == args.iterations
+        copy = args.out
+        if progress.iteration % KEEP == 0 or last:
+            copy = args.out.with_stem(f"{args.out.stem}-{progress.iteration}")
+            shutil.copyfile(args.out, copy)
+        if progress.iteration % args.follow and not last:
             return
         seeds = range(FOLLOW_SEEDS, FOLLOW_SEEDS + args.pairs)
         result = duel(f"plan:{copy}", against, seeds, jobs=cores())

@@ -13,11 +13,10 @@ from pathlib import Path
 import numpy as np
 
 from trainerlab.bots.roster import bot_spec
-from trainerlab.commands.console import stdout
+from trainerlab.commands.console import Write, stdout
 from trainerlab.commands.options import add_jobs, add_pairs, seeds_of
 from trainerlab.experiments import parallel
 from trainerlab.experiments.teams import analyze, record
-from trainerlab.terminal.screen import Write
 
 
 def main(argv: list[str] | None = None, write: Write = stdout) -> int:

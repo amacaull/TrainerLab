@@ -13,11 +13,10 @@ from typing import Any
 
 import numpy as np
 
-from trainerlab.commands.console import quiet_on_closed_pipe, stdout
+from trainerlab.commands.console import Write, quiet_on_closed_pipe, stdout
 from trainerlab.commands.options import add_bots, add_jobs, add_pairs, seeds_of
 from trainerlab.experiments import parallel
 from trainerlab.game.pairs import span
-from trainerlab.terminal.screen import Write
 
 
 def main(argv: list[str] | None = None, write: Write = stdout) -> int:

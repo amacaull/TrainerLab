@@ -1,178 +1,300 @@
-"""The menu of `trainerlab`: a mode, then its options one at a time, each with a default.
+"""The menu of `trainerlab`: a mode, then its questions one at a time.
 
-Each mode asks its questions and returns the arguments of its command, as typed in one line.
+Each mode is a form: questions in order, none answered in advance. ← Back (or Ctrl-C) goes back
+to the question before, and from the first one to the menu. The answers become the arguments of
+the command, as typed in one line; the menu comes back once the command is done.
 """
 
 import argparse
 from collections.abc import Callable
-from pathlib import Path
+from typing import Any
 
-from trainerlab.bots.roster import BOTS, DEFAULT_OPPONENT, DESCRIPTIONS, MODEL_BOTS
+from rich.console import Console, Group
+from rich.panel import Panel
+from rich.text import Text
+
+from trainerlab.bots.roster import BOTS, DEFAULT_OPPONENT, FEATURED
 from trainerlab.commands.options import PAIRS, SCANNED_PAIRS, count, seed
 from trainerlab.commands.usage import PAIRS as USAGE_PAIRS
-from trainerlab.experiments.dataset import default_name
-from trainerlab.learning import fitting
-from trainerlab.terminal.human import Ask
-from trainerlab.terminal.screen import SPEEDS, Write
+from trainerlab.i18n import LANGUAGES, language, names, set_language, settings, t
+from trainerlab.terminal.prompts import Label, Line, Option, Prompter, Separator
+from trainerlab.terminal.render import species_label
+
+OTHER = "other"  # the entry that opens the list of every bot
+BACK = "back"  # the last entry of every question's list
+LANGUAGE, QUIT = "language", "quit"
+LANGUAGE_NAMES = {"fr": "Français", "en": "English"}
+SPEEDS = ("slow", "normal", "fast")  # the text speeds offered; instant is for the tests
+SKIP = object()  # the answer of a question that does not apply (the seed, for losses)
+
+Answers = dict[str, Any]
+Step = Callable[[Prompter, Answers], Any]
 
 
-def menu(ask: Ask, write: Write, modes: list[tuple[str, str]]) -> list[str]:
-    """Asks for a mode among `modes` (name, summary), then for each of its options."""
-    mode = _choose(ask, write, "TrainerLab", modes)
-    return [mode, *QUESTIONS[mode](ask, write)]
+class Back(Exception):  # noqa: N818 (a way out, not an error)
+    """The player chose ← Back in a question."""
 
 
-def _play(ask: Ask, write: Write) -> list[str]:
-    against = _bot(ask, write, "Opponent", DEFAULT_OPPONENT)
-    seed = _text(ask, write, "Seed, to replay a battle (empty: random)", "", _is_int, empty=True)
-    team = _text(ask, write, "Your team, comma-separated (empty: random)", "", None, empty=True)
-    speed = _choose(ask, write, "Text speed", [(s, "") for s in SPEEDS], "normal")
-    args = [] if against == DEFAULT_OPPONENT else ["--against", against]
-    args += ["--seed", seed] if seed else []
-    args += ["--team", team] if team else []
-    return args + ([] if speed == "normal" else ["--speed", speed])
+def choose_language(prompter: Prompter) -> None:
+    """At the first launch: the language, kept for the next ones."""
+    options = [Option(code, LANGUAGE_NAMES[code]) for code in ("fr", "en")]
+    chosen = prompter.select(t("menu.language"), options)
+    set_language(chosen)
+    settings.save_language(chosen)
 
 
-def _duel(ask: Ask, write: Write) -> list[str]:
-    return [*_two_bots(ask, write), *_pairs(ask, write, PAIRS)]
+def header() -> Panel:
+    title = Text("TrainerLab", style="bold yellow", justify="center")
+    tagline = Text(t("menu.tagline"), justify="center")
+    return Panel(Group(title, tagline), border_style="dim", padding=(0, 4), expand=False)
 
 
-def _watch(ask: Ask, write: Write) -> list[str]:
-    bots = _two_bots(ask, write)
-    modes = [("losses", "list the battles bot A lost"), ("seed", "replay one battle")]
-    if _choose(ask, write, "Watch", modes, "losses") == "losses":
-        return [*bots, "--losses", *_pairs(ask, write, SCANNED_PAIRS)]
-    seed = _text(ask, write, "Seed of the pair", None, _is_int)
-    side = _text(ask, write, "Bot A's side, 0 or 1", "0", lambda text: text in ("0", "1"))
-    return [*bots, "--seed", seed, *([] if side == "0" else ["--side", side])]
+def menu(prompter: Prompter, console: Console) -> list[str] | None:
+    """The command chosen and its options; None to quit; [] for the menu again (the language
+    changed, or Back from the first question). Starts on a fresh screen, at its top."""
+    console.clear()
+    console.print(header())
+    options: list[Line] = [
+        Separator(t("menu.play_section")),
+        Option("play", t("menu.play")),
+        Option("watch", t("menu.watch")),
+        Separator(t("menu.measure_section")),
+        Option("duel", t("menu.duel")),
+        Option("usage", t("menu.usage")),
+        Option("audit", t("menu.audit")),
+        Option("bots", t("menu.bots")),
+        Separator(),
+        Option(LANGUAGE, t("menu.switch_language")),
+        Option(QUIT, t("menu.quit")),
+    ]
+    mode = prompter.select(t("menu.what"), options)
+    if mode == QUIT:
+        return None
+    if mode == LANGUAGE:
+        other = LANGUAGES[1 - LANGUAGES.index(language())]
+        set_language(other)
+        settings.save_language(other)
+        return []
+    steps, arguments = FORMS[mode]
+    answers = form(prompter, steps)
+    return [] if answers is None else [mode, *arguments(answers)]
 
 
-def _audit(ask: Ask, write: Write) -> list[str]:
-    return [*_two_bots(ask, write), *_pairs(ask, write, PAIRS)]
+def form(prompter: Prompter, steps: list[tuple[str, Step]]) -> Answers | None:
+    """Asks the steps in order; Back (or Ctrl-C) asks the one before again. None when the player
+    goes back from the first."""
+    answers: Answers = {}
+    at = 0
+    while at < len(steps):
+        key, step = steps[at]
+        try:
+            answers[key] = step(prompter, answers)
+            at += 1
+        except (Back, KeyboardInterrupt):
+            at -= 1
+            while at >= 0 and answers[steps[at][0]] is SKIP:
+                at -= 1
+            if at < 0:
+                return None
+            for later, _ in steps[at:]:
+                answers.pop(later, None)
+    return answers
 
 
-def _usage(ask: Ask, write: Write) -> list[str]:
-    return [*_two_bots(ask, write), *_pairs(ask, write, USAGE_PAIRS)]
+def choose(prompter: Prompter, message: str, options: list[Line]) -> Any:
+    """A question's list, with ← Back at its end: Back raises Back."""
+    chosen = prompter.select(message, [*options, Separator(), Option(BACK, t("back"))])
+    if chosen == BACK:
+        raise Back
+    return chosen
 
 
-def _dataset(ask: Ask, write: Write) -> list[str]:
-    bots = _two_bots(ask, write)
-    pairs, first = _how_many(ask, write, PAIRS)
-    default = default_name(bots[0], bots[1], range(first, first + pairs))
-    out = _text(ask, write, "File to write", default, None)
-    return [*bots, *_pair_args(pairs, first, PAIRS), *([] if out == default else ["--out", out])]
-
-
-def _train(ask: Ask, write: Write) -> list[str]:
-    paths = _text(
-        ask,
-        write,
-        "Datasets (.npz), separated by spaces",
-        None,
-        lambda text: all(Path(p).is_file() for p in text.split()),
-    ).split()
-    model = _choose(ask, write, "Model", list(fitting.DESCRIPTIONS.items()), "logistic")
-    default = str(fitting.default_name([Path(p) for p in paths], model))
-    out = _text(ask, write, "File to write", default, None)
-    args = paths + ([] if model == "logistic" else ["--model", model])
-    return args + ([] if out == default else ["--out", out])
-
-
-QUESTIONS: dict[str, Callable[[Ask, Write], list[str]]] = {
-    "play": _play,
-    "duel": _duel,
-    "watch": _watch,
-    "audit": _audit,
-    "dataset": _dataset,
-    "train": _train,
-    "usage": _usage,
-}
-
-
-def _bot_options() -> list[tuple[str, str]]:
-    return [(name, DESCRIPTIONS[name]) for name in BOTS]
-
-
-def _bot(ask: Ask, write: Write, title: str, default: str | None = None) -> str:
-    """A bot from the list; for a bot that plays with a model, the model too."""
-    name = _choose(ask, write, title, _bot_options(), default)
-    if name not in MODEL_BOTS:
+def _bot_label(name: str, described: bool) -> Label:
+    if not described:
         return name
-    question = "Its model (empty: the one shipped)"
-    model = _text(ask, write, question, "", lambda text: Path(text).is_file(), empty=True)
-    return f"{name}:{model}" if model else name
+    return [("bold", f"{name:<12}"), ("fg:ansibrightblack", t(f"short.{name}"))]
 
 
-def _two_bots(ask: Ask, write: Write) -> list[str]:
-    bot_a = _bot(ask, write, "Bot A, the one measured")
-    return [bot_a, _bot(ask, write, "Bot B, its opponent")]
+def bot_step(message: str, *, described: bool = True) -> Step:
+    """One of the featured bots, or any bot from the whole list, filtered as one types; Back
+    from the whole list returns to the featured ones."""
+
+    def ask(prompter: Prompter, answers: Answers) -> str:
+        options: list[Line] = [Option(name, _bot_label(name, described)) for name in FEATURED]
+        other: Label = t("menu.other_bot")
+        if described:
+            other = [("bold", f"{other:<12}"), ("fg:ansibrightblack", t("menu.other_bot_card"))]
+        options += [Separator(), Option(OTHER, other)]
+        every: list[Line] = [
+            Option(name, _bot_label(name, True)) for name in BOTS if name not in FEATURED
+        ]
+        every += [Separator(), Option(BACK, t("back"))]
+        while True:
+            chosen = str(choose(prompter, t(message), options))
+            if chosen != OTHER:
+                return chosen
+            picked = str(prompter.select(t("menu.which_bot"), every, search=True))
+            if picked != BACK:
+                return picked
+
+    return ask
 
 
-def _how_many(ask: Ask, write: Write, default: int) -> tuple[int, int]:
-    """How many pairs of battles, and the seed of the first one."""
-    question = "How many pairs of battles (two battles each, sides swapped)"
-    pairs = _text(ask, write, question, str(default), lambda text: _valid(count, text))
-    first = _text(ask, write, "Seed of the first pair", "0", lambda text: _valid(seed, text))
-    return int(pairs), int(first)
+def _valid(parse: Callable[[str], int]) -> Callable[[str], bool]:
+    def check(text: str) -> bool:
+        try:
+            parse(text)
+        except argparse.ArgumentTypeError:
+            return False
+        return True
+
+    return check
 
 
-def _pair_args(pairs: int, first: int, default: int) -> list[str]:
-    """The options for these pairs, leaving out what the command would take by default."""
+def _asked_text(message: str, valid: Callable[[str], bool], **fields: object) -> Step:
+    return lambda prompter, answers: prompter.text(t(message, **fields), valid)
+
+
+def _unless(skipped: Callable[[Answers], bool], step: Step) -> Step:
+    """A step asked only when it applies: SKIP otherwise."""
+    return lambda prompter, answers: SKIP if skipped(answers) else step(prompter, answers)
+
+
+def _speed(prompter: Prompter, answers: Answers) -> str:
+    return str(choose(prompter, t("menu.speed"), [Option(s, t(f"speed.{s}")) for s in SPEEDS]))
+
+
+def _size(prompter: Prompter, answers: Answers) -> int:
+    sizes: list[Line] = [Option(n, t("menu.size_option", size=n)) for n in range(6, 0, -1)]
+    return int(choose(prompter, t("menu.size"), sizes))
+
+
+def _team_mode(prompter: Prompter, answers: Answers) -> str:
+    modes: list[Line] = [Option("random", t("menu.random_team")), Option("own", t("menu.own_team"))]
+    return str(choose(prompter, t("menu.team"), modes))
+
+
+def _builder(prompter: Prompter, answers: Answers) -> list[str]:
+    """The team, built Pokemon by Pokemon from the list: add, remove, then confirm."""
+    size, picked = answers["size"], list[str]()
+    while True:
+        team = ", ".join(names.species_name(key) for key in picked) or "—"
+        actions: list[Line] = []
+        if len(picked) == size:
+            actions.append(Option("done", t("menu.team_done")))
+        if len(picked) < size:
+            actions.append(Option("add", t("menu.team_add")))
+        if picked:
+            actions.append(Option("remove", t("menu.team_remove")))
+        message = t("menu.team_so_far", count=len(picked), size=size, team=team)
+        action = choose(prompter, message, actions)
+        if action == "done":
+            return picked
+        if action == "add":
+            keys = [key for key in names.species_keys() if key not in picked]
+            listed: list[Line] = [Option(key, species_label(key)) for key in keys]
+            listed += [Separator(), Option(BACK, t("back"))]
+            added = prompter.select(t("menu.team_pick"), listed, search=True)
+        else:
+            listed = [Option(key, names.species_name(key)) for key in picked]
+            listed += [Separator(), Option(BACK, t("back"))]
+            added = prompter.select(t("menu.team_which"), listed)
+            if added != BACK:
+                picked.remove(added)
+            continue
+        if added != BACK:
+            picked.append(added)
+
+
+def _side(prompter: Prompter, answers: Answers) -> str:
+    sides: list[Line] = [Option("0", "0"), Option("1", "1")]
+    return str(choose(prompter, t("menu.side"), sides))
+
+
+def _watch_mode(prompter: Prompter, answers: Answers) -> str:
+    modes: list[Line] = [
+        Option("losses", t("menu.watch_losses", bot=answers["a"])),
+        Option("seed", t("menu.watch_seed")),
+    ]
+    return str(choose(prompter, t("menu.watch_what"), modes))
+
+
+def _pair_args(answers: Answers, default: int) -> list[str]:
+    """--pairs and --from, left out when they are what the command takes by default."""
+    pairs, first = int(answers["pairs"]), int(answers["first"])
     args = [] if pairs == default else ["--pairs", str(pairs)]
     return args + ([] if first == 0 else ["--from", str(first)])
 
 
-def _pairs(ask: Ask, write: Write, default: int) -> list[str]:
-    return _pair_args(*_how_many(ask, write, default), default)
+def _measure(default: int) -> tuple[list[tuple[str, Step]], Callable[[Answers], list[str]]]:
+    steps: list[tuple[str, Step]] = [
+        ("a", bot_step("menu.bot_a")),
+        ("b", bot_step("menu.bot_b")),
+        ("pairs", _asked_text("menu.pairs", _valid(count), advised=default)),
+        ("first", _asked_text("menu.first_seed", _valid(seed))),
+    ]
+    return steps, lambda answers: [answers["a"], answers["b"], *_pair_args(answers, default)]
 
 
-def _is_int(text: str) -> bool:
-    return text.lstrip("-").isdigit()
+def _play_args(answers: Answers) -> list[str]:
+    args = [] if answers["against"] == DEFAULT_OPPONENT else ["--against", answers["against"]]
+    if answers["team"] is not SKIP:
+        args += ["--team", ",".join(answers["team"])]
+    elif answers["size"] != 6:
+        args += ["--size", str(answers["size"])]
+    args += ["--seed", answers["seed"]] if answers["seed"] else []
+    return args + ([] if answers["speed"] == "normal" else ["--speed", answers["speed"]])
 
 
-def _valid(parse: Callable[[str], int], text: str) -> bool:
-    try:
-        parse(text)
-    except argparse.ArgumentTypeError:
-        return False
-    return True
+def _watch_args(answers: Answers) -> list[str]:
+    args = [answers["a"], answers["b"]]
+    if answers["mode"] == "losses":
+        args += ["--losses", *_pair_args(answers, SCANNED_PAIRS)]
+    else:
+        args += ["--seed", answers["seed"]] + ([] if answers["side"] == "0" else ["--side", "1"])
+    return args + ([] if answers["speed"] == "normal" else ["--speed", answers["speed"]])
 
 
-def _choose(
-    ask: Ask, write: Write, title: str, options: list[tuple[str, str]], default: str | None = None
-) -> str:
-    """A numbered list; the answer is a number or a name, and Enter keeps the default."""
-    width = max(len(name) for name, _ in options)
-    write(f"\n{title}\n")
-    for number, (name, description) in enumerate(options, start=1):
-        write(f"  {number}. {name:<{width}}  {description}".rstrip() + "\n")
-    names = [name for name, _ in options]
-    while True:
-        answer = ask(f"[{default}] > " if default else "> ").strip()
-        if not answer and default:
-            return default
-        if answer in names:
-            return answer
-        if answer.isdigit() and 1 <= int(answer) <= len(options):
-            return names[int(answer) - 1]
-        write(f"Type a number from 1 to {len(options)}.\n")
+def _losses(answers: Answers) -> bool:
+    return bool(answers["mode"] == "losses")
 
 
-def _text(
-    ask: Ask,
-    write: Write,
-    question: str,
-    default: str | None,
-    valid: Callable[[str], bool] | None,
-    *,
-    empty: bool = False,
-) -> str:
-    """A free answer; Enter keeps the default, and an invalid one is asked again."""
-    shown = f" [{default}]" if default else ""
-    while True:
-        answer = ask(f"\n{question}{shown} > ").strip()
-        if not answer and (default or empty):
-            return default or ""
-        if answer and (valid is None or valid(answer)):
-            return answer
-        write("Invalid answer, try again.\n")
+FORMS: dict[str, tuple[list[tuple[str, Step]], Callable[[Answers], list[str]]]] = {
+    "play": (
+        [
+            ("against", bot_step("menu.opponent", described=False)),
+            ("size", _size),
+            ("mode", _team_mode),
+            ("team", _unless(lambda answers: answers["mode"] == "random", _builder)),
+            ("seed", _asked_text("menu.seed", lambda text: text == "" or text.isdigit())),
+            ("speed", _speed),
+        ],
+        _play_args,
+    ),
+    "watch": (
+        [
+            ("a", bot_step("menu.bot_a")),
+            ("b", bot_step("menu.bot_b")),
+            ("mode", _watch_mode),
+            (
+                "pairs",
+                _unless(
+                    lambda a: not _losses(a),
+                    _asked_text("menu.pairs", _valid(count), advised=SCANNED_PAIRS),
+                ),
+            ),
+            (
+                "first",
+                _unless(lambda a: not _losses(a), _asked_text("menu.first_seed", _valid(seed))),
+            ),
+            ("seed", _unless(_losses, _asked_text("menu.battle_seed", _valid(seed)))),
+            ("side", _unless(_losses, _side)),
+            ("speed", _speed),
+        ],
+        _watch_args,
+    ),
+    "duel": _measure(PAIRS),
+    "usage": _measure(USAGE_PAIRS),
+    "audit": _measure(PAIRS),
+    "bots": ([], lambda answers: []),
+}

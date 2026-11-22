@@ -1,96 +1,74 @@
 """A human at the keyboard, as a bot: the game loop asks them exactly what it asks any bot."""
 
 from collections.abc import Callable
-from functools import partial
 
 from trainerlab import _engine
-from trainerlab.terminal.render import (
-    Style,
-    describe_board,
-    describe_move,
-    describe_moves,
-    describe_switch,
-)
-from trainerlab.terminal.screen import Screen
+from trainerlab.i18n import names, t
+from trainerlab.terminal.prompts import Line, Option, Prompter, Separator
+from trainerlab.terminal.render import card, move_option, switch_options
 
-# Reads one line from the player after a prompt.
-Ask = Callable[[str], str]
+SWITCH = "switch"  # the battle menu's entry that opens the team
+BACK = "back"  # the team's entry that goes back to the moves
+FLEE = "flee"  # the entry that abandons the battle
+
+
+class Fled(Exception):  # noqa: N818 (the player's choice, not an error)
+    """The player ran away: the battle stops, lost."""
 
 
 class HumanPlayer:
-    """Draws the board and the options, and reads a number until it is a valid one.
+    """Draws the board, then asks for a move, or for a Pokemon to switch to.
 
-    The moves come first; switching opens a second menu, from which `0` comes back. A wrong key
-    is a typo, not a bug: it is caught here and asked again, so the referee only ever receives
-    a legal choice. `?` shows the details of the active Pokemon's moves.
+    The moves come first, each with its card under the list; switching opens the team, from
+    which Back returns. Only legal options can be chosen, so the referee always gets one.
     """
 
-    def __init__(self, ask: Ask, screen: Screen, style: Style, *, hints: bool = False) -> None:
-        self._ask = ask
-        self._screen = screen
-        self._style = style
-        self._hints = hints
+    def __init__(self, prompter: Prompter, draw: Callable[[_engine.BattleState], None]) -> None:
+        self._prompter = prompter
+        self._draw = draw
 
     def choose_action(
         self, side: int, view: _engine.BattleState, legal: list[_engine.Action]
     ) -> _engine.Action:
-        self._draw(side, view)
+        self._draw(view)
         moves = [action for action in legal if action.kind == _engine.ACTION_MOVE]
         switches = [action for action in legal if action.kind == _engine.ACTION_SWITCH]
-        labels = [describe_move(action, view, side, self._hints) for action in moves]
+        name = names.species(view.active(side).species_id)
+        options: list[Line] = [move_option(action, view, side) for action in moves]
+        options.append(Separator())
         if switches:
-            labels.append("Switch…")
-        details = partial(describe_moves, view, side)
+            entry = t("battle.switch")
+            options.append(Option(SWITCH, entry, card(entry, [t("battle.switch_card")])))
+        options.append(self._flee_option())
+        team = [action.index for action in switches]
         while True:
-            choice = self._pick("What will you do?", labels, details=details)
-            if choice is not None and choice < len(moves):
-                return moves[choice]
-            team = [action.index for action in switches]
-            switch = self._pick("Switch to…", self._switch_labels(side, view, team), back=True)
-            if switch is not None:
-                return switches[switch]
+            choice = self._prompter.select(t("battle.what", name=name), options)
+            if choice == FLEE:
+                self._confirm_flight()
+                continue
+            if choice != SWITCH:
+                return choice  # type: ignore[no-any-return]
+            lines: list[Line] = [
+                *switch_options(view, side, team),
+                Separator(),
+                Option(BACK, t("back")),
+            ]
+            index = self._prompter.select(t("battle.instead", name=name), lines)
+            if index != BACK:
+                return switches[team.index(index)]
 
     def choose_replacement(self, side: int, view: _engine.BattleState, options: list[int]) -> int:
-        self._draw(side, view)
-        choice = self._pick("Who comes in?", self._switch_labels(side, view, options))
-        assert choice is not None  # no way back from a replacement
-        return options[choice]
+        self._draw(view)
+        lines: list[Line] = [*switch_options(view, side, options), Separator(), self._flee_option()]
+        while (index := self._prompter.select(t("battle.replace"), lines)) == FLEE:
+            self._confirm_flight()
+        return int(index)
 
-    def _switch_labels(self, side: int, view: _engine.BattleState, team: list[int]) -> list[str]:
-        return [describe_switch(index, view, side, self._hints) for index in team]
+    def _flee_option(self) -> Option:
+        return Option(FLEE, t("battle.flee"), card(t("battle.flee"), [t("battle.flee_card")]))
 
-    def _draw(self, side: int, view: _engine.BattleState) -> None:
-        self._screen.clear()
-        self._screen.panel(f"Turn {view.turn + 1}", describe_board(view, side, self._style))
-        history = self._screen.take_history()
-        if history:
-            self._screen.panel("Last turn", history)
-
-    def _pick(
-        self,
-        question: str,
-        labels: list[str],
-        *,
-        details: Callable[[], list[str]] | None = None,
-        back: bool = False,
-    ) -> int | None:
-        """The index of the chosen label, or None for `0` when going back is offered."""
-        lines = [f"{number}. {label}" for number, label in enumerate(labels, start=1)]
-        if back:
-            lines.append(self._style.dim("0. Back"))
-        if details is not None:
-            lines.append(self._style.dim("?. Details of your moves"))
-        self._screen.panel(question, lines)
-        lowest = 0 if back else 1
-        while True:
-            answer = self._ask("> ").strip()
-            if details is not None and answer == "?":
-                self._screen.panel("Your moves", details())
-            elif back and answer == "0":
-                return None
-            elif answer.isdigit() and 1 <= int(answer) <= len(labels):
-                choice = int(answer) - 1
-                self._screen.note(f"> {labels[choice]}")
-                return choice
-            else:
-                self._screen.message(f"Please type a number between {lowest} and {len(labels)}.")
+    def _confirm_flight(self) -> None:
+        """Raises Fled if the player confirms; returns to the menu otherwise."""
+        answers = [Option(False, t("no")), Option(True, t("yes"))]
+        if self._prompter.select(t("battle.flee_confirm"), answers):
+            raise Fled

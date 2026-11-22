@@ -1,3 +1,5 @@
+from consoles import recording, shown
+
 from trainerlab import _engine
 from trainerlab.bots.roster import BOTS
 from trainerlab.commands import usage as command
@@ -45,12 +47,20 @@ def test_the_random_bot_plays_every_kind_it_is_offered() -> None:
     assert all(result.played[k] > 0 for k in KINDS if result.available[k] > 20)
 
 
-def test_the_command_prints_one_line_per_kind() -> None:
-    shown: list[str] = []
+def test_the_command_shows_one_row_per_kind_and_a_bar_of_how_often_it_is_played() -> None:
+    console = recording()
 
-    assert command.main(["random", "hitter", "--pairs", "2", "--from", "96000"], shown.append) == 0
-    assert shown[0].startswith("random against hitter, seeds 96000-96001: ")
-    assert [line.split()[0] for line in shown[2:]] == list(KINDS)
+    assert (
+        command.main(["random", "hitter", "--pairs", "2", "--from", "96000"], console=console) == 0
+    )
+
+    text = shown(console)
+    result = usage(BOTS["random"], BOTS["hitter"], seeds=range(96000, 96002))
+    assert f"against hitter · 2 pairs · {result.turns} turns" in text
+    rows = [line.split()[0] for line in text.splitlines() if "%" in line]
+    assert rows == ["Attack", "Switch", "Boost", "Status", "Recovery", "Hazard", "Other"]
+    assert "█" in text
+    assert len(KINDS) == len(rows)
 
 
 def test_struggle_is_an_attack_whatever_slot_it_names() -> None:

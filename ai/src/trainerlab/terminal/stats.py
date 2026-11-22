@@ -3,6 +3,7 @@ the most damage. Built from the narrated history, so damage is counted as really
 
 from trainerlab import _engine
 from trainerlab.game.events import EventKind
+from trainerlab.i18n import names, t
 from trainerlab.terminal.render import Narration
 
 
@@ -28,16 +29,11 @@ class BattleStats:
                 if actor is not None and hit_by_foe:
                     self.knockouts[actor] = self.knockouts.get(actor, 0) + 1
 
-    def summary(self, view: _engine.BattleState, me: int, turns: int) -> list[str]:
-        lines = [
-            f"Turns played: {turns}",
-            f"Pokemon knocked out: {self.fainted[1 - me]} of theirs, {self.fainted[me]} of yours",
-        ]
+    def mvp(self, view: _engine.BattleState, me: int) -> str | None:
+        """The player's Pokemon that did the most: knock-outs first, then damage dealt."""
         mine = [key for key in self.damage if key[0] == me]
-        if mine:
-            best = max(mine, key=lambda key: (self.knockouts.get(key, 0), self.damage[key]))
-            name = _engine.species_display_name(view.pokemon(*best).species_id)
-            lines.append(
-                f"Your MVP: {name} ({self.knockouts.get(best, 0)} KO, {self.damage[best]} HP dealt)"
-            )
-        return lines
+        if not mine:
+            return None
+        best = max(mine, key=lambda key: (self.knockouts.get(key, 0), self.damage[key]))
+        name = names.species(view.pokemon(*best).species_id)
+        return t("play.mvp", name=name, ko=self.knockouts.get(best, 0), hp=self.damage[best])

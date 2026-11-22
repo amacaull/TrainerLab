@@ -5,12 +5,14 @@ alone, so the record is the same whatever the number of processes.
 """
 
 import math
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from trainerlab.bots.roster import factory
 from trainerlab.experiments import parallel
-from trainerlab.game.environment import random_team_pair
-from trainerlab.game.pairs import BotFactory, TeamSource, play_pair
+from trainerlab.game.battle import play_battle
+from trainerlab.game.environment import BattleEnvironment, random_team_pair
+from trainerlab.game.pairs import BotFactory, TeamSource, outcome_of, pair_battles, play_pair
 
 Z_95 = 1.96  # two-sided 95 % confidence
 
@@ -79,10 +81,12 @@ def duel(
     bot_b: str,
     seeds: range,
     jobs: int,
-    progress: parallel.Progress | None = None,
+    progress: parallel.Meter | None = None,
+    on_part: Callable[[TournamentResult], None] | None = None,
 ) -> TournamentResult:
-    """Bot A's record against bot B over the pairs of these seeds, on `jobs` processes."""
-    parts = parallel.run(play_block, bot_a, bot_b, seeds, jobs, progress)
+    """Bot A's record against bot B over the pairs of these seeds, on `jobs` processes;
+    `on_part` hears the record of each block of pairs as it ends."""
+    parts = parallel.run(play_block, bot_a, bot_b, seeds, jobs, progress, on_part)
     return TournamentResult(
         wins=sum(p.wins for p in parts),
         draws=sum(p.draws for p in parts),
@@ -90,11 +94,34 @@ def duel(
     )
 
 
-def losses(bot_a: str, bot_b: str, seeds: range) -> list[tuple[int, int]]:
-    """The battles bot A lost over these seeds: (seed, bot A's side), in order."""
+@dataclass(frozen=True)
+class Loss:
+    """A battle bot A lost: its pair's seed, bot A's side, its length, the Pokemon left."""
+
+    seed: int
+    side: int
+    turns: int
+    mine: int
+    theirs: int
+
+
+def losses(
+    bot_a: str, bot_b: str, seeds: range, progress: Callable[[int], None] | None = None
+) -> list[Loss]:
+    """The battles bot A lost over these seeds, in order; `progress` hears the pairs done."""
     lost = []
-    for seed in seeds:
+    for done, seed in enumerate(seeds, start=1):
         team0, team1 = random_team_pair(seed)
-        outcomes = play_pair(factory(bot_a), factory(bot_b), seed=seed, team0=team0, team1=team1)
-        lost += [(seed, a_side) for a_side, outcome in enumerate(outcomes) if outcome == "loss"]
+        battles = pair_battles(factory(bot_a), factory(bot_b), seed=seed, team0=team0, team1=team1)
+        for a_side, env, bot0, bot1 in battles:
+            if outcome_of(play_battle(env, bot0, bot1), a_side) == "loss":
+                left = [_standing(env, side) for side in (a_side, 1 - a_side)]
+                lost.append(Loss(seed, a_side, env.turn, left[0], left[1]))
+        if progress is not None:
+            progress(done)
     return lost
+
+
+def _standing(env: BattleEnvironment, side: int) -> int:
+    view = env.observe(side)
+    return sum(1 for i in range(view.team_size[side]) if not view.pokemon(side, i).is_fainted())

@@ -6,12 +6,11 @@ trainerlab dataset calculator survivor --pairs 2000 --from 40000
 import argparse
 from pathlib import Path
 
-from trainerlab.commands.console import stdout
+from trainerlab.commands.console import Write, stdout
 from trainerlab.commands.options import add_bots, add_jobs, add_pairs, seeds_of
 from trainerlab.experiments import parallel
 from trainerlab.experiments.dataset import default_name, generate, save
 from trainerlab.game.pairs import span
-from trainerlab.terminal.screen import Write
 
 
 def main(argv: list[str] | None = None, write: Write = stdout) -> int:

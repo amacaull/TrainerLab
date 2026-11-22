@@ -1,21 +1,32 @@
 import signal
+from collections.abc import Iterator, Sequence
+from typing import Any
 
 import pytest
+from consoles import recording, shown
+from prompter import Scripted
 
-from trainerlab import _engine
+from trainerlab import i18n
 from trainerlab.bots.roster import BOTS
-from trainerlab.commands.watch import main
+from trainerlab.commands.watch import BACK, main
 from trainerlab.game.decisions import decisions
 from trainerlab.game.environment import random_team_pair
 from trainerlab.game.pairs import play_pair
-from trainerlab.terminal.commentary import CHOSEN
-from trainerlab.terminal.render import describe_move, describe_switch
 
 
-def _run(argv: list[str]) -> list[str]:
-    out: list[str] = []
-    assert main(argv, write=out.append) == 0
-    return "".join(out).splitlines()
+@pytest.fixture(autouse=True)
+def english() -> Iterator[None]:
+    yield
+    i18n.set_language("en")
+
+
+def _run(argv: list[str], prompter: Scripted | None = None, interactive: bool = False) -> str:
+    console = recording()
+    argv = [*argv, "--speed", "instant"] if interactive else argv
+    assert (
+        main(argv, prompter=prompter or Scripted(), console=console, interactive=interactive) == 0
+    )
+    return shown(console)
 
 
 def _losses(first_seed: int, pairs: int) -> list[tuple[int, int]]:
@@ -28,8 +39,22 @@ def _losses(first_seed: int, pairs: int) -> list[tuple[int, int]]:
     return lost
 
 
-def test_losses_lists_a_command_to_watch_each_battle_bot_a_lost() -> None:
-    lines = _run(["survivor", "matcher", "--losses", "--pairs", "6", "--from", "20000"])
+class Viewer(Scripted):
+    """Chooses from a script, and presses `key` at every pause."""
+
+    def __init__(self, answers: Sequence[Any], key: str = "") -> None:
+        super().__init__(answers)
+        self.key, self.pauses = key, 0
+
+    def pause(self, hint: str) -> str:
+        self.pauses += 1
+        return self.key
+
+
+def test_in_a_pipe_losses_lists_a_command_to_watch_each_battle_bot_a_lost() -> None:
+    lines = _run(
+        ["survivor", "matcher", "--losses", "--pairs", "6", "--from", "20000"]
+    ).splitlines()
     expected = [
         f"trainerlab watch survivor matcher --seed {seed} --side {a_side}"
         for seed, a_side in _losses(20000, 6)
@@ -44,70 +69,80 @@ def test_a_watched_loss_ends_on_bot_a_losing() -> None:
     # of the pair would not end the same way.
     lost = _losses(20000, 6)
     seed, a_side = next((s, a) for s, a in lost if a == 1 and (s, 0) not in lost)
-    lines = _run(["survivor", "matcher", "--seed", str(seed), "--side", str(a_side)])
-    assert lines[-1].startswith("Bot A (survivor) lost")
+    text = _run(["survivor", "matcher", "--seed", str(seed), "--side", str(a_side)])
+    assert text.splitlines()[-1].startswith("survivor lost in ")
 
 
-def test_every_decision_is_shown_once_with_the_option_chosen() -> None:
+def test_every_decision_is_told_once_with_the_bot_that_made_it() -> None:
     seed, a_side = 20001, 1
-    lines = _run(["survivor", "matcher", "--seed", str(seed), "--side", str(a_side)])
-    chosen = [line for line in lines if line.lstrip().startswith(CHOSEN)]
-    played = [
-        d for d in decisions(BOTS["survivor"], BOTS["matcher"], seeds=[seed]) if d.a_side == a_side
-    ]
-    assert len(chosen) == len(played)
-    for line, d in zip(chosen, played, strict=True):
-        if isinstance(d.choice, _engine.Action) and d.choice.kind == _engine.ACTION_MOVE:
-            label = describe_move(d.choice, d.view, d.side, hints=True)
-        else:
-            index = d.choice if isinstance(d.choice, int) else d.choice.index
-            label = describe_switch(index, d.view, d.side, hints=True)
-        assert label in line
+    text = _run(["survivor", "matcher", "--seed", str(seed), "--side", str(a_side)])
+    played = list(decisions(BOTS["survivor"], BOTS["matcher"], seeds=[seed]))
+    mine = [d for d in played if d.a_side == a_side and d.by_a]
+    theirs = [d for d in played if d.a_side == a_side and not d.by_a]
+    assert text.count("survivor chose: ") == len(mine)
+    assert text.count("matcher chose: ") == len(theirs)
 
 
-def test_each_decision_shows_the_bot_its_estimates_and_the_threat() -> None:
-    lines = _run(["hitter", "random", "--seed", "3"])
-    assert any(line.startswith("A, hitter: ") for line in lines)
-    assert any(line.startswith("B, random: ") for line in lines)
-    assert any("HP of its" in line for line in lines)  # the damage estimate of a move
-    assert any("takes ~" in line for line in lines)  # what a switch-in would take
-    assert any("moves first" in line for line in lines)  # who is faster, and its best hit
-
-
-def test_the_header_says_who_plays_which_side() -> None:
-    lines = _run(["hitter", "random", "--seed", "3", "--side", "1"])
-    assert lines[0] == "Seed 3. Bot A = hitter, side 1. Bot B = random, side 0."
-    first_to_decide = next(line for line in lines if line.startswith(("A, ", "B, ")))
-    assert first_to_decide.startswith("B, random: ")  # side 0 decides first
-    team0, team1 = random_team_pair(3)
-    assert "A's team: " + ", ".join(team1) in lines
-    assert "B's team: " + ", ".join(team0) in lines
-
-
-def test_each_bot_is_watched_on_its_own_side() -> None:
-    # Rule 1 never switches while it can attack; the random bot often does. On the wrong side,
-    # A's blocks would show the random bot's switches.
-    lines = _run(["hitter", "random", "--seed", "3", "--side", "1"])
-    choices: dict[str, list[str]] = {"A": [], "B": []}
-    block = ""
-    for line in lines:
-        if line.startswith(("A, ", "B, ")):
-            block = line[0] if "sends a Pokemon in" not in line else ""
-        elif block and line.lstrip().startswith(CHOSEN):
-            choices[block].append(line)
-    assert choices["A"]
-    assert not any("takes ~" in line for line in choices["A"])
-    assert any("takes ~" in line for line in choices["B"])
-
-
-def test_what_happens_as_the_leads_enter_is_told() -> None:
-    lines = _run(["hitter", "random", "--seed", "7"])  # a lead with an entry ability
-    assert "-- Battle start --" in lines
+def test_the_header_says_who_plays_which_side_and_the_board_names_both_bots() -> None:
+    text = _run(["hitter", "random", "--seed", "3", "--side", "1"])
+    lines = text.splitlines()
+    assert lines[0] == "Seed 3: hitter (side 1) against random."
+    assert lines[1].startswith("hitter's team: ") and lines[2].startswith("random's team: ")
+    assert "Turn 1 · hitter (side 1) against random" in text
 
 
 def test_the_same_battle_is_told_the_same_way() -> None:
     argv = ["survivor", "matcher", "--seed", "20002"]
     assert _run(argv) == _run(argv)
+
+
+def test_on_a_terminal_a_loss_is_chosen_from_a_list_and_watched_turn_by_turn() -> None:
+    viewer = Viewer([0, BACK])
+
+    text = _run(
+        ["survivor", "matcher", "--losses", "--pairs", "6", "--from", "20000"],
+        viewer,
+        interactive=True,
+    )
+
+    question, options = viewer.asked[0][1], viewer.asked[0][2]
+    lost = _losses(20000, 6)
+    assert question == f"survivor lost {len(lost)} of 12 battles. Which one?"
+    first = [o for o in options if getattr(o, "value", None) == 0][0]
+    assert getattr(first, "label", "").startswith(f"Seed {lost[0][0]}   side {lost[0][1]}   ")
+    assert "beaten 0 to " in getattr(first, "label", "")
+    assert viewer.pauses > 2  # each turn, then once at the end
+    assert "survivor lost in" in text
+
+
+def test_q_stops_the_replay_and_a_plays_the_rest_without_waiting() -> None:
+    quitter = Viewer([0, BACK], key="q")
+    _run(
+        ["survivor", "matcher", "--losses", "--pairs", "6", "--from", "20000"],
+        quitter,
+        interactive=True,
+    )
+    assert quitter.pauses == 1
+
+    auto = Viewer([], key="a")
+    text = _run(["survivor", "matcher", "--seed", "20001", "--side", "1"], auto, interactive=True)
+    assert auto.pauses == 2  # after the first turn, then at the end
+    assert "survivor" in text
+
+
+def test_without_a_loss_there_is_nothing_to_choose() -> None:
+    viewer = Viewer([])
+
+    text = _run(["hitter", "random", "--losses", "--pairs", "1"], viewer, interactive=True)
+
+    assert "hitter lost none of the 2 battles." in text
+    assert viewer.asked == []
+
+
+def test_in_french_the_replay_is_told_in_french() -> None:
+    i18n.set_language("fr")
+    text = _run(["hitter", "random", "--seed", "3"])
+    assert "Seed 3 : hitter (camp 0) contre random." in text and "hitter a choisi : " in text
 
 
 @pytest.mark.parametrize(
@@ -121,7 +156,7 @@ def test_the_same_battle_is_told_the_same_way() -> None:
 )
 def test_bad_arguments_are_refused(argv: list[str]) -> None:
     with pytest.raises(SystemExit) as error:
-        main(argv, write=lambda text: None)
+        main(argv, console=recording())
     assert error.value.code == 2
 
 
@@ -134,3 +169,22 @@ def test_by_default_the_output_goes_to_the_terminal(
     assert capsys.readouterr().out.endswith("of 2 battles against random.\n")
     # Piped into head, the command stops quietly instead of raising BrokenPipeError.
     assert handlers == [(signal.SIGPIPE, signal.SIG_DFL)]
+
+
+def test_on_a_terminal_the_replay_goes_at_the_speed_chosen(monkeypatch: pytest.MonkeyPatch) -> None:
+    from trainerlab.commands import watch as module
+
+    seen: list[tuple[float, float]] = []
+
+    def replay(env, bots, names, side, screen, style, pause, *, autoplay):  # type: ignore[no-untyped-def]
+        seen.append((screen._char_delay, autoplay))
+        return 0
+
+    monkeypatch.setattr(module, "replay", replay)
+    viewer = Viewer([])
+    console = recording()
+    argv = ["hitter", "random", "--seed", "3", "--speed", "slow"]
+    assert main(argv, prompter=viewer, console=console, interactive=True) == 0
+    assert main(argv, prompter=viewer, console=console, interactive=False) == 0
+
+    assert seen == [(0.035, module.AUTOPLAY["slow"]), (0.0, 0.0)]  # a pipe: all at once

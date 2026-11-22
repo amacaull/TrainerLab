@@ -11,10 +11,9 @@ import argparse
 import time
 from pathlib import Path
 
-from trainerlab.commands.console import stdout
+from trainerlab.commands.console import Write, stdout
 from trainerlab.experiments.parallel import cores
 from trainerlab.experiments.tournament import duel
-from trainerlab.terminal.screen import Write
 
 FOLLOW_SEEDS = 150000
 

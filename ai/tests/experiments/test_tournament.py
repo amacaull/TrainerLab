@@ -188,3 +188,21 @@ def test_a_draw_counts_as_half_a_win() -> None:
     result = TournamentResult(wins=1, draws=2, losses=1)
 
     assert result.score == 0.5
+
+
+def test_the_losses_of_bot_a_say_how_each_battle_ended_and_follow_the_seeds() -> None:
+    from trainerlab.bots.roster import BOTS
+    from trainerlab.experiments.tournament import losses
+    from trainerlab.game.environment import random_team_pair
+
+    done: list[int] = []
+    lost = losses("survivor", "matcher", range(20000, 20006), done.append)
+
+    expected = []
+    for seed in range(20000, 20006):
+        team0, team1 = random_team_pair(seed)
+        outcomes = play_pair(BOTS["survivor"], BOTS["matcher"], seed=seed, team0=team0, team1=team1)
+        expected += [(seed, side) for side in (0, 1) if outcomes[side] == "loss"]
+    assert [(loss.seed, loss.side) for loss in lost] == expected
+    assert all(loss.mine == 0 < loss.theirs and loss.turns > 0 for loss in lost)
+    assert done == [1, 2, 3, 4, 5, 6]

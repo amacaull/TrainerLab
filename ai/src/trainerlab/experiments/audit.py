@@ -259,7 +259,7 @@ def audit_block(bot_a: str, bot_b: str, seeds: range) -> AuditResult:
 
 
 def audit_on_cores(
-    bot_a: str, bot_b: str, seeds: range, jobs: int, progress: parallel.Progress | None = None
+    bot_a: str, bot_b: str, seeds: range, jobs: int, progress: parallel.Meter | None = None
 ) -> AuditResult:
     """`audit` over these seeds, spread over `jobs` processes: the same counts, faster."""
     total = AuditResult(checks={name: CheckCount() for name in [*CHECKS, *STRATEGIC]})

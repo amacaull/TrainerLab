@@ -1,19 +1,25 @@
 """`trainerlab`: one command for everything.
 
-    trainerlab                                        # a menu asks for each option
+    trainerlab                                        # the menu
     trainerlab duel calculator survivor --pairs 5000 --from 30000
+    trainerlab --lang fr play
 
-With no argument, a menu asks for the mode, then for its options one at a time, each with a
-default that Enter keeps. Before running, it prints the same command in one line, to copy into a
-script or a README: both forms run the same code.
+With no argument, the menu asks for the mode, then for its options one at a time, each with a
+default; once the command is done, it shows the same command in one line, to copy into a
+script, and comes back. Both forms run the same code. The language chosen at the first launch
+is kept (~/.config/trainerlab/config.toml); --lang overrides it.
 """
 
+import argparse
 import shlex
 import sys
 from collections.abc import Callable
 from typing import NamedTuple
 
-from trainerlab.bots.roster import BOTS, DESCRIPTIONS
+from rich.console import Console
+
+from trainerlab import i18n
+from trainerlab.bots.roster import RULES
 from trainerlab.commands import (
     alphazero,
     audit,
@@ -32,92 +38,141 @@ from trainerlab.commands import (
     verify,
     watch,
 )
-from trainerlab.commands.console import stdout
-from trainerlab.commands.menu import menu
-from trainerlab.terminal.human import Ask
-from trainerlab.terminal.screen import Write
+from trainerlab.commands.menu import choose_language, menu
+from trainerlab.i18n import settings, t
+from trainerlab.i18n.messages import MESSAGES
+from trainerlab.terminal import reports
+from trainerlab.terminal.prompts import Prompter, QuestionaryPrompter
 
 INTERRUPTED = 130  # the exit status of a program stopped by Ctrl-C
+# The commands that end on a choice of the player's (back to the menu among others): the others
+# wait for Enter, so that their result is read before the menu takes the screen again.
+ENDED_BY_CHOICE = ("play", "watch")
 
 
-class Command(NamedTuple):
-    """A subcommand: its line in the help, and how to run it."""
+class Context(NamedTuple):
+    """What a command may use besides its arguments: how to ask, where to show, from where."""
 
-    summary: str
-    run: Callable[[list[str], Ask], int]
+    prompter: Prompter
+    console: Console
+    in_menu: bool
 
 
-def _list_bots(argv: list[str], ask: Ask) -> int:
-    width = max(len(name) for name in BOTS)
-    for name in BOTS:
-        print(f"{name:<{width}}  {DESCRIPTIONS[name]}")
+Run = Callable[[list[str], Context], int]
+
+
+def _list_bots(argv: list[str], context: Context) -> int:
+    context.console.print(reports.bots_table(RULES, best="alphazero"))
     return 0
 
 
-COMMANDS: dict[str, Command] = {
-    "play": Command("play a battle against a bot", lambda a, ask: play.main(a, ask=ask)),
-    "duel": Command("score one bot against another over paired battles", lambda a, _: duel.main(a)),
-    "watch": Command("replay a battle between two bots", lambda a, _: watch.main(a)),
-    "audit": Command("count the mistakes a program can spot in a bot", lambda a, _: audit.main(a)),
-    "dataset": Command("turn battles into a dataset to learn from", lambda a, _: dataset.main(a)),
-    "train": Command("fit a win probability model on a dataset", lambda a, _: train.main(a)),
-    "verify": Command("play a judge's worst blunders out", lambda a, _: verify.main(a)),
-    "judge": Command(
-        "rate each decision of a bot with a deeper search", lambda a, _: judge.main(a)
-    ),
-    "usage": Command("count the kinds of moves a bot plays", lambda a, _: usage.main(a)),
-    "bots": Command("list the bots and what each one does", _list_bots),
-    "bench": Command("measure how fast the bots play", lambda a, _: bench.main(a)),
-    "imitate": Command("encode a bot's decisions for the network", lambda a, _: imitate.main(a)),
-    "pretrain": Command("train the network by imitation", lambda a, _: pretrain.main(a)),
-    "selfplay": Command("improve the network by self-play", lambda a, _: selfplay.main(a)),
-    "teams": Command("measure how much a team's composition decides", lambda a, _: teams.main(a)),
-    "alphazero": Command("improve the network with its own search", lambda a, _: alphazero.main(a)),
-    "distill": Command("teach a network with attention a search", lambda a, _: distill.main(a)),
+def _plain(main: Callable[[list[str]], int]) -> Run:
+    return lambda argv, context: main(argv)
+
+
+# Every command, by section of the help, in order.
+SECTIONS: dict[str, dict[str, Run]] = {
+    "play": {
+        "play": lambda a, c: play.main(
+            a, prompter=c.prompter, console=c.console, in_menu=c.in_menu
+        ),
+        "watch": lambda a, c: watch.main(a, prompter=c.prompter, console=c.console),
+    },
+    "measure": {
+        "duel": lambda a, c: duel.main(a, console=c.console),
+        "usage": lambda a, c: usage.main(a, console=c.console),
+        "audit": lambda a, c: audit.main(a, console=c.console),
+        "bots": _list_bots,
+    },
+    "analyse": {
+        "judge": _plain(judge.main),
+        "verify": _plain(verify.main),
+        "teams": _plain(teams.main),
+        "bench": _plain(bench.main),
+    },
+    "train": {"alphazero": _plain(alphazero.main), "distill": _plain(distill.main)},
+    "history": {
+        "dataset": _plain(dataset.main),
+        "train": _plain(train.main),
+        "imitate": _plain(imitate.main),
+        "pretrain": _plain(pretrain.main),
+        "selfplay": _plain(selfplay.main),
+    },
+}
+COMMANDS: dict[str, Run] = {
+    name: run for section in SECTIONS.values() for name, run in section.items()
 }
 
 
-# The modes of the menu: every command but the list of bots, the benchmark and palier 6's.
-MODES = [
-    (name, c.summary)
-    for name, c in COMMANDS.items()
-    if name
-    not in (
-        "bots",
-        "bench",
-        "imitate",
-        "pretrain",
-        "selfplay",
-        "alphazero",
-        "distill",
-        "teams",
-        "judge",
-        "verify",
-    )
-]
+def translate_argparse() -> None:
+    """argparse's own words (usage, options...) in the language chosen."""
+
+    def translated(text: str) -> str:
+        key = f"argparse.{text}"
+        return t(key) if key in MESSAGES else text
+
+    argparse._ = translated  # type: ignore[attr-defined]  # argparse looks its words up through its global `_`
 
 
-def main(argv: list[str] | None = None, ask: Ask = input, write: Write = stdout) -> int:
-    argv = sys.argv[1:] if argv is None else argv
-    if not argv:
-        try:
-            argv = menu(ask, write, MODES)
-        except (EOFError, KeyboardInterrupt):
-            write("\n")
-            return INTERRUPTED
-        write(f"\n{shlex.join(['trainerlab', *argv])}\n\n")
+def _language(argv: list[str]) -> list[str]:
+    """Takes --lang out of the arguments and sets the language: --lang, else the one kept."""
+    if "--lang" in argv:
+        at = argv.index("--lang")
+        if at + 1 >= len(argv) or argv[at + 1] not in i18n.LANGUAGES:
+            raise SystemExit(f"trainerlab: --lang takes {' or '.join(i18n.LANGUAGES)}")
+        i18n.set_language(argv[at + 1])
+        return argv[:at] + argv[at + 2 :]
+    i18n.set_language(settings.saved_language() or "en")
+    return argv
+
+
+def main(
+    argv: list[str] | None = None,
+    prompter: Prompter | None = None,
+    console: Console | None = None,
+) -> int:
+    asked = list(sys.argv[1:] if argv is None else argv)
+    chosen_language = "--lang" in asked
+    rest = _language(asked)
+    translate_argparse()
+    prompter = prompter or QuestionaryPrompter()
+    console = console or Console(highlight=False)
+    if rest:
+        return _run(rest, Context(prompter, console, in_menu=False))
+    try:
+        if not chosen_language and settings.saved_language() is None:
+            choose_language(prompter)
+        while (command := menu(prompter, console)) is not None:
+            if command:
+                _run(command, Context(prompter, console, in_menu=True))
+                shown = shlex.join(["trainerlab", *command])
+                console.print(f"[dim]{t('menu.command', command=shown)}[/]", highlight=False)
+                if command[0] not in ENDED_BY_CHOICE:
+                    prompter.pause(t("menu.back_to_menu") + " ")
+    except (EOFError, KeyboardInterrupt):
+        console.print()
+        return INTERRUPTED
+    return 0
+
+
+def _run(argv: list[str], context: Context) -> int:
     command, rest = argv[0], argv[1:]
     if command in ("-h", "--help"):
-        write(_usage())
+        context.console.print(usage_text(), highlight=False)
         return 0
     if command not in COMMANDS:
-        write(f"trainerlab: unknown command {command!r}\n\n{_usage()}")
+        context.console.print(t("help.unknown", command=command) + "\n", markup=False)
+        context.console.print(usage_text(), highlight=False)
         return 2
-    return COMMANDS[command].run(rest, ask)
+    return COMMANDS[command](rest, context)
 
 
-def _usage() -> str:
-    lines = ["usage: trainerlab [COMMAND [OPTIONS]]", "", "With no command, a menu asks for all."]
-    lines += [f"  {name:<9} {command.summary}" for name, command in COMMANDS.items()]
-    lines += ["", "trainerlab COMMAND --help shows the options of a command."]
-    return "\n".join(lines) + "\n"
+def usage_text() -> str:
+    colon = " : " if i18n.language() == "fr" else ": "
+    tagline = t("menu.tagline")
+    lines = [f"[bold]TrainerLab[/]{colon}{tagline}", "", t("help.usage"), t("help.menu")]
+    for section, commands in SECTIONS.items():
+        lines += ["", f" [bold yellow]{t(f'help.section.{section}')}[/]"]
+        lines += [f"   [cyan]{name:<10}[/] {t(f'command.{name}')}" for name in commands]
+    lines += ["", t("help.lang"), t("help.more")]
+    return "\n".join(lines)

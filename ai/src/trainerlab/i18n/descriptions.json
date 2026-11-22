@@ -1,0 +1,382 @@
+{
+ "AquaJet": {
+  "en": "Strikes at blinding speed: it almost always moves first.",
+  "fr": "Frappe à une vitesse fulgurante : passe presque toujours en premier."
+ },
+ "AuraSphere": {
+  "en": "A blast of aura that never misses.",
+  "fr": "Une boule d'aura qui ne rate jamais sa cible."
+ },
+ "AuroraVeil": {
+  "en": "Halves the damage your team takes for 5 turns. Works only in snow.",
+  "fr": "Divise par deux les dégâts subis par ton équipe pendant 5 tours. Ne marche que sous la neige."
+ },
+ "BanefulBunker": {
+  "en": "Protects the user from moves this turn. A foe that touches it is poisoned. Fails more often if used twice in a row.",
+  "fr": "Protège le lanceur des attaques ce tour-ci. Un ennemi qui le touche est empoisonné. Échoue plus souvent si on l'enchaîne."
+ },
+ "BellyDrum": {
+  "en": "Costs half the user's max HP, but raises its Attack to the maximum.",
+  "fr": "Coûte la moitié des PV max du lanceur, mais monte son Attaque au maximum."
+ },
+ "BitterBlade": {
+  "en": "A slashing attack; the user heals half the damage dealt.",
+  "fr": "Une attaque tranchante ; le lanceur récupère la moitié des dégâts infligés."
+ },
+ "Blizzard": {
+  "en": "A howling blizzard. 10% chance to freeze. Never misses in snow.",
+  "fr": "Un blizzard hurlant. 10 % de chances de geler. Ne rate jamais sous la neige."
+ },
+ "BodyPress": {
+  "en": "Slams into the target, using the user's Defense instead of its Attack.",
+  "fr": "Écrase la cible en utilisant la Défense du lanceur au lieu de son Attaque."
+ },
+ "BodySlam": {
+  "en": "Drops its whole body on the target. 30% chance to paralyze.",
+  "fr": "Se jette de tout son poids sur la cible. 30 % de chances de paralyser."
+ },
+ "BraveBird": {
+  "en": "A reckless dive: the user takes a third of the damage dealt as recoil.",
+  "fr": "Un plongeon téméraire : le lanceur subit un tiers des dégâts infligés."
+ },
+ "BulletSeed": {
+  "en": "Fires seeds 2 to 5 times in a row.",
+  "fr": "Tire des graines de 2 à 5 fois de suite."
+ },
+ "CalmMind": {
+  "en": "Raises the user's Sp. Atk and Sp. Def by one stage.",
+  "fr": "Monte d'un niveau l'Attaque Spéciale et la Défense Spéciale du lanceur."
+ },
+ "CeaselessEdge": {
+  "en": "Slashes the target and scatters Spikes around the foe's team.",
+  "fr": "Tranche la cible et répand des Picots autour de l'équipe adverse."
+ },
+ "CloseCombat": {
+  "en": "A powerful assault, but lowers the user's Defense and Sp. Def by one stage.",
+  "fr": "Un assaut puissant, mais baisse d'un niveau la Défense et la Défense Spéciale du lanceur."
+ },
+ "Crunch": {
+  "en": "Bites with sharp fangs. 20% chance to lower the target's Defense.",
+  "fr": "Mord avec des crocs acérés. 20 % de chances de baisser la Défense de la cible."
+ },
+ "Curse": {
+  "en": "Raises the user's Attack and Defense by one stage, but lowers its Speed.",
+  "fr": "Monte d'un niveau l'Attaque et la Défense du lanceur, mais baisse sa Vitesse."
+ },
+ "DarkPulse": {
+  "en": "A wave of dark thoughts. 20% chance to make the target flinch.",
+  "fr": "Une onde de pensées noires. 20 % de chances d'apeurer la cible."
+ },
+ "DazzlingGleam": {
+  "en": "A blinding flash of light.",
+  "fr": "Un éclair de lumière aveuglant."
+ },
+ "Defog": {
+  "en": "Lowers the target's evasiveness, clears hazards on both sides and the foe's Aurora Veil.",
+  "fr": "Baisse l'esquive de la cible, dissipe les pièges des deux côtés et le Voile Aurore adverse."
+ },
+ "DestinyBond": {
+  "en": "If the user faints before its next move, the foe that knocked it out faints too.",
+  "fr": "Si le lanceur est mis K.O. avant sa prochaine action, l'ennemi qui l'a battu tombe avec lui."
+ },
+ "DragonAscent": {
+  "en": "Soars up and strikes, but lowers the user's Defense and Sp. Def by one stage.",
+  "fr": "S'élève et frappe, mais baisse d'un niveau la Défense et la Défense Spéciale du lanceur."
+ },
+ "DragonClaw": {
+  "en": "Slashes with sharp claws.",
+  "fr": "Lacère avec des griffes acérées."
+ },
+ "DragonDance": {
+  "en": "A mystic dance that raises the user's Attack and Speed by one stage.",
+  "fr": "Une danse mystique qui monte d'un niveau l'Attaque et la Vitesse du lanceur."
+ },
+ "DragonDarts": {
+  "en": "Fires two darts, hitting twice.",
+  "fr": "Lance deux flèches et frappe deux fois."
+ },
+ "DragonPulse": {
+  "en": "A shock wave from the user's mouth.",
+  "fr": "Une onde de choc lancée par la gueule."
+ },
+ "DragonTail": {
+  "en": "Always moves last, but knocks the target away: another of its Pokémon comes in.",
+  "fr": "Passe toujours en dernier, mais éjecte la cible : un autre de ses Pokémon entre au combat."
+ },
+ "DrainPunch": {
+  "en": "A punch that drains energy: the user heals half the damage dealt.",
+  "fr": "Un poing qui draine l'énergie : le lanceur récupère la moitié des dégâts infligés."
+ },
+ "Earthquake": {
+  "en": "A powerful quake. Also hits a Pokémon underground.",
+  "fr": "Un puissant tremblement de terre. Touche aussi un Pokémon sous terre."
+ },
+ "ExtremeSpeed": {
+  "en": "An extremely fast charge: moves before almost everything.",
+  "fr": "Une charge extrêmement rapide : passe avant presque tout."
+ },
+ "FakeOut": {
+  "en": "Moves very first and makes the target flinch. Works only on the user's first turn in battle.",
+  "fr": "Passe en tout premier et apeure la cible. Ne marche qu'au premier tour du lanceur au combat."
+ },
+ "FieryWrath": {
+  "en": "An aura of anger. 20% chance to make the target flinch.",
+  "fr": "Une aura de colère. 20 % de chances d'apeurer la cible."
+ },
+ "FireFang": {
+  "en": "Bites with flaming fangs. 10% chance to burn, 10% chance to make the target flinch.",
+  "fr": "Mord avec des crocs enflammés. 10 % de chances de brûler, 10 % de chances d'apeurer."
+ },
+ "FirstImpression": {
+  "en": "Moves first and hits hard. Works only on the user's first turn in battle.",
+  "fr": "Passe en premier et frappe fort. Ne marche qu'au premier tour du lanceur au combat."
+ },
+ "Flamethrower": {
+  "en": "A stream of fire. 10% chance to burn.",
+  "fr": "Un torrent de flammes. 10 % de chances de brûler."
+ },
+ "FlareBlitz": {
+  "en": "A fiery charge: the user takes a third of the damage dealt as recoil. 10% chance to burn.",
+  "fr": "Une charge enflammée : le lanceur subit un tiers des dégâts infligés. 10 % de chances de brûler."
+ },
+ "FocusBlast": {
+  "en": "A blast of concentrated power. 10% chance to lower the target's Sp. Def.",
+  "fr": "Une décharge de puissance concentrée. 10 % de chances de baisser la Défense Spéciale de la cible."
+ },
+ "FoulPlay": {
+  "en": "Turns the target's power against it: uses the target's Attack.",
+  "fr": "Retourne la force de la cible contre elle : utilise l'Attaque de la cible."
+ },
+ "GrassKnot": {
+  "en": "Trips the target: the heavier it is, the more damage.",
+  "fr": "Fait trébucher la cible : plus elle est lourde, plus les dégâts sont grands."
+ },
+ "HeadSmash": {
+  "en": "A reckless headbutt: the user takes half the damage dealt as recoil.",
+  "fr": "Un coup de tête téméraire : le lanceur subit la moitié des dégâts infligés."
+ },
+ "Hurricane": {
+  "en": "A fierce wind. Never misses in rain, often misses in sun. Also hits a Pokémon in the sky.",
+  "fr": "Un vent violent. Ne rate jamais sous la pluie, rate souvent au soleil. Touche aussi un Pokémon dans les airs."
+ },
+ "HydroPump": {
+  "en": "A huge blast of water.",
+  "fr": "Un énorme jet d'eau."
+ },
+ "HyperVoice": {
+  "en": "A loud, damaging cry.",
+  "fr": "Un cri assourdissant qui blesse."
+ },
+ "IceBeam": {
+  "en": "An icy beam. 10% chance to freeze.",
+  "fr": "Un rayon de glace. 10 % de chances de geler."
+ },
+ "IceFang": {
+  "en": "Bites with icy fangs. 10% chance to freeze, 10% chance to make the target flinch.",
+  "fr": "Mord avec des crocs glacés. 10 % de chances de geler, 10 % de chances d'apeurer."
+ },
+ "IcePunch": {
+  "en": "An icy punch. 10% chance to freeze.",
+  "fr": "Un poing glacé. 10 % de chances de geler."
+ },
+ "IceShard": {
+  "en": "Throws shards of ice: it almost always moves first.",
+  "fr": "Lance des éclats de glace : passe presque toujours en premier."
+ },
+ "IcicleCrash": {
+  "en": "Drops icicles on the target. 30% chance to make it flinch.",
+  "fr": "Fait tomber des stalactites sur la cible. 30 % de chances de l'apeurer."
+ },
+ "IronHead": {
+  "en": "Rams with a steel-hard head. 30% chance to make the target flinch.",
+  "fr": "Charge avec une tête dure comme l'acier. 30 % de chances d'apeurer la cible."
+ },
+ "KnockOff": {
+  "en": "Knocks the target's item away for the rest of the battle. Hits harder if the target holds an item.",
+  "fr": "Fait tomber l'objet de la cible pour le reste du combat. Frappe plus fort si la cible tient un objet."
+ },
+ "LeafStorm": {
+  "en": "A storm of sharp leaves, but lowers the user's Sp. Atk by two stages.",
+  "fr": "Une tempête de feuilles tranchantes, mais baisse de deux niveaux l'Attaque Spéciale du lanceur."
+ },
+ "Liquidation": {
+  "en": "Slams with a full-force blast of water. 20% chance to lower the target's Defense.",
+  "fr": "Frappe avec un jet d'eau à pleine puissance. 20 % de chances de baisser la Défense de la cible."
+ },
+ "LowKick": {
+  "en": "A low kick: the heavier the target, the more damage.",
+  "fr": "Un coup de pied bas : plus la cible est lourde, plus les dégâts sont grands."
+ },
+ "MachPunch": {
+  "en": "A punch thrown at blinding speed: it almost always moves first.",
+  "fr": "Un poing lancé à toute vitesse : passe presque toujours en premier."
+ },
+ "Moonblast": {
+  "en": "Borrows the power of the moon. 30% chance to lower the target's Sp. Atk.",
+  "fr": "Emprunte le pouvoir de la lune. 30 % de chances de baisser l'Attaque Spéciale de la cible."
+ },
+ "NastyPlot": {
+  "en": "Plots something bad: raises the user's Sp. Atk by two stages.",
+  "fr": "Prépare un mauvais coup : monte de deux niveaux l'Attaque Spéciale du lanceur."
+ },
+ "Nuzzle": {
+  "en": "Rubs its electrified cheeks against the target: always paralyzes.",
+  "fr": "Frotte ses joues électriques contre la cible : paralyse à coup sûr."
+ },
+ "PhantomForce": {
+  "en": "Vanishes on the first turn, strikes on the second, even through a protection.",
+  "fr": "Disparaît au premier tour et frappe au second, même à travers une protection."
+ },
+ "PlayRough": {
+  "en": "Plays rough with the target. 10% chance to lower its Attack.",
+  "fr": "Chahute la cible. 10 % de chances de baisser son Attaque."
+ },
+ "Poltergeist": {
+  "en": "Attacks with the target's own item. Fails if it holds none.",
+  "fr": "Attaque avec l'objet de la cible. Échoue si elle n'en tient pas."
+ },
+ "PopulationBomb": {
+  "en": "A swarm of strikes: up to 10 hits, each of which can miss.",
+  "fr": "Une nuée de coups : jusqu'à 10 frappes, chacune pouvant rater."
+ },
+ "PowerWhip": {
+  "en": "Lashes the target with vines.",
+  "fr": "Fouette la cible avec des lianes."
+ },
+ "Psychic": {
+  "en": "A strong telekinetic force. 10% chance to lower the target's Sp. Def.",
+  "fr": "Une puissante force télékinétique. 10 % de chances de baisser la Défense Spéciale de la cible."
+ },
+ "Psyshock": {
+  "en": "A special attack that strikes the target's Defense, not its Sp. Def.",
+  "fr": "Une attaque spéciale qui vise la Défense de la cible, pas sa Défense Spéciale."
+ },
+ "RapidSpin": {
+  "en": "Spins to clear hazards from the user's side, and raises its Speed by one stage.",
+  "fr": "Tourne sur lui-même pour dissiper les pièges de son côté, et monte sa Vitesse d'un niveau."
+ },
+ "Recover": {
+  "en": "Restores half the user's max HP.",
+  "fr": "Rend la moitié des PV max du lanceur."
+ },
+ "Rest": {
+  "en": "The user sleeps for two turns and restores all its HP and cures its status.",
+  "fr": "Le lanceur dort deux tours, récupère tous ses PV et guérit son statut."
+ },
+ "Roost": {
+  "en": "Lands to rest: restores half the user's max HP and loses its Flying type for the turn.",
+  "fr": "Se pose pour se reposer : rend la moitié des PV max du lanceur, qui perd son type Vol pour le tour."
+ },
+ "Ruination": {
+  "en": "Calls down ruin: halves the target's current HP.",
+  "fr": "Provoque un cataclysme : divise par deux les PV actuels de la cible."
+ },
+ "Scald": {
+  "en": "Shoots boiling water. 30% chance to burn. Thaws the user if frozen.",
+  "fr": "Projette de l'eau bouillante. 30 % de chances de brûler. Dégèle le lanceur."
+ },
+ "SeismicToss": {
+  "en": "Throws the target: deals damage equal to the user's level.",
+  "fr": "Projette la cible : inflige autant de dégâts que le niveau du lanceur."
+ },
+ "ShadowBall": {
+  "en": "A shadowy blob. 20% chance to lower the target's Sp. Def.",
+  "fr": "Une boule d'ombre. 20 % de chances de baisser la Défense Spéciale de la cible."
+ },
+ "ShadowSneak": {
+  "en": "Extends its shadow to strike: it almost always moves first.",
+  "fr": "Allonge son ombre pour frapper : passe presque toujours en premier."
+ },
+ "SleepTalk": {
+  "en": "Usable only while asleep: uses one of the user's other moves at random.",
+  "fr": "Utilisable seulement endormi : lance au hasard une autre attaque du lanceur."
+ },
+ "SludgeBomb": {
+  "en": "Hurls sludge at the target. 30% chance to poison.",
+  "fr": "Lance des détritus sur la cible. 30 % de chances d'empoisonner."
+ },
+ "SoftBoiled": {
+  "en": "Restores half the user's max HP.",
+  "fr": "Rend la moitié des PV max du lanceur."
+ },
+ "SpectralThief": {
+  "en": "Steals the target's stat boosts, then attacks.",
+  "fr": "Vole les boosts de statistiques de la cible, puis attaque."
+ },
+ "StealthRock": {
+  "en": "Scatters pointed stones around the foe's team: they hurt each Pokémon that comes in.",
+  "fr": "Répand des pierres pointues autour de l'équipe adverse : elles blessent chaque Pokémon qui entre."
+ },
+ "StoneEdge": {
+  "en": "Stabs with sharp stones. High chance of a critical hit.",
+  "fr": "Transperce avec des pierres acérées. Taux de coup critique élevé."
+ },
+ "SuckerPunch": {
+  "en": "Strikes first, but fails if the target is not about to attack.",
+  "fr": "Frappe en premier, mais échoue si la cible ne s'apprête pas à attaquer."
+ },
+ "Superpower": {
+  "en": "A huge burst of strength, but lowers the user's Attack and Defense by one stage.",
+  "fr": "Une énorme poussée de force, mais baisse d'un niveau l'Attaque et la Défense du lanceur."
+ },
+ "SwordsDance": {
+  "en": "A frenetic dance that raises the user's Attack by two stages.",
+  "fr": "Une danse frénétique qui monte de deux niveaux l'Attaque du lanceur."
+ },
+ "Teleport": {
+  "en": "Moves last, then the user switches out for another Pokémon of its team.",
+  "fr": "Passe en dernier, puis le lanceur est remplacé par un autre Pokémon de son équipe."
+ },
+ "Thunder": {
+  "en": "A violent thunderbolt. 30% chance to paralyze. Never misses in rain, often misses in sun.",
+  "fr": "Un violent coup de foudre. 30 % de chances de paralyser. Ne rate jamais sous la pluie, rate souvent au soleil."
+ },
+ "ThunderPunch": {
+  "en": "An electrified punch. 10% chance to paralyze.",
+  "fr": "Un poing électrique. 10 % de chances de paralyser."
+ },
+ "TidyUp": {
+  "en": "Clears hazards on both sides and raises the user's Attack and Speed by one stage.",
+  "fr": "Dissipe les pièges des deux côtés et monte d'un niveau l'Attaque et la Vitesse du lanceur."
+ },
+ "Toxic": {
+  "en": "Badly poisons the target: the damage grows each turn. Never misses if the user is Poison type.",
+  "fr": "Empoisonne gravement la cible : les dégâts augmentent à chaque tour. Ne rate jamais si le lanceur est de type Poison."
+ },
+ "ToxicSpikes": {
+  "en": "Scatters poison spikes around the foe's team: they poison each Pokémon that comes in. Two layers badly poison.",
+  "fr": "Répand des pics empoisonnés autour de l'équipe adverse : ils empoisonnent chaque Pokémon qui entre. Deux couches empoisonnent gravement."
+ },
+ "TripleAxel": {
+  "en": "Three kicks of growing power; each can miss.",
+  "fr": "Trois coups de pied de plus en plus puissants ; chacun peut rater."
+ },
+ "UTurn": {
+  "en": "Attacks, then the user switches out for another Pokémon of its team.",
+  "fr": "Attaque, puis le lanceur est remplacé par un autre Pokémon de son équipe."
+ },
+ "VoltSwitch": {
+  "en": "Attacks, then the user switches out for another Pokémon of its team.",
+  "fr": "Attaque, puis le lanceur est remplacé par un autre Pokémon de son équipe."
+ },
+ "Waterfall": {
+  "en": "Charges at the target at high speed. 20% chance to make it flinch.",
+  "fr": "Charge la cible à toute vitesse. 20 % de chances de l'apeurer."
+ },
+ "Whirlwind": {
+  "en": "Always moves last, but blows the target away: another of its Pokémon comes in. Goes through protections.",
+  "fr": "Passe toujours en dernier, mais souffle la cible : un autre de ses Pokémon entre au combat. Traverse les protections."
+ },
+ "WildCharge": {
+  "en": "An electrified charge: the user takes a quarter of the damage dealt as recoil.",
+  "fr": "Une charge électrique : le lanceur subit un quart des dégâts infligés."
+ },
+ "WillOWisp": {
+  "en": "A sinister flame that burns the target.",
+  "fr": "Une flamme sinistre qui brûle la cible."
+ },
+ "Wish": {
+  "en": "At the end of the next turn, the Pokémon in place restores half the user's max HP.",
+  "fr": "À la fin du tour suivant, le Pokémon en place récupère la moitié des PV max du lanceur."
+ }
+}

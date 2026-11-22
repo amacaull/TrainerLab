@@ -1,31 +1,32 @@
-"""Turns battle views and events into text for a human player.
+"""Turns battle views and events into what a player reads: the board, the options, the turn.
 
-Pure functions: nothing here reads input or prints, so every line can be tested. The player is
-always told the battle from the point of view of `me`, the side they play.
+Pure functions: nothing here reads input or prints, so every line can be tested. Texts carry
+rich's markup ([red]...[/]) when colours are on, plain text otherwise; the words come from
+trainerlab.i18n, in the language chosen. The battle is told from the side of `me`.
 """
 
-import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
 
-from trainerlab import _engine
-from trainerlab.game.events import EventKind as K
+from rich.table import Table
+from rich.text import Text
 
-STATUS_NAMES = ["", "burned", "poisoned", "badly poisoned", "paralyzed", "asleep", "frozen"]
-STATUS_TAGS = ["", "BRN", "PSN", "TOX", "PAR", "SLP", "FRZ"]
-STAT_NAMES = ["Attack", "Defense", "Sp. Atk", "Sp. Def", "Speed", "accuracy", "evasiveness"]
-STAT_TAGS = ["Atk", "Def", "SpA", "SpD", "Spe", "Acc", "Eva"]
-WEATHER_NAMES = ["", "rain", "harsh sunlight", "a sandstorm", "snow", "strong winds"]
-TERRAIN_NAMES = ["", "Electric Terrain"]
-HAZARD_NAMES = ["Stealth Rock", "Spikes", "Toxic Spikes"]
-SKIP_REASONS = ["is fast asleep", "is frozen solid", "is fully paralyzed", "flinched"]
-CATEGORY_NAMES = ["physical", "special", "status"]
+from trainerlab import _engine
+from trainerlab.game.environment import DATA_DIR
+from trainerlab.game.events import EventKind as K
+from trainerlab.i18n import names, t
+from trainerlab.terminal.prompts import Label, Option
+
 STATUS_CATEGORY = 2
-# Names whose punctuation a capital-letter split cannot guess.
-SPECIAL_NAMES = {"UTurn": "U-turn", "WillOWisp": "Will-O-Wisp"}
-EFFECTIVENESS_TAGS = {0.0: "x0", 0.25: "x1/4", 0.5: "x1/2", 2.0: "x2", 4.0: "x4"}
-STATUS_VERBS = ["", "burn", "poison", "badly poison", "paralyze", "put to sleep", "freeze"]
+HP_WIDTH = 24
+ITEM = "◆"  # after the name of a Pokemon holding an item
+# The colour of each type, in the engine's order (names.TYPES), as the games draw them.
+TYPE_COLOURS = [
+    "#A8A878", "#F08030", "#6890F0", "#F8D030", "#78C850", "#98D8D8", "#C03028", "#A040A0",
+    "#E0C068", "#A890F0", "#F85888", "#A8B820", "#B8A038", "#705898", "#7038F8", "#705848",
+    "#B8B8D0", "#EE99AC",
+]  # fmt: skip
 
 
 class EventFields(Protocol):
@@ -78,318 +79,290 @@ class Narration:
 
 
 class Style:
-    """ANSI colours, or plain text when disabled (not a terminal, or --no-color)."""
+    """rich's markup, or plain text when disabled (not a terminal, or --no-color)."""
 
     def __init__(self, enabled: bool) -> None:
         self.enabled = enabled
 
     def mine(self, text: str) -> str:
-        return self._wrap(text, "32")  # green
+        return self._wrap(text, "cyan")
 
     def theirs(self, text: str) -> str:
-        return self._wrap(text, "31")  # red
+        return self._wrap(text, "red")
 
     def bold(self, text: str) -> str:
-        return self._wrap(text, "1")
+        return self._wrap(text, "bold")
 
     def dim(self, text: str) -> str:
-        return self._wrap(text, "2")
+        return self._wrap(text, "dim")
 
     def hp(self, text: str, ratio: float) -> str:
         """Green above half HP, yellow above a fifth, red below."""
-        return self._wrap(text, "32" if ratio > 0.5 else "33" if ratio > 0.2 else "31")
+        return self._wrap(text, hp_colour(ratio))
 
-    def _wrap(self, text: str, code: str) -> str:
-        return f"\033[{code}m{text}\033[0m" if self.enabled else text
+    def type_name(self, type_id: int) -> str:
+        return self._wrap(names.type_name(type_id), TYPE_COLOURS[type_id])
 
-
-def readable(name: str) -> str:
-    """'DragonDarts' -> 'Dragon Darts', 'UTurn' -> 'U-turn'."""
-    return SPECIAL_NAMES.get(name) or re.sub(r"(?<=[a-z])(?=[A-Z])", " ", name)
+    def _wrap(self, text: str, style: str) -> str:
+        return f"[{style}]{text}[/]" if self.enabled else text
 
 
-def move_label(move_id: int) -> str:
-    return "Struggle" if move_id == _engine.STRUGGLE else readable(_engine.move_name(move_id))
+def plain(text: str) -> str:
+    """A text without its markup: for the log file and for the tests."""
+    return Text.from_markup(text).plain
 
 
-def pokemon_label(view: _engine.BattleState, side: int, slot: int, me: int, style: Style) -> str:
-    name = _engine.species_display_name(view.pokemon(side, slot).species_id)
-    return style.mine(f"Your {name}") if side == me else style.theirs(f"The foe's {name}")
+def hp_colour(ratio: float) -> str:
+    return "green" if ratio > 0.5 else "yellow" if ratio > 0.2 else "red"
 
 
-def team_label(side: int, me: int) -> str:
-    return "your team" if side == me else "the foe's team"
-
-
-def hp_bar(current: int, maximum: int, width: int = 20) -> str:
+def hp_bar(current: int, maximum: int, width: int = HP_WIDTH) -> str:
     filled = round(width * current / maximum) if current > 0 else 0
-    return "[" + "#" * filled + "." * (width - filled) + "]"
+    return "█" * filled + "░" * (width - filled)
 
 
-def species_types(species_id: int) -> str:
+def hp_text(pokemon: _engine.BattlePokemon) -> str:
+    return t("hp", hp=pokemon.current_hp, max=pokemon.stats.hp)
+
+
+def holds_item(pokemon: _engine.BattlePokemon) -> bool:
+    return pokemon.item_id != _engine.NO_ITEM and not pokemon.item_consumed
+
+
+def name_with_item(pokemon: _engine.BattlePokemon) -> str:
+    name = names.species(pokemon.species_id)
+    return f"{name} {ITEM}" if holds_item(pokemon) else name
+
+
+def species_types(species_id: int, style: Style) -> str:
     entry = _engine.species_entry(species_id)
-    first, second = _type_name(entry.type1), _type_name(entry.type2)
-    return first if first == second else f"{first}/{second}"
+    first, second = style.type_name(entry.type1), style.type_name(entry.type2)
+    return first if entry.type1 == entry.type2 else f"{first} / {second}"
 
 
-def describe_pokemon(pokemon: _engine.BattlePokemon, style: Style) -> list[str]:
-    """Two lines: name, types, status and stat stages; then the HP bar and numbers."""
-    name = _engine.species_display_name(pokemon.species_id)
-    parts = [style.bold(name), species_types(pokemon.species_id)]
-    if pokemon.status:
-        parts.append(STATUS_TAGS[pokemon.status])
-    stages = [
-        f"{stage:+d} {STAT_TAGS[stat]}" for stat, stage in enumerate(pokemon.stat_stages) if stage
+def species_label(key: str) -> str:
+    """A species in a list to choose from: its name and its types, by the engine's id of it."""
+    _engine.engine_init(str(DATA_DIR))
+    species_id = _engine.find_species_id(key)
+    return f"{names.species_name(key):<22}{species_types(species_id, Style(enabled=False))}"
+
+
+def team_dots(view: _engine.BattleState, side: int) -> str:
+    """● per Pokemon standing (an unseen foe stands), ○ per Pokemon knocked out."""
+    team = [view.pokemon(side, i) for i in range(view.team_size[side])]
+    fainted = sum(1 for p in team if not p.is_empty() and p.is_fainted())
+    return "●" * (len(team) - fainted) + "○" * fainted
+
+
+def _details(pokemon: _engine.BattlePokemon) -> str:
+    """The status and the stat stages of a Pokemon: 'PAR · Atk +2 · Spe -1'."""
+    parts = [t(f"status_tag.{pokemon.status}")] if pokemon.status else []
+    parts += [
+        f"{t(f'stat_tag.{stat}')} {stage:+d}"
+        for stat, stage in enumerate(pokemon.stat_stages)
+        if stage
     ]
-    if stages:
-        parts.append(", ".join(stages))
-    ratio = pokemon.current_hp / pokemon.stats.hp
-    bar = style.hp(hp_bar(pokemon.current_hp, pokemon.stats.hp), ratio)
-    return ["  ".join(parts), f"{bar} {pokemon.current_hp}/{pokemon.stats.hp} HP"]
+    return " · ".join(parts)
 
 
-def describe_field(view: _engine.BattleState, me: int) -> list[str]:
-    """Weather, terrain, screens and hazards, only those in play."""
+Trainers = tuple[str | None, str | None]  # who plays each side; None: the player at the keyboard
+
+
+def board(view: _engine.BattleState, me: int, style: Style, trainers: Trainers) -> Table:
+    """Both actives, the foe's above: who plays them, name, item, level, HP and team; under
+    each, its status and stat stages; then the field."""
+    labels = [t("you") if trainer is None else trainer for trainer in trainers]
+    grid = Table.grid(padding=(0, 2))
+    for _ in range(6):
+        grid.add_column()
+    for side, paint in ((1 - me, style.theirs), (me, style.mine)):
+        label = labels[side]
+        pokemon = view.active(side)
+        ratio = pokemon.current_hp / pokemon.stats.hp
+        grid.add_row(
+            paint(label),
+            style.bold(name_with_item(pokemon)),
+            t("level", level=pokemon.level),
+            style.hp(hp_bar(pokemon.current_hp, pokemon.stats.hp), ratio),
+            hp_text(pokemon),
+            team_dots(view, side),
+        )
+        details = _details(pokemon)
+        if details:
+            grid.add_row("", style.dim(details), "", "", "", "")
+    for line in describe_field(view, me, trainers):
+        grid.add_row("", style.dim(line), "", "", "", "")
+    return grid
+
+
+def describe_field(view: _engine.BattleState, me: int, trainers: Trainers) -> list[str]:
+    """Weather, terrain, Aurora Veil and hazards, only those in play."""
     lines = []
     if view.weather:
-        lines.append(f"Weather: {WEATHER_NAMES[view.weather]}")
+        lines.append(t("field.weather", weather=t(f"weather.{view.weather}")))
     if view.terrain:
-        lines.append(f"Terrain: {TERRAIN_NAMES[view.terrain]}")
+        lines.append(t("field.terrain", terrain=t(f"terrain.{view.terrain}")))
     for side in (me, 1 - me):
         hazards = view.hazards(side)
-        layers = [
-            (HAZARD_NAMES[0], hazards.stealth_rock),
-            (HAZARD_NAMES[1], hazards.spikes),
-            (HAZARD_NAMES[2], hazards.toxic_spikes),
+        layers = [hazards.stealth_rock, hazards.spikes, hazards.toxic_spikes]
+        present = [
+            t(f"hazard.{kind}") + (f" ×{count}" if count > 1 else "")
+            for kind, count in enumerate(layers)
+            if count
         ]
-        present = [name if count == 1 else f"{name} x{count}" for name, count in layers if count]
         if view.aurora_veil_turns[side]:
-            present.append("Aurora Veil")
+            present.append(t("aurora_veil"))
         if present:
-            lines.append(f"On {team_label(side, me)}'s side: {', '.join(present)}")
+            trainer, what = trainers[side], ", ".join(present)
+            lines.append(
+                t("field.yours", what=what)
+                if trainer is None
+                else t("field.theirs", trainer=trainer, what=what)
+            )
     return lines
 
 
-def describe_board(view: _engine.BattleState, me: int, style: Style) -> list[str]:
-    """What the player sees between two turns: both actives, the bench and the field."""
-    foe = 1 - me
-    team = [view.pokemon(foe, i) for i in range(view.team_size[foe])]
-    revealed = [pokemon for pokemon in team if not pokemon.is_empty()]
-    standing = sum(1 for pokemon in revealed if not pokemon.is_fainted())
-    unseen = view.team_size[foe] - len(revealed)
-    foe_name, foe_hp = describe_pokemon(view.active(foe), style)
-    my_name, my_hp = describe_pokemon(view.active(me), style)
-    bench = [
-        f"{_engine.species_display_name(p.species_id)} {p.current_hp}/{p.stats.hp}"
-        for i in range(view.team_size[me])
-        if i != view.active_index[me] and not (p := view.pokemon(me, i)).is_fainted()
-    ]
-    lines = [
-        style.theirs("Foe ") + " " + foe_name,
-        "     " + foe_hp,
-        "     " + style.dim(f"{standing} seen standing, {unseen} not yet seen"),
-        "",
-        style.mine("You ") + " " + my_name,
-        "     " + my_hp,
-        "     " + style.dim("bench: " + (", ".join(bench) if bench else "none")),
-    ]
-    field = describe_field(view, me)
-    return lines + ([""] + field if field else [])
+def card(title: str, lines: list[str], width: int = 58) -> str:
+    """A framed text, shown under a list while an option is highlighted."""
+    inner = width - 4
+    top = f"╭─ {title} " + "─" * max(0, width - 5 - len(title)) + "╮"
+    rows = []
+    for line in lines:
+        words, row = line.split(), ""
+        for word in words:
+            if row and len(row) + 1 + len(word) > inner:
+                rows.append(row)
+                row = word
+            else:
+                row = f"{row} {word}" if row else word
+        rows.append(row)
+    body = [f"│ {row:<{inner}} │" for row in rows]
+    return "\n".join([top, *body, "╰" + "─" * (width - 2) + "╯"])
 
 
-def describe_move(
-    action: _engine.Action, view: _engine.BattleState, me: int, hints: bool = False
-) -> str:
-    """A menu entry for a move action: its type, power and PP.
+def move_card(move_id: int, pp: int) -> str:
+    move = _engine.move_entry(move_id)
+    power = str(move.power) if move.power else "—"
+    accuracy = f"{move.accuracy} %" if move.accuracy > 0 else t("never_misses")
+    numbers = t("move.numbers", power=power, accuracy=accuracy, pp=pp, max=move.pp)
+    return card(names.move(move_id), [numbers, names.description(move_id)])
 
-    With `hints`, a damaging move also shows its type effectiveness on the foe's active, which
-    a player can work out from the type chart anyway.
-    """
+
+def move_option(action: _engine.Action, view: _engine.BattleState, me: int) -> Option:
+    """A move in the battle menu: its name, type and category, and its card under the list."""
     active = view.active(me)
     move_id = active.move_ids[action.index]
     if active.charging_move_id != _engine.NO_MOVE:
-        return f"Unleash {move_label(active.charging_move_id)}"
-    if active.pp[action.index] == 0:
-        return "Struggle (no PP left)"
+        move_id = active.charging_move_id
+    elif active.pp[action.index] == 0:
+        return Option(
+            action,
+            names.move(_engine.STRUGGLE),
+            card(names.move(_engine.STRUGGLE), [t("move.struggle_card")]),
+        )
     move = _engine.move_entry(move_id)
-    pp = f"{active.pp[action.index]}/{move.pp} PP"
-    label = f"{move_label(move_id)} ({_type_name(move.type)}, {_power_label(move)}, {pp})"
-    if hints and move.category != STATUS_CATEGORY:
-        effectiveness = _engine.type_effectiveness(move.type, view.active(1 - me).species_id)
-        # Fixed damage ignores type effectiveness, except an immunity.
-        if not _fixed_damage(move) or effectiveness == 0:
-            tag = EFFECTIVENESS_TAGS.get(effectiveness)
-            if tag:
-                label += f"  {tag}"
-    return label
+    label: Label = [
+        ("bold", f"{names.move(move_id):<17}"),
+        (f"fg:{TYPE_COLOURS[move.type]}", f"{names.type_name(move.type):<10}"),
+        ("", t(f"category.{move.category}")),
+    ]
+    return Option(action, label, move_card(move_id, active.pp[action.index]))
 
 
-def describe_switch(
-    team_index: int, view: _engine.BattleState, me: int, hints: bool = False
-) -> str:
-    """A menu entry for a Pokemon that can come in: its types, HP and status.
+def switch_options(view: _engine.BattleState, me: int, legal: list[int]) -> list[Option]:
+    """Every Pokemon of the team, in order; those that cannot come in are greyed out."""
+    options = []
+    plain_style = Style(enabled=False)
+    for index in range(view.team_size[me]):
+        pokemon = view.pokemon(me, index)
+        name = f"{name_with_item(pokemon):<14}"
+        types = f"{species_types(pokemon.species_id, plain_style):<17}"
+        if pokemon.is_fainted():
+            options.append(Option(index, name + types, disabled=t("fainted")))
+            continue
+        if index == view.active_index[me] or index not in legal:
+            options.append(Option(index, name + types, disabled=t("in_battle")))
+            continue
+        ratio = pokemon.current_hp / pokemon.stats.hp
+        status = f"  {t(f'status_tag.{pokemon.status}')}" if pokemon.status else ""
+        label: Label = [
+            ("bold", name),
+            ("", types),
+            (f"fg:ansi{hp_colour(ratio)}", hp_bar(pokemon.current_hp, pokemon.stats.hp)),
+            ("", f"  {hp_text(pokemon)}{status}"),
+        ]
+        moves = " · ".join(names.move(move_id) for move_id in pokemon.move_ids)
+        lines = [moves] + ([f"{ITEM} {names.item(pokemon.item_id)}"] if holds_item(pokemon) else [])
+        options.append(Option(index, label, card(names.species(pokemon.species_id), lines)))
+    return options
 
-    With `hints`, it also says how it takes the foe's types: weak, resistant or immune.
+
+class Teller:
+    """Tells the events of a battle from `me`'s side: whose Pokemon, its trainer, the HP.
+
+    `trainers` names who plays each side; None is the player at the keyboard, told in the
+    second person ("Go, Gyarados!").
     """
-    pokemon = view.pokemon(me, team_index)
-    name = _engine.species_display_name(pokemon.species_id)
-    details = [species_types(pokemon.species_id), f"{pokemon.current_hp}/{pokemon.stats.hp} HP"]
-    if pokemon.status:
-        details.append(STATUS_TAGS[pokemon.status])
-    label = f"{name} ({', '.join(details)})"
-    matchup = _against_types(pokemon.species_id, view.active(1 - me).species_id)
-    return label + f"  {matchup}" if hints and matchup else label
 
+    def __init__(self, me: int, style: Style, trainers: Trainers) -> None:
+        self.me, self.style, self.trainers = me, style, trainers
 
-def _against_types(species_id: int, foe_species_id: int) -> str:
-    """How a species takes each of the foe's types: 'weak to Fighting, immune to Ghost'."""
-    foe = _engine.species_entry(foe_species_id)
-    remarks = []
-    for foe_type in dict.fromkeys((foe.type1, foe.type2)):
-        effectiveness = _engine.type_effectiveness(foe_type, species_id)
-        if effectiveness == 0:
-            remarks.append(f"immune to {_type_name(foe_type)}")
-        elif effectiveness > 1:
-            remarks.append(f"weak to {_type_name(foe_type)}")
-        elif effectiveness < 1:
-            remarks.append(f"resists {_type_name(foe_type)}")
-    return ", ".join(remarks)
+    def who(self, view: _engine.BattleState, side: int, slot: int) -> str:
+        name = names.species(view.pokemon(side, slot).species_id)
+        return self.style.mine(name) if side == self.me else self.style.theirs(name)
 
+    def team(self, side: int) -> str:
+        trainer = self.trainers[side]
+        return t("team.yours") if trainer is None else t("team.of", trainer=trainer)
 
-def _fixed_damage(move: _engine.MoveEntry) -> bool:
-    return any(effect.kind == "FixedDamage" for effect in move.effects)
+    def narrate(
+        self,
+        events: list[EventFields],
+        before: _engine.BattleState,
+        after: _engine.BattleState,
+    ) -> list[Narration]:
+        """The turn's history, from the views before and after it.
 
+        The engine reports raw damage, which can exceed the HP left (engine/docs/api.md): HP are
+        followed through the turn so that each line shows what was really lost. A fainted Pokemon
+        leaving the field is not told: its knock-out already was.
+        """
+        hp: dict[tuple[int, int], int] = {}
+        lines = []
+        for event in events:
+            if event.kind in FIELD_EVENTS:
+                text = FIELD_EVENTS[event.kind](self, event)
+                lines.append(Narration(text, False, event.kind, event.side, event.slot, 0))
+                continue
+            key = (event.side, event.slot)
+            if key not in hp:
+                hp[key] = _hp_before(before, after, event.side, event.slot)
+            if event.kind == K.SWITCHED_OUT and hp[key] == 0:
+                continue
+            amount = event.i0
+            if event.kind in HP_LOSSES:
+                amount = min(amount, hp[key])
+                hp[key] -= amount
+            elif event.kind == K.HEALED:
+                hp[key] += amount
+            who = self.who(after, event.side, event.slot)
+            if event.kind in (K.SWITCHED_IN, K.SWITCHED_OUT):
+                text = self._switch(event, who)
+            else:
+                text = POKEMON_EVENTS[event.kind](event, who, amount)
+            crit = bool(event.flags & _engine.FLAG_CRIT)
+            emphasis = event.kind == K.FAINTED or (
+                event.kind == K.DAMAGE_DEALT and (crit or event.f0 > 1)
+            )
+            lines.append(Narration(text, emphasis, event.kind, event.side, event.slot, amount))
+        return lines
 
-def _power_label(move: _engine.MoveEntry) -> str:
-    if move.power:
-        return f"{move.power} power"
-    if move.power_from_target_weight:
-        return "power from weight"
-    return "fixed damage" if _fixed_damage(move) else "status"
-
-
-def describe_moves(view: _engine.BattleState, me: int) -> list[str]:
-    """The details of the active Pokemon's moves, for the help screen."""
-    active = view.active(me)
-    lines = []
-    for slot, move_id in enumerate(active.move_ids):
-        move = _engine.move_entry(move_id)
-        accuracy = f"{move.accuracy}% accuracy" if move.accuracy > 0 else "never misses"
-        priority = f", priority {move.priority:+d}" if move.priority else ""
-        lines.append(
-            f"{move_label(move_id)}: {_type_name(move.type)}, {CATEGORY_NAMES[move.category]}, "
-            f"{_power_label(move)}, {accuracy}{priority}, {active.pp[slot]}/{move.pp} PP"
-        )
-        effects = describe_effects(move)
-        if effects:
-            lines.append("  " + effects)
-    return lines
-
-
-def describe_effects(move: _engine.MoveEntry) -> str:
-    """What a move does besides plain damage, in one sentence: '30% chance to paralyze'."""
-    phrases = []
-    for effect in move.effects:
-        if effect.kind == "Damage":
-            continue
-        phrase = EFFECT_PHRASES[effect.kind](effect)
-        if effect.chance < 100:
-            phrase = f"{effect.chance}% chance to {phrase}"
-        phrases.append(phrase)
-    text = ", ".join(phrases)
-    return text[:1].upper() + text[1:] + ("." if text else "")
-
-
-def _stat_change(effect: _engine.EffectEntry) -> str:
-    verb = "raise" if effect.delta > 0 else "lower"
-    whose = "the user's" if effect.affects_user else "the target's"
-    stages = abs(effect.delta)
-    return f"{verb} {whose} {STAT_NAMES[effect.stat]} by {stages} stage{'s' if stages > 1 else ''}"
-
-
-EFFECT_PHRASES: dict[str, Callable[[_engine.EffectEntry], str]] = {
-    "ApplyStatus": lambda e: STATUS_VERBS[e.status] + " the target",
-    "StatChange": _stat_change,
-    "Flinch": lambda e: "make the target flinch",
-    "Recoil": lambda e: f"take 1/{e.denominator} of the damage dealt as recoil",
-    "Drain": lambda e: f"heal 1/{e.denominator} of the damage dealt",
-    "Recovery": lambda e: f"heal 1/{e.denominator} of max HP",
-    "FixedDamage": lambda e: (
-        "deal damage equal to the user's level"
-        if e.damage_equals_level
-        else "halve the target's HP"
-    ),
-    "MultiHit": lambda e: "hit several times",
-    "Pivot": lambda e: "switch the user out after the move",
-    "ForceSwitch": lambda e: "force the target out",
-    "KnockOff": lambda e: "knock off the target's item",
-    "SetHazard": lambda e: f"set {HAZARD_NAMES[e.hazard]} around the foe",
-    "HazardOnHit": lambda e: "set Spikes around the foe on hit",
-    "ClearHazards": lambda e: "clear hazards" + (" on both sides" if e.both_sides else ""),
-    "SetScreen": lambda e: "set Aurora Veil for the user's team",
-    # Baneful Bunker is the catalog's only protection, and it always poisons on contact.
-    "Protect": lambda e: (
-        f"protect the user this turn and {STATUS_VERBS[e.status]} an attacker making contact"
-    ),
-    "Roost": lambda e: "lose the Flying type for the turn",
-    "Rest": lambda e: "sleep two turns and heal fully",
-    "Wish": lambda e: "heal half max HP at the end of the next turn",
-    "StealBoosts": lambda e: "steal the target's stat boosts",
-    "SleepTalk": lambda e: "use another of its moves at random while asleep",
-    "DestinyBond": lambda e: "take the attacker down if the user faints this turn",
-    "BellyDrum": lambda e: "halve the user's HP to maximize its Attack",
-}
-
-
-def narrate(
-    events: list[EventFields],
-    before: _engine.BattleState,
-    after: _engine.BattleState,
-    me: int,
-    style: Style,
-) -> list[Narration]:
-    """The turn's history, from the views before and after it.
-
-    The engine reports raw damage, which can exceed the HP left (engine/docs/api.md): HP are
-    followed through the turn so that each line shows what was really lost. A fainted Pokemon
-    leaving the field is not told: its knock-out already was.
-    """
-    hp: dict[tuple[int, int], int] = {}
-    lines = []
-    for event in events:
-        if event.kind in FIELD_EVENTS:
-            text = FIELD_EVENTS[event.kind](event, me)
-            lines.append(Narration(text, False, event.kind, event.side, event.slot, 0))
-            continue
-        key = (event.side, event.slot)
-        if key not in hp:
-            hp[key] = _hp_before(before, after, event.side, event.slot)
-        if event.kind == K.SWITCHED_OUT and hp[key] == 0:
-            continue
-        amount = event.i0
-        if event.kind in HP_LOSSES:
-            amount = min(amount, hp[key])
-            hp[key] -= amount
-        elif event.kind == K.HEALED:
-            hp[key] += amount
-        who = pokemon_label(after, event.side, event.slot, me, style)
-        text = POKEMON_EVENTS[event.kind](event, who, amount)
-        emphasis = event.kind == K.FAINTED or (
-            event.kind == K.DAMAGE_DEALT and (bool(event.flags & _engine.FLAG_CRIT) or event.f0 > 1)
-        )
-        lines.append(Narration(text, emphasis, event.kind, event.side, event.slot, amount))
-    return lines
-
-
-def describe_events(
-    events: list[EventFields],
-    before: _engine.BattleState,
-    after: _engine.BattleState,
-    me: int,
-    style: Style,
-) -> list[str]:
-    """The turn's history as plain lines (see `narrate`)."""
-    return [line.text for line in narrate(events, before, after, me, style)]
+    def _switch(self, event: EventFields, who: str) -> str:
+        trainer = self.trainers[event.side]
+        coming = event.kind == K.SWITCHED_IN
+        if trainer is None:
+            return t("event.go" if coming else "event.come_back", who=who)
+        return t("event.sends_out" if coming else "event.withdraws", trainer=trainer, who=who)
 
 
 def _hp_before(
@@ -400,92 +373,86 @@ def _hp_before(
     return after.pokemon(side, slot).stats.hp if pokemon.is_empty() else pokemon.current_hp
 
 
-def _type_name(type_id: int) -> str:
-    return [
-        "Normal", "Fire", "Water", "Electric", "Grass", "Ice", "Fighting", "Poison", "Ground",
-        "Flying", "Psychic", "Bug", "Rock", "Ghost", "Dragon", "Dark", "Steel", "Fairy",
-    ][type_id]  # fmt: skip
-
-
 def _damage(event: EventFields, who: str, amount: int) -> str:
-    text = f"{who} lost {amount} HP."
+    text = t("event.damage", who=who, hp=amount)
     if event.flags & _engine.FLAG_CRIT:
-        text = "A critical hit! " + text
+        text = t("event.crit") + " " + text
     if event.f0 > 1:
-        text += " It's super effective!"
+        text += " " + t("event.super_effective")
     elif 0 < event.f0 < 1:
-        text += " It's not very effective..."
+        text += " " + t("event.not_very_effective")
     return text
 
 
 def _stage_change(event: EventFields, who: str, amount: int) -> str:
-    size = {1: "rose", 2: "rose sharply", -1: "fell", -2: "harshly fell"}
-    verb = size.get(event.i0, "rose drastically" if event.i0 > 0 else "severely fell")
-    return f"{who}'s {STAT_NAMES[event.i1]} {verb}!"
-
-
-def _direction(event: EventFields) -> str:
-    return "higher" if event.i1 else "lower"
+    size = max(-3, min(3, event.i0))
+    return t("event.stage", who=who, stat=t(f"stat.{event.i1}"), change=t(f"stage.{size}"))
 
 
 def _ability(event: EventFields) -> str:
     if event.name_id == _engine.STRUGGLE_RECOIL:
-        return "struggle recoil"
-    return readable(_engine.ability_name(event.name_id))
+        return t("struggle_recoil")
+    return names.ability(event.name_id)
 
 
 def _item(event: EventFields) -> str:
-    return readable(_engine.item_name(event.name_id))
+    return names.item(event.name_id)
+
+
+def _status(event: EventFields, field: int) -> str:
+    return t(f"status.{field}")
 
 
 POKEMON_EVENTS: dict[int, Callable[[EventFields, str, int], str]] = {
-    K.MOVE_USED: lambda e, who, n: f"{who} used {move_label(e.name_id)}!",
+    K.MOVE_USED: lambda e, who, n: t("event.move", who=who, move=names.move(e.name_id)),
     K.DAMAGE_DEALT: _damage,
-    K.FAINTED: lambda e, who, n: f"{who} fainted!",
-    K.MISSED: lambda e, who, n: f"{who}'s attack missed!",
-    K.STATUS_APPLIED: lambda e, who, n: f"{who} is now {STATUS_NAMES[e.i0]}!",
-    K.STATUS_FAILED: lambda e, who, n: f"{who} could not be {STATUS_NAMES[e.i0]}.",
-    K.STATUS_DAMAGE: lambda e, who, n: f"{who} is hurt by being {STATUS_NAMES[e.i1]} ({n} HP).",
-    K.STATUS_CURED: lambda e, who, n: f"{who} is no longer {STATUS_NAMES[e.i0]}.",
-    K.MOVE_SKIPPED: lambda e, who, n: f"{who} {SKIP_REASONS[e.i0]}!",
+    K.FAINTED: lambda e, who, n: t("event.fainted", who=who),
+    K.MISSED: lambda e, who, n: t("event.missed", who=who),
+    K.STATUS_APPLIED: lambda e, who, n: t("event.status", who=who, status=_status(e, e.i0)),
+    K.STATUS_FAILED: lambda e, who, n: t("event.status_failed", who=who, status=_status(e, e.i0)),
+    K.STATUS_DAMAGE: lambda e, who, n: t(
+        "event.status_damage", who=who, status=_status(e, e.i1), hp=n
+    ),
+    K.STATUS_CURED: lambda e, who, n: t("event.status_cured", who=who, status=_status(e, e.i0)),
+    K.MOVE_SKIPPED: lambda e, who, n: t(f"event.skip.{e.i0}", who=who),
     K.STAT_STAGE_CHANGED: _stage_change,
-    K.STAT_CHANGE_FAILED: lambda e, who, n: (
-        f"{who}'s {STAT_NAMES[e.i0]} won't go any {_direction(e)}!"
+    K.STAT_CHANGE_FAILED: lambda e, who, n: t(
+        "event.stage_failed_up" if e.i1 else "event.stage_failed_down",
+        who=who,
+        stat=t(f"stat.{e.i0}"),
     ),
-    K.SWITCHED_OUT: lambda e, who, n: f"{who} withdrew.",
-    K.SWITCHED_IN: lambda e, who, n: f"{who} entered the battle!",
-    K.ABILITY_TRIGGERED: lambda e, who, n: f"{who}'s {_ability(e)} activated!",
-    K.MOVE_FAILED: lambda e, who, n: f"{who} used {move_label(e.name_id)}, but it failed!",
-    K.WEATHER_DAMAGE: lambda e, who, n: f"{who} is buffeted by {WEATHER_NAMES[e.i1]} ({n} HP).",
-    K.HAZARD_DAMAGE: lambda e, who, n: f"{who} is hurt by {HAZARD_NAMES[e.i1]} ({n} HP).",
-    K.TOXIC_SPIKES_ABSORBED: lambda e, who, n: f"{who} absorbed the Toxic Spikes.",
-    K.HEALED: lambda e, who, n: f"{who} restored {n} HP.",
-    K.RECOIL_DAMAGE: lambda e, who, n: f"{who} is hit with recoil ({n} HP).",
-    K.CHARGING: lambda e, who, n: f"{who} is charging {move_label(e.name_id)}!",
-    K.PROTECTED: lambda e, who, n: f"{who} protected itself!",
-    K.ITEM_TRIGGERED: lambda e, who, n: f"{who}'s {_item(e)} activated!",
-    K.ITEM_CONSUMED: lambda e, who, n: f"{who} used up its {_item(e)}.",
-    K.ITEM_DAMAGE: lambda e, who, n: f"{who} is hurt by its {_item(e)} ({n} HP).",
-    K.ITEM_KNOCKED_OFF: lambda e, who, n: f"{who} lost its {_item(e)}!",
-    K.DESTINY_BOND_TRIGGERED: lambda e, who, n: f"{who} took its attacker down with it!",
-    K.ABILITY_DAMAGE: lambda e, who, n: f"{who} is hurt by {_ability(e)} ({n} HP).",
+    K.ABILITY_TRIGGERED: lambda e, who, n: t("event.ability", who=who, ability=_ability(e)),
+    K.MOVE_FAILED: lambda e, who, n: t("event.move_failed", who=who, move=names.move(e.name_id)),
+    K.WEATHER_DAMAGE: lambda e, who, n: t(
+        "event.weather_damage", who=who, weather=t(f"weather.{e.i1}"), hp=n
+    ),
+    K.HAZARD_DAMAGE: lambda e, who, n: t(
+        "event.hazard_damage", who=who, hazard=t(f"hazard.{e.i1}"), hp=n
+    ),
+    K.TOXIC_SPIKES_ABSORBED: lambda e, who, n: t("event.toxic_spikes_absorbed", who=who),
+    K.HEALED: lambda e, who, n: t("event.healed", who=who, hp=n),
+    K.RECOIL_DAMAGE: lambda e, who, n: t("event.recoil", who=who, hp=n),
+    K.CHARGING: lambda e, who, n: t("event.charging", who=who, move=names.move(e.name_id)),
+    K.PROTECTED: lambda e, who, n: t("event.protected", who=who),
+    K.ITEM_TRIGGERED: lambda e, who, n: t("event.item", who=who, item=_item(e)),
+    K.ITEM_CONSUMED: lambda e, who, n: t("event.item_consumed", who=who, item=_item(e)),
+    K.ITEM_DAMAGE: lambda e, who, n: t("event.item_damage", who=who, item=_item(e), hp=n),
+    K.ITEM_KNOCKED_OFF: lambda e, who, n: t("event.knocked_off", who=who, item=_item(e)),
+    K.DESTINY_BOND_TRIGGERED: lambda e, who, n: t("event.destiny_bond", who=who),
+    K.ABILITY_DAMAGE: lambda e, who, n: t(
+        "event.ability_damage", who=who, ability=_ability(e), hp=n
+    ),
 }
 
-FIELD_EVENTS: dict[int, Callable[[EventFields, int], str]] = {
-    K.WEATHER_STARTED: lambda e, me: f"It started: {WEATHER_NAMES[e.i0]}.",
-    K.WEATHER_ENDED: lambda e, me: f"The {WEATHER_NAMES[e.i0]} stopped.",
-    K.HAZARD_SET: lambda e, me: f"{HAZARD_NAMES[e.i0]} now lies around {team_label(e.side, me)}.",
-    K.HAZARDS_CLEARED: lambda e, me: f"The hazards around {team_label(e.side, me)} are gone.",
-    K.TERRAIN_STARTED: lambda e, me: f"{TERRAIN_NAMES[e.i0]} covers the field.",
-    K.TERRAIN_ENDED: lambda e, me: f"The {TERRAIN_NAMES[e.i0]} faded.",
-    K.SCREEN_STARTED: lambda e, me: (
-        f"Aurora Veil protects {team_label(e.side, me)} for {e.i0} turns."
+FIELD_EVENTS: dict[int, Callable[[Teller, EventFields], str]] = {
+    K.WEATHER_STARTED: lambda teller, e: t("event.weather", weather=t(f"weather.{e.i0}")),
+    K.WEATHER_ENDED: lambda teller, e: t("event.weather_ended", weather=t(f"weather.{e.i0}")),
+    K.HAZARD_SET: lambda teller, e: t(
+        "event.hazard_set", hazard=t(f"hazard.{e.i0}"), team=teller.team(e.side)
     ),
-    K.SCREEN_ENDED: lambda e, me: f"Aurora Veil around {team_label(e.side, me)} wore off.",
+    K.HAZARDS_CLEARED: lambda teller, e: t("event.hazards_cleared", team=teller.team(e.side)),
+    K.TERRAIN_STARTED: lambda teller, e: t("event.terrain", terrain=t(f"terrain.{e.i0}")),
+    K.TERRAIN_ENDED: lambda teller, e: t("event.terrain_ended", terrain=t(f"terrain.{e.i0}")),
+    K.SCREEN_STARTED: lambda teller, e: t("event.screen", team=teller.team(e.side), turns=e.i0),
+    K.SCREEN_ENDED: lambda teller, e: t("event.screen_ended", team=teller.team(e.side)),
 }
-
-
-def title_for(before: _engine.BattleState, after: _engine.BattleState) -> str:
-    if after.turn != before.turn:
-        return f"Turn {after.turn}"
-    return "Battle start" if after.turn == 0 else "Switch-in"

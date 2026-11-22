@@ -2,6 +2,8 @@ import re
 from collections.abc import Callable
 
 import pytest
+from consoles import recording, shown
+from consoles import text as as_read
 
 from trainerlab.bots.baseline import RandomBot
 from trainerlab.bots.lookahead import Forecaster, Strategist
@@ -112,3 +114,49 @@ def test_the_number_of_processes_changes_no_result(capsys: pytest.CaptureFixture
     spread = _run(["hitter", "random", "--pairs", "4", "--jobs", "2"], capsys)[0]
 
     assert alone == spread
+
+
+def test_on_a_terminal_the_duel_is_framed_with_a_bar_then_its_verdict() -> None:
+    console = recording(terminal=True)
+    clock = iter([0.0, 263.0])
+
+    assert (
+        main(
+            ["hitter", "random", "--pairs", "3", "--from", "5", "--jobs", "1"],
+            console=console,
+            clock=lambda: next(clock),
+        )
+        == 0
+    )
+
+    text = as_read(console)
+    assert "hitter  against  random" in text and "3 pairs · seeds 5 to 7" in text
+    assert "hitter's score so far:" in text
+    assert "hitter beats random" in text or "No clear difference" in text
+    assert "6 battles in 4:23" in text
+
+
+@pytest.mark.parametrize(
+    ("interval", "verdict"),
+    [((0.6, 0.7), "a beats b"), ((0.3, 0.4), "a loses to b"), ((0.45, 0.55), "No clear")],
+)
+def test_the_verdict_follows_the_interval(interval: tuple[float, float], verdict: str) -> None:
+    from trainerlab.terminal.reports import duel_result
+
+    console = recording()
+    console.print(duel_result("a", "b", (1, 0, 1), 0.5, interval, "0:01"))
+
+    assert verdict in shown(console)
+
+
+def test_in_french_the_verdict_is_in_french() -> None:
+    from trainerlab import i18n
+    from trainerlab.terminal.reports import duel_result
+
+    i18n.set_language("fr")
+    console = recording()
+    console.print(duel_result("a", "b", (906, 12, 82), 0.912, (0.894, 0.929), "4:23"))
+    i18n.set_language("en")
+
+    text = shown(console)
+    assert "a bat b" in text and "[0.894, 0.929] à 95 %" in text and "Victoires 906" in text

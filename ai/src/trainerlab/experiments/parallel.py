@@ -11,7 +11,7 @@ import sys
 import time
 from collections.abc import Callable
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from typing import TypeVar
+from typing import Protocol, TypeVar
 
 T = TypeVar("T")
 Work = Callable[[str, str, range], T]  # bot A's name, bot B's name, the seeds of the block
@@ -35,6 +35,14 @@ def blocks(seeds: range, count: int) -> list[range]:
         parts.append(range(start, start + length))
         start += length
     return parts
+
+
+class Meter(Protocol):
+    """What follows a measure: told the pairs done after each block, then the end."""
+
+    def update(self, done: int) -> None: ...
+
+    def finish(self) -> None: ...
 
 
 class Progress:
@@ -102,7 +110,8 @@ def run(
     bot_b: str,
     seeds: range,
     jobs: int,
-    progress: Progress | None = None,
+    progress: Meter | None = None,
+    on_result: Callable[[T], None] | None = None,
 ) -> list[T]:
     """The result of `work` on each block, in the order of the seeds."""
     parts = blocks(seeds, -(-len(seeds) // BLOCK))
@@ -116,6 +125,8 @@ def run(
         nonlocal done
         results[index] = result
         done += len(parts[index])
+        if on_result is not None:
+            on_result(result)
         if progress is not None:
             progress.update(done)
 
