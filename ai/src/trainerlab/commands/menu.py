@@ -19,6 +19,7 @@ from trainerlab.terminal.prompts import Label, Line, Option, Prompter, Separator
 from trainerlab.terminal.screen import SPEEDS
 
 OTHER = "other"  # the entry that opens the list of every bot
+BACK = "back"  # the last entry of every question's list
 LANGUAGE, QUIT = "language", "quit"
 DEFAULT_A = "alphazero"  # the bot measured, unless another is chosen
 LANGUAGE_NAMES = {"fr": "Français", "en": "English"}
@@ -62,7 +63,22 @@ def menu(prompter: Prompter, console: Console) -> list[str] | None:
         set_language(other)
         settings.save_language(other)
         return []
-    return [mode, *QUESTIONS[mode](prompter)]
+    try:
+        return [mode, *QUESTIONS[mode](prompter)]
+    except (Back, KeyboardInterrupt):  # Back, or Ctrl-C, in a question: the main menu again
+        return []
+
+
+class Back(Exception):  # noqa: N818 (a way out, not an error)
+    """The player chose ← Back in a question."""
+
+
+def choose(prompter: Prompter, message: str, options: list[Line], default: object = None) -> object:
+    """A question's list, with ← Back at its end: Back raises Back."""
+    chosen = prompter.select(message, [*options, Separator(), Option(BACK, t("back"))], default)
+    if chosen == BACK:
+        raise Back
+    return chosen
 
 
 def _bot_label(name: str, described: bool) -> Label:
@@ -80,11 +96,17 @@ def bot(prompter: Prompter, message: str, default: str, *, described: bool = Tru
         else t("menu.other_bot")
     )
     options += [Separator(), Option(OTHER, other)]
-    chosen = str(prompter.select(message, options, default=default))
-    if chosen != OTHER:
-        return chosen
-    every = [Option(name, _bot_label(name, True)) for name in BOTS if name not in FEATURED]
-    return str(prompter.select(t("menu.which_bot"), every, search=True))
+    every: list[Line] = [
+        Option(name, _bot_label(name, True)) for name in BOTS if name not in FEATURED
+    ]
+    every += [Separator(), Option(BACK, t("back"))]
+    while True:
+        chosen = str(choose(prompter, message, options, default))
+        if chosen != OTHER:
+            return chosen
+        picked = str(prompter.select(t("menu.which_bot"), every, search=True))
+        if picked != BACK:
+            return picked
 
 
 def _two_bots(prompter: Prompter) -> list[str]:
@@ -116,8 +138,11 @@ def _pairs(prompter: Prompter, default: int) -> list[str]:
 def _play(prompter: Prompter) -> list[str]:
     against = bot(prompter, t("menu.opponent"), DEFAULT_OPPONENT, described=False)
     args = [] if against == DEFAULT_OPPONENT else ["--against", against]
-    team_options = [Option("random", t("menu.random_team")), Option("own", t("menu.own_team"))]
-    if prompter.select(t("menu.team"), team_options, default="random") == "own":
+    team_options: list[Line] = [
+        Option("random", t("menu.random_team")),
+        Option("own", t("menu.own_team")),
+    ]
+    if choose(prompter, t("menu.team"), team_options, "random") == "own":
         everyone = names.all_species()
         picked: list[str] = []
         for number in range(1, 7):
@@ -130,18 +155,18 @@ def _play(prompter: Prompter) -> list[str]:
         args += ["--team", ",".join(str(names.species_key(name)) for name in picked)]
     chosen = prompter.text(t("menu.seed"), "", lambda text: text == "" or text.isdigit())
     args += ["--seed", chosen] if chosen else []
-    speeds = [Option(speed, t(f"speed.{speed}")) for speed in SPEEDS]
-    speed = prompter.select(t("menu.speed"), speeds, default="normal")
+    speeds: list[Line] = [Option(speed, t(f"speed.{speed}")) for speed in SPEEDS]
+    speed = str(choose(prompter, t("menu.speed"), speeds, "normal"))
     return args + ([] if speed == "normal" else ["--speed", speed])
 
 
 def _watch(prompter: Prompter) -> list[str]:
     bots = _two_bots(prompter)
-    modes = [
+    modes: list[Line] = [
         Option("losses", t("menu.watch_losses", bot=bots[0])),
         Option("seed", t("menu.watch_seed")),
     ]
-    if prompter.select(t("menu.watch_what"), modes, default="losses") == "losses":
+    if choose(prompter, t("menu.watch_what"), modes, "losses") == "losses":
         return [*bots, "--losses", *_pairs(prompter, SCANNED_PAIRS)]
     chosen = prompter.text(t("menu.battle_seed"), "", _valid(seed))
     side = prompter.text(t("menu.side"), "0", lambda text: text in ("0", "1"))

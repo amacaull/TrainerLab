@@ -54,14 +54,31 @@ def test_a_choice_is_a_questionary_select_with_its_options(
     assert not kwargs["use_search_filter"]
 
 
-def test_a_long_list_can_be_filtered_by_typing(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_long_list_can_be_filtered_by_typing_its_labels_as_plain_text(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     calls = _patch(monkeypatch, "b")
+    options: list[Line] = [Option("a", [("bold", "a"), ("", " first")]), Option("b", "b")]
 
-    QuestionaryPrompter().select("Which?", [Option("a", "a"), Option("b", "b")], search=True)
+    QuestionaryPrompter().select("Which?", options, search=True)
 
-    kwargs = calls[0][2]
+    _, (_, choices), kwargs = calls[0]
     assert kwargs["use_search_filter"] and not kwargs["use_jk_keys"]
     assert kwargs["default"] is None
+    assert [c.title for c in choices] == ["a first", "b"]  # questionary filters on str titles
+
+
+def test_the_default_is_not_painted_as_chosen_and_the_cursor_is_cyan(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = _patch(monkeypatch, 1)
+
+    QuestionaryPrompter().select("Which?", [Option(1, "one")], default=1)
+    QuestionaryPrompter().text("How many?")
+
+    for _, _, kwargs in calls:
+        rules = dict(kwargs["style"].style_rules)
+        assert rules["selected"] == "noreverse" and "cyan" in rules["highlighted"]
 
 
 def test_a_text_is_checked_and_kept_by_default(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -9,7 +9,21 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 import questionary
+from prompt_toolkit.styles import Style
 
+# The look of the questions: the line under the cursor in cyan; the default is preselected,
+# not painted as already chosen (questionary's "selected" is reversed: a white block).
+STYLE = Style(
+    [
+        ("selected", "noreverse"),
+        ("highlighted", "fg:ansicyan bold"),
+        ("pointer", "fg:ansicyan bold"),
+        ("qmark", "fg:ansicyan"),
+        ("answer", "fg:ansicyan"),
+        ("separator", "fg:ansibrightblack"),
+        ("instruction", "fg:ansibrightblack"),
+    ]
+)
 # A label: plain text, or (style, text) pieces, prompt_toolkit's styles ("bold", "fg:ansired").
 Label = str | list[tuple[str, str]]
 
@@ -71,8 +85,10 @@ class QuestionaryPrompter:
             if isinstance(line, Separator):
                 choices.append(questionary.Separator(line.title and f"── {line.title} ──"))
                 continue
+            # questionary filters a list on its titles as text: no styled pieces then.
+            label = plain(line.label) if search else line.label
             choice = questionary.Choice(
-                line.label, line.value, disabled=line.disabled, description=line.description
+                label, line.value, disabled=line.disabled, description=line.description
             )
             chosen = choice if line.value == default and default is not None else chosen
             choices.append(choice)
@@ -83,6 +99,7 @@ class QuestionaryPrompter:
             use_search_filter=search,
             use_jk_keys=not search,
             instruction=" ",
+            style=STYLE,
         )
         return _asked(question.ask())
 
@@ -90,11 +107,13 @@ class QuestionaryPrompter:
         self, message: str, default: str = "", valid: Callable[[str], bool] | None = None
     ) -> str:
         check = valid or (lambda answer: True)
-        return str(_asked(questionary.text(message, default=default, validate=check).ask()))
+        return str(
+            _asked(questionary.text(message, default=default, validate=check, style=STYLE).ask())
+        )
 
     def autocomplete(self, message: str, choices: list[str], valid: Callable[[str], bool]) -> str:
         question = questionary.autocomplete(
-            message, choices, validate=valid, ignore_case=True, match_middle=True
+            message, choices, validate=valid, ignore_case=True, match_middle=True, style=STYLE
         )
         return str(_asked(question.ask()))
 

@@ -9,6 +9,11 @@ from trainerlab.terminal.render import card, move_option, switch_options
 
 SWITCH = "switch"  # the battle menu's entry that opens the team
 BACK = "back"  # the team's entry that goes back to the moves
+FLEE = "flee"  # the entry that abandons the battle
+
+
+class Fled(Exception):  # noqa: N818 (the player's choice, not an error)
+    """The player ran away: the battle stops, lost."""
 
 
 class HumanPlayer:
@@ -30,12 +35,17 @@ class HumanPlayer:
         switches = [action for action in legal if action.kind == _engine.ACTION_SWITCH]
         name = names.species(view.active(side).species_id)
         options: list[Line] = [move_option(action, view, side) for action in moves]
+        options.append(Separator())
         if switches:
             entry = t("battle.switch")
-            options += [Separator(), Option(SWITCH, entry, card(entry, [t("battle.switch_card")]))]
+            options.append(Option(SWITCH, entry, card(entry, [t("battle.switch_card")])))
+        options.append(self._flee_option())
         team = [action.index for action in switches]
         while True:
             choice = self._prompter.select(t("battle.what", name=name), options)
+            if choice == FLEE:
+                self._confirm_flight()
+                continue
             if choice != SWITCH:
                 return choice  # type: ignore[no-any-return]
             lines: list[Line] = [
@@ -49,4 +59,16 @@ class HumanPlayer:
 
     def choose_replacement(self, side: int, view: _engine.BattleState, options: list[int]) -> int:
         self._draw(view)
-        return int(self._prompter.select(t("battle.replace"), switch_options(view, side, options)))
+        lines: list[Line] = [*switch_options(view, side, options), Separator(), self._flee_option()]
+        while (index := self._prompter.select(t("battle.replace"), lines)) == FLEE:
+            self._confirm_flight()
+        return int(index)
+
+    def _flee_option(self) -> Option:
+        return Option(FLEE, t("battle.flee"), card(t("battle.flee"), [t("battle.flee_card")]))
+
+    def _confirm_flight(self) -> None:
+        """Raises Fled if the player confirms; returns to the menu otherwise."""
+        answers = [Option(False, t("no")), Option(True, t("yes"))]
+        if self._prompter.select(t("battle.flee_confirm"), answers, default=False):
+            raise Fled

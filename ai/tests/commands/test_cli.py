@@ -9,7 +9,7 @@ from prompter import DEFAULT, First, Scripted
 from trainerlab import i18n
 from trainerlab.bots.roster import BOTS, FEATURED
 from trainerlab.commands.cli import main, translate_argparse
-from trainerlab.commands.menu import OTHER, menu
+from trainerlab.commands.menu import BACK, OTHER, menu
 from trainerlab.i18n import settings
 from trainerlab.terminal.prompts import Line, Option, Separator, plain
 
@@ -65,7 +65,7 @@ def test_a_duel_asks_for_two_bots_and_the_pairs_and_leaves_defaults_out() -> Non
     assert command == ["duel", "alphazero", "forecaster", "--pairs", "5000", "--from", "30000"]
     assert _menu(["duel", "mcts", "hitter", DEFAULT, DEFAULT])[0] == ["duel", "mcts", "hitter"]
     bots = prompter.asked[1][2]
-    assert _labels(bots) == [*FEATURED, "Another"]
+    assert _labels(bots) == [*FEATURED, "Another", "←"]
     assert "search guided by a network, the strongest" in _label(bots, 0)
 
 
@@ -75,7 +75,7 @@ def test_another_bot_opens_every_other_bot_filtered_as_one_types() -> None:
     assert command == ["usage", "focus", "hitter"]
     _, message, options, _ = prompter.asked[2]
     assert message == "Another bot (type to filter)"
-    assert set(_labels(options)) == set(BOTS) - set(FEATURED)
+    assert set(_labels(options)) == set(BOTS) - set(FEATURED) | {"←"}
     assert "zero" in _labels(options) and "rule12" not in _labels(options)
 
 
@@ -274,3 +274,27 @@ def test_switching_the_language_from_the_menu_shows_the_menu_again_in_it() -> No
     assert main([], Scripted(["language", "quit"]), console) == 0
 
     assert "Des combats Pokémon, et les IA qui ont appris à y jouer" in text(console)
+
+
+def test_back_in_a_question_returns_to_the_main_menu() -> None:
+    command, prompter = _menu(["duel", "alphazero", BACK])
+
+    assert command == []
+    bots = prompter.asked[2][2]
+    assert _labels(bots)[-1] == "←"  # ← Back, last of the list
+
+
+def test_back_from_every_other_bot_returns_to_the_main_bots() -> None:
+    command, prompter = _menu(["usage", OTHER, BACK, "mcts", "hitter", DEFAULT, DEFAULT])
+
+    assert command == ["usage", "mcts", "hitter"]
+    assert [message for _, message, _, _ in prompter.asked][1:4] == [
+        "Bot A, the one measured",
+        "Another bot (type to filter)",
+        "Bot A, the one measured",
+    ]
+
+
+def test_ctrl_c_in_a_question_returns_to_the_main_menu_and_at_the_menu_quits() -> None:
+    assert _menu(["duel", "alphazero", "hitter", KeyboardInterrupt()])[0] == []
+    assert main([], Scripted([KeyboardInterrupt()]), recording()) == 130

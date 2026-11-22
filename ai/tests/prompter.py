@@ -22,7 +22,10 @@ class Scripted:
     def _next(self) -> Any:
         if not self.answers:
             raise EOFError
-        return self.answers.pop(0)
+        answer = self.answers.pop(0)
+        if isinstance(answer, BaseException):
+            raise answer  # Ctrl-C, as a question would raise it
+        return answer
 
     def select(
         self, message: str, options: Sequence[Line], default: Any = None, *, search: bool = False

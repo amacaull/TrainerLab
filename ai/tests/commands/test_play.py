@@ -197,3 +197,12 @@ def test_a_draw_says_so(monkeypatch: pytest.MonkeyPatch) -> None:
     shown = _play(["--seed", "3", "--against", "hitter"])[1]
 
     assert "Draw" in shown and f"A draw against {names.leader(3)} (hitter) after 0 turns." in shown
+
+
+def test_running_away_ends_the_battle_as_lost_and_offers_to_play_again() -> None:
+    from trainerlab.terminal.human import FLEE
+
+    code, shown = _play(["--seed", "3", "--against", "hitter"], First([FLEE, True]))
+
+    assert code == 0
+    assert f"You ran away! {names.leader(3)} (hitter) wins." in shown

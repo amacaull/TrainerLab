@@ -15,6 +15,7 @@ from trainerlab import _engine
 from trainerlab.bots.roster import DEFAULT_OPPONENT, WITH_MODEL, bot_spec, factory
 from trainerlab.game.environment import BattleEnvironment, random_team_pair
 from trainerlab.i18n import names, t
+from trainerlab.terminal.human import Fled
 from trainerlab.terminal.prompts import Option, Prompter, QuestionaryPrompter
 from trainerlab.terminal.render import Style
 from trainerlab.terminal.screen import SPEEDS, Screen
@@ -72,10 +73,15 @@ def main(
                 screen.message(t("play.invalid_team", error=error))
                 return 2
             opponent = factory(args.against)(seed)
+            trainer = names.leader(seed)
             try:
-                play_session(
-                    env, opponent, args.against, names.leader(seed), seed, screen, style, asker
-                )
+                try:
+                    play_session(env, opponent, args.against, trainer, seed, screen, style, asker)
+                except Fled:
+                    screen.panel(
+                        style.bold(t("play.defeat")),
+                        t("play.fled", trainer=trainer, bot=args.against),
+                    )
                 leave = t("play.menu") if in_menu else t("play.quit")
                 again = asker.select(
                     t("play.again"),
