@@ -10,12 +10,13 @@ PACKAGE = Path(__file__).resolve().parents[1] / "src" / "trainerlab"
 # What each domain may import from the package, besides itself and the two bindings (C++).
 ALLOWED = {
     "game": set(),
+    "i18n": set(),
     "learning": {"game"},
     "rl": {"game", "learning"},
     "bots": {"game", "learning", "rl"},
     "experiments": {"game", "learning", "rl", "bots"},
-    "terminal": {"game"},
-    "commands": {"game", "learning", "rl", "bots", "experiments", "terminal"},
+    "terminal": {"game", "i18n"},
+    "commands": {"game", "learning", "rl", "bots", "experiments", "terminal", "i18n"},
 }
 
 

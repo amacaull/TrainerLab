@@ -14,9 +14,8 @@ from typing import Any
 
 import numpy as np
 
-from trainerlab.commands.console import stdout
+from trainerlab.commands.console import Write, stdout
 from trainerlab.experiments.parallel import cores
-from trainerlab.terminal.screen import Write
 
 
 def main(argv: list[str] | None = None, write: Write = stdout) -> int:

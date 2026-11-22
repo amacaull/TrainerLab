@@ -61,7 +61,7 @@ def generate(
     bot_b: str,
     seeds: range,
     jobs: int,
-    progress: parallel.Progress | None = None,
+    progress: parallel.Meter | None = None,
 ) -> dict[str, npt.NDArray[np.generic]]:
     """Every decision of the pairs of these seeds, played on `jobs` processes, as rows."""
     parts = parallel.run(build_block, bot_a, bot_b, seeds, jobs, progress)

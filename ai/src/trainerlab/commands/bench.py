@@ -8,9 +8,8 @@ The same lines in C++, through the engine's own API: search/build/search_bench.
 
 import argparse
 
-from trainerlab.commands.console import stdout
+from trainerlab.commands.console import Write, stdout
 from trainerlab.experiments.bench import measure
-from trainerlab.terminal.screen import Write
 
 
 def main(argv: list[str] | None = None, write: Write = stdout) -> int:

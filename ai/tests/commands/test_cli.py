@@ -1,165 +1,196 @@
-import itertools
-from collections.abc import Iterator
+import argparse
+from collections.abc import Iterator, Sequence
 from pathlib import Path
 
 import pytest
+from consoles import recording, text
+from prompter import DEFAULT, First, Scripted
 
-from trainerlab.bots.roster import BOTS
-from trainerlab.commands.cli import MODES, main
-from trainerlab.commands.menu import menu
-from trainerlab.terminal.human import Ask
-
-
-def _scripted(answers: list[str], prompts: list[str] | None = None) -> Ask:
-    replies: Iterator[str] = iter(answers)
-
-    def ask(prompt: str) -> str:
-        if prompts is not None:
-            prompts.append(prompt)
-        try:
-            return next(replies)
-        except StopIteration:
-            raise EOFError from None
-
-    return ask
+from trainerlab import i18n
+from trainerlab.bots.roster import BOTS, FEATURED
+from trainerlab.commands.cli import main, translate_argparse
+from trainerlab.commands.menu import OTHER, menu
+from trainerlab.i18n import settings
+from trainerlab.terminal.prompts import Line, Option, Separator, plain
 
 
-def _menu(answers: list[str]) -> tuple[list[str], str]:
-    """The command the menu builds, and everything it showed: lists, messages and prompts."""
-    shown: list[str] = []
-    return menu(_scripted(answers, shown), shown.append, MODES), "".join(shown)
+@pytest.fixture(autouse=True)
+def config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
+    """A config file of the test's own, English kept in it: no first-launch question."""
+    path = tmp_path / "config.toml"
+    monkeypatch.setenv("TRAINERLAB_CONFIG", str(path))
+    settings.save_language("en")
+    yield path
+    i18n.set_language("en")
+    translate_argparse()
 
 
-# The modes, in menu order: 1 play, 2 duel, 3 watch, 4 audit, 5 dataset.
-# The bots, in menu order: 1 random, 2 hitter, 3 dodger, 4 matcher, 5 survivor, 6 calculator.
+def _menu(answers: list[object]) -> tuple[list[str] | None, Scripted]:
+    prompter = Scripted(answers)
+    return menu(prompter, recording()), prompter
 
 
-def test_the_menu_lists_every_mode_and_every_bot_with_what_it_does() -> None:
-    _, shown = _menu(["2", "6", "5", "", ""])
-
-    assert "1. play" in shown
-    assert "5. dataset" in shown
-    assert "6. calculator  rule 5: survivor, but plays the damage the engine expects" in shown
+def _labels(options: Sequence[Line]) -> list[str]:
+    return [plain(o.label).split()[0] for o in options if isinstance(o, Option)]
 
 
-def test_a_duel_asks_how_many_pairs_and_from_which_seed() -> None:
-    command, shown = _menu(["2", "6", "5", "5000", "30000"])
-
-    assert command == ["duel", "calculator", "survivor", "--pairs", "5000", "--from", "30000"]
-    assert "How many pairs of battles (two battles each, sides swapped) [500] > " in shown
-    assert "Seed of the first pair [0] > " in shown
+def _label(options: Sequence[Line], index: int) -> str:
+    option = options[index]
+    assert isinstance(option, Option)
+    return plain(option.label)
 
 
-def test_enter_keeps_a_default_and_a_default_is_left_out_of_the_command() -> None:
-    assert _menu(["2", "2", "1", "", ""])[0] == ["duel", "hitter", "random"]
+def test_the_menu_offers_to_play_or_to_measure_then_the_language_and_quit() -> None:
+    _, prompter = _menu(["bots"])
 
-
-def test_a_name_is_as_good_as_its_number() -> None:
-    assert _menu(["duel", "hitter", "random", "12", ""])[0] == [
-        "duel",
-        *("hitter", "random", "--pairs", "12"),
-    ]
-
-
-def test_a_wrong_answer_is_asked_again() -> None:
-    answers = ["0", "9", "duel", "", "genius", "2", "1", "0", "x", "2", "-1", "7"]
-    command, shown = _menu(answers)
-
-    assert command == ["duel", "hitter", "random", "--pairs", "2", "--from", "7"]
-    assert shown.count("Type a number from 1 to 7.") == 2  # the mode: 0, 9
-    assert shown.count("Type a number from 1 to 17.") == 2  # bot A: empty (no default), genius
-    assert shown.count("Invalid answer, try again.") == 3
-
-
-def test_play_asks_for_the_opponent_the_seed_the_team_and_the_speed() -> None:
-    assert _menu(["1", "", "", "", "", ""])[0] == ["play"]  # Enter: forecaster, shipped model
-    team = "Dragapult,Snorlax"
-    assert _menu(["1", "2", "x", "42", team, "instant"])[0] == [
+    _, message, options, default = prompter.asked[0]
+    assert message == "What do you want to do?" and default == "play"
+    sections = [o.title for o in options if isinstance(o, Separator)]
+    assert sections == ["Play", "Measure", ""]
+    assert [o.value for o in options if isinstance(o, Option)] == [
         "play",
-        *("--against", "hitter", "--seed", "42", "--team", team, "--speed", "instant"),
+        "watch",
+        "duel",
+        "usage",
+        "audit",
+        "bots",
+        "language",
+        "quit",
     ]
 
 
-def test_watch_lists_losses_or_replays_one_battle() -> None:
-    assert _menu(["3", "5", "4", "", "", "20000"])[0] == [
-        "watch",
-        *("survivor", "matcher", "--losses", "--from", "20000"),
+def test_a_duel_asks_for_two_bots_and_the_pairs_and_leaves_defaults_out() -> None:
+    command, prompter = _menu(["duel", DEFAULT, DEFAULT, "5000", "30000"])
+
+    assert command == ["duel", "alphazero", "forecaster", "--pairs", "5000", "--from", "30000"]
+    assert _menu(["duel", "mcts", "hitter", DEFAULT, DEFAULT])[0] == ["duel", "mcts", "hitter"]
+    bots = prompter.asked[1][2]
+    assert _labels(bots) == [*FEATURED, "Another"]
+    assert "search guided by a network, the strongest" in _label(bots, 0)
+
+
+def test_another_bot_opens_every_other_bot_filtered_as_one_types() -> None:
+    command, prompter = _menu(["usage", OTHER, "focus", "hitter", DEFAULT, DEFAULT])
+
+    assert command == ["usage", "focus", "hitter"]
+    _, message, options, _ = prompter.asked[2]
+    assert message == "Another bot (type to filter)"
+    assert set(_labels(options)) == set(BOTS) - set(FEATURED)
+    assert "zero" in _labels(options) and "rule12" not in _labels(options)
+
+
+def test_play_asks_for_the_opponent_by_name_alone_the_team_the_seed_and_the_speed() -> None:
+    command, prompter = _menu(["play", OTHER, "nash", "random", "42", "fast"])
+
+    assert command == ["play", "--against", "nash", "--seed", "42", "--speed", "fast"]
+    assert _label(prompter.asked[1][2], 0) == "alphazero"  # no description to play
+    assert _menu(["play", DEFAULT, DEFAULT, "", DEFAULT])[0] == ["play"]
+
+
+def test_a_team_is_six_names_typed_with_completion_in_the_language_chosen() -> None:
+    i18n.set_language("fr")
+    picks = ["Léviator", "Ronflex", "Leuphorie", "Prédastérie", "Minotaupe", "Corvaillus"]
+
+    command, prompter = _menu(["play", DEFAULT, "own", *picks, "", DEFAULT])
+
+    assert command == [
+        "play",
+        "--team",
+        "Gyarados,Snorlax,Blissey,Toxapex,Excadrill,Corviknight",
     ]
-    assert _menu(["3", "5", "4", "2", "", "20004", "2", "1"])[0] == [
+    assert prompter.asked[3][1] == "Pokémon 1/6 (tape pour chercher)"
+
+
+def test_watch_looks_for_losses_or_replays_one_battle() -> None:
+    survivor, matcher = [OTHER, "survivor"], [OTHER, "matcher"]
+    assert _menu(["watch", *survivor, *matcher, "losses", "20", "500"])[0] == [
         "watch",
-        *("survivor", "matcher", "--seed", "20004", "--side", "1"),
+        "survivor",
+        "matcher",
+        "--losses",
+        "--pairs",
+        "20",
+        "--from",
+        "500",
     ]
-    assert _menu(["3", "5", "4", "seed", "7", ""])[0] == [
+    assert _menu(["watch", *survivor, *matcher, "seed", "77", "1"])[0] == [
         "watch",
         "survivor",
         "matcher",
         "--seed",
-        "7",
+        "77",
+        "--side",
+        "1",
+    ]
+    assert _menu(["watch", *survivor, *matcher, "seed", "77", DEFAULT])[0] == [
+        "watch",
+        "survivor",
+        "matcher",
+        "--seed",
+        "77",
     ]
 
 
-def test_audit_asks_for_two_bots_and_how_many_pairs() -> None:
-    assert _menu(["4", "5", "4", "1000", "20000"])[0] == [
+def test_audit_and_bots_take_what_they_need() -> None:
+    assert _menu(["audit", "hitter", "random", "12", DEFAULT])[0] == [
         "audit",
-        *("survivor", "matcher", "--pairs", "1000", "--from", "20000"),
+        "hitter",
+        "random",
+        "--pairs",
+        "12",
     ]
+    assert _menu(["bots"])[0] == ["bots"]
 
 
-def test_the_dataset_file_is_named_after_its_bots_and_seeds_unless_told_otherwise() -> None:
-    command, shown = _menu(["5", "6", "5", "2000", "40000", ""])
-    assert command == ["dataset", "calculator", "survivor", "--pairs", "2000", "--from", "40000"]
-    assert "[calculator-vs-survivor-40000-41999.npz]" in shown
-    assert _menu(["5", "6", "5", "", "", "mine.npz"])[0] == [
-        "dataset",
-        *("calculator", "survivor", "--out", "mine.npz"),
-    ]
+def test_quit_leaves_and_the_language_switches_and_is_kept(config: Path) -> None:
+    assert _menu(["quit"])[0] is None
+
+    assert _menu(["language"])[0] == []
+    assert i18n.language() == "fr" and settings.saved_language() == "fr"
+    assert _menu(["language"])[0] == []
+    assert i18n.language() == "en"
 
 
-def test_train_asks_for_a_dataset_that_exists_and_a_model(tmp_path: Path) -> None:
-    data = tmp_path / "d.npz"
-    data.write_bytes(b"")
+def test_at_the_first_launch_the_language_is_asked_once(config: Path) -> None:
+    config.unlink()
+    prompter = Scripted(["fr", "quit"])
 
-    command, shown = _menu(["6", "missing.npz", f"{data} {data}", "2", "mine.npz"])
+    assert main([], prompter, recording()) == 0
 
-    assert command == ["train", str(data), str(data), "--model", "network", "--out", "mine.npz"]
-    assert "Invalid answer, try again." in shown
-    assert _menu(["6", str(data), "", ""])[0] == ["train", str(data)]
-
-
-def test_the_forecaster_asks_for_its_model(tmp_path: Path) -> None:
-    model = tmp_path / "gen2.npz"
-    model.write_bytes(b"")
-
-    command, shown = _menu(["2", "7", "nowhere.npz", str(model), "7", "", "", ""])
-
-    assert command == ["duel", f"forecaster:{model}", "forecaster"]
-    assert "Its model (empty: the one shipped) > " in shown
-    assert _menu(["1", "7", str(model), "", "", ""])[0] == [
-        "play",
-        "--against",
-        f"forecaster:{model}",
-    ]
+    assert prompter.asked[0][1] == "Language / Langue"
+    assert prompter.asked[1][1] == "Que veux-tu faire ?"
+    assert settings.saved_language() == "fr"
 
 
-def test_the_menu_prints_the_command_then_runs_it(capsys: pytest.CaptureFixture[str]) -> None:
-    shown: list[str] = []
+def test_the_menu_runs_the_command_shows_it_in_one_line_and_comes_back() -> None:
+    console = recording()
 
-    assert main([], _scripted(["2", "1", "1", "1", "3"]), shown.append) == 0
+    assert main([], Scripted(["bots", "quit"]), console) == 0
 
-    assert shown[-1] == "\ntrainerlab duel random random --pairs 1 --from 3\n\n"
-    assert capsys.readouterr().out.startswith("random vs random: ")
+    shown = text(console)
+    assert "The bots of TrainerLab" in shown
+    assert "Same command: trainerlab bots" in shown
+    assert shown.count("Pokémon battles, and the AIs that learned to play them") == 2
+
+
+def test_play_from_the_menu_ends_on_back_to_the_menu() -> None:
+    prompter = First(["play", "hitter", "random", "3", "instant"])
+
+    assert main([], prompter, recording()) == 130  # the script ends at the menu: Ctrl-D
+
+    again = [options for _, message, options, _ in prompter.asked if message == "Play again?"]
+    assert _label(again[0], -1) == "Back to the menu"
 
 
 def test_leaving_the_menu_with_ctrl_d_stops_quietly() -> None:
-    shown: list[str] = []
-
-    assert main([], _scripted(["2"]), shown.append) == 130
+    assert main([], Scripted([]), recording()) == 130
 
 
 def test_each_command_runs_directly(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["duel", "hitter", "random", "--pairs", "1"]) == 0
     assert main(["watch", "hitter", "random", "--losses", "--pairs", "1"]) == 0
     assert main(["audit", "hitter", "random", "--pairs", "1"]) == 0
+    assert main(["usage", "hitter", "random", "--pairs", "1"]) == 0
     out = str(tmp_path / "d.npz")
     assert main(["dataset", "hitter", "random", "--pairs", "1", "--out", out]) == 0
     assert main(["train", "nowhere.npz"]) == 2
@@ -168,28 +199,57 @@ def test_each_command_runs_directly(tmp_path: Path, capsys: pytest.CaptureFixtur
     assert "hitter lost 0 of 2 battles against random." in printed
     assert (tmp_path / "d.npz").exists()
 
-    always_one = itertools.repeat("1")
     play = ["play", "--seed", "3", "--against", "hitter", "--speed", "instant", "--no-color"]
-    assert main(play, lambda prompt: next(always_one)) == 0
+    assert main(play, First(), recording()) == 0
 
 
-def test_bots_lists_every_bot(capsys: pytest.CaptureFixture[str]) -> None:
-    assert main(["bots"]) == 0
+def test_bots_lists_every_bot_with_its_rule_by_section() -> None:
+    console = recording()
 
-    lines = capsys.readouterr().out.splitlines()
-    assert [line.split()[0] for line in lines] == list(BOTS)
+    assert main(["bots"], console=console) == 0
+
+    shown = text(console)
+    rows = [line.strip("│ ").split() for line in shown.splitlines()]
+    rows = [row for row in rows if row and row[0] in ("1", "16")]
+    assert rows[0][:2] == ["1", "hitter"] and rows[1][:2] == ["16", "alphazero"]
+    assert shown.index("Hand-written rules") < shown.index("Search") < shown.index("Neural")
+    assert all(name in shown for name in BOTS)
 
 
-def test_help_and_an_unknown_command() -> None:
-    shown: list[str] = []
-    assert main(["--help"], write=shown.append) == 0
-    assert shown[0].startswith("usage: trainerlab [COMMAND [OPTIONS]]")
-    assert "  dataset   turn battles into a dataset to learn from" in shown[0]
-    assert "  alphazero improve the network with its own search" in shown[0]
+def test_help_lists_the_commands_by_section() -> None:
+    console = recording()
+    assert main(["--help"], console=console) == 0
+    shown = text(console)
+    assert "Usage: trainerlab [COMMAND [OPTIONS]]" in shown
+    assert shown.index(" Play") < shown.index(" Measure") < shown.index(" Train")
+    assert "   alphazero  improve the network with its own search" in shown
+    assert "History (paliers 3 to 6)" in shown
 
-    shown.clear()
-    assert main(["fight"], write=shown.append) == 2
-    assert shown[0].startswith("trainerlab: unknown command 'fight'")
+
+def test_an_unknown_command_is_refused_with_the_help() -> None:
+    console = recording()
+    assert main(["fight"], console=console) == 2
+    assert text(console).startswith("trainerlab: unknown command 'fight'")
+
+
+def test_lang_chooses_the_language_of_one_launch(config: Path) -> None:
+    console = recording()
+
+    assert main(["--lang", "fr", "--help"], console=console) == 0
+
+    assert "Usage : trainerlab [COMMANDE [OPTIONS]]" in text(console)
+    assert settings.saved_language() == "en"  # one launch only
+    with pytest.raises(SystemExit, match="--lang takes en or fr"):
+        main(["--lang", "de", "bots"], console=recording())
+
+
+def test_argparse_speaks_the_language_chosen(capsys: pytest.CaptureFixture[str]) -> None:
+    i18n.set_language("fr")
+    translate_argparse()
+    with pytest.raises(SystemExit):
+        argparse.ArgumentParser(prog="x").parse_args(["--help"])
+    assert "usage : x" in capsys.readouterr().out
+    assert argparse._("unrecognized arguments: %s") == "unrecognized arguments: %s"  # type: ignore[attr-defined]
 
 
 def test_without_arguments_the_command_line_is_read(
@@ -198,8 +258,19 @@ def test_without_arguments_the_command_line_is_read(
     monkeypatch.setattr("sys.argv", ["trainerlab", "--help"])
 
     assert main() == 0
-    assert capsys.readouterr().out.startswith("usage:")
+    assert "Usage: trainerlab" in capsys.readouterr().out
 
 
-def test_usage_asks_for_two_bots_and_the_pairs() -> None:
-    assert _menu(["usage", "random", "hitter", "", ""])[0] == ["usage", "random", "hitter"]
+def test_a_number_of_pairs_or_a_seed_is_checked_before_it_is_taken() -> None:
+    from trainerlab.commands.menu import _valid
+    from trainerlab.commands.options import count
+
+    assert _valid(count)("12") and not _valid(count)("0") and not _valid(count)("x")
+
+
+def test_switching_the_language_from_the_menu_shows_the_menu_again_in_it() -> None:
+    console = recording()
+
+    assert main([], Scripted(["language", "quit"]), console) == 0
+
+    assert "Des combats Pokémon, et les IA qui ont appris à y jouer" in text(console)

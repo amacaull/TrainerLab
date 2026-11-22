@@ -84,3 +84,12 @@ def test_a_search_bot_takes_its_number_of_simulations(tmp_path: Path) -> None:
         bot_spec("plan:missing.pt@800")
     assert slug("alphazero@800") == "alphazero-800"
     assert slug("plan:runs/az.pt@800") == "plan-az-800"
+
+
+def test_every_bot_has_its_rule_and_the_featured_ones_are_bots() -> None:
+    from trainerlab.bots.roster import FEATURED, RULES
+
+    assert set(RULES) == set(BOTS)
+    assert RULES["random"] is None and RULES["hitter"] == 1 and RULES["alphazero"] == 16
+    assert [RULES[name] for name in ("zero", "deepzero", "focus", "scout")] == [12, 13, 14, 15]
+    assert FEATURED == ["alphazero", "mcts", "forecaster", "calculator", "hitter", "random"]

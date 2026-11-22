@@ -4,6 +4,7 @@ import argparse
 
 from trainerlab.bots.roster import BOTS, WITH_MODEL, bot_spec
 from trainerlab.experiments.parallel import cores
+from trainerlab.i18n import t
 
 PAIRS = 500  # the default length of a series: about a minute on a laptop
 SCANNED_PAIRS = 50  # the pairs `watch --losses` looks through by default
@@ -31,12 +32,9 @@ def seeds_of(args: argparse.Namespace) -> range:
 def add_bots(parser: argparse.ArgumentParser) -> None:
     names = ", ".join(BOTS)
     parser.add_argument(
-        "bot_a",
-        type=bot_spec,
-        metavar="BOT_A",
-        help=f"the bot measured: {names}, or {WITH_MODEL}:MODEL.npz with another model",
+        "bot_a", type=bot_spec, metavar="BOT_A", help=t("opt.bot_a", names=names, model=WITH_MODEL)
     )
-    parser.add_argument("bot_b", type=bot_spec, metavar="BOT_B", help="its opponent")
+    parser.add_argument("bot_b", type=bot_spec, metavar="BOT_B", help=t("opt.bot_b"))
 
 
 def add_jobs(parser: argparse.ArgumentParser) -> None:
@@ -44,16 +42,13 @@ def add_jobs(parser: argparse.ArgumentParser) -> None:
         "--jobs",
         type=count,
         default=cores(),
-        help=f"processes playing the pairs; same results, faster (default: {cores()}, every core)",
+        help=t("opt.jobs", cores=cores()),
     )
 
 
-def add_pairs(parser: argparse.ArgumentParser, default: int = PAIRS, what: str = "to play") -> None:
+def add_pairs(parser: argparse.ArgumentParser, default: int = PAIRS) -> None:
     parser.add_argument(
-        "--pairs",
-        type=count,
-        default=default,
-        help=f"pairs of battles {what}, two battles each, sides swapped (default: {default})",
+        "--pairs", type=count, default=default, help=t("opt.pairs", default=default)
     )
     parser.add_argument(
         "--from",
@@ -61,5 +56,5 @@ def add_pairs(parser: argparse.ArgumentParser, default: int = PAIRS, what: str =
         type=seed,
         default=0,
         metavar="SEED",
-        help="the seed of the first pair, the next ones follow (default: 0)",
+        help=t("opt.from"),
     )

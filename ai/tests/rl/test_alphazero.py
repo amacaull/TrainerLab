@@ -178,15 +178,17 @@ def test_the_command_measures_every_few_iterations_and_after_the_last(
     monkeypatch.setattr(alphazero, "loop", loop)
     shown: list[str] = []
     out = tmp_path / "az.pt"
-    argv = [str(SELFPLAY), "--iterations", "7", "--follow", "3", "--out", str(out)]
+    argv = [str(SELFPLAY), "--iterations", "12", "--follow", "3", "--out", str(out)]
 
     assert command.main(argv, shown.append) == 0
 
-    assert measured == [f"plan:{tmp_path / f'az-{i}.pt'}" for i in (3, 6, 7)]
-    assert opponents == [f"plan:{SELFPLAY}"] * 3  # the network it started from
+    # A copy every 10 iterations and after the last; in between, the network as it stands.
+    copies = {10: tmp_path / "az-10.pt", 12: tmp_path / "az-12.pt"}
+    assert measured == [f"plan:{copies.get(i, out)}" for i in (3, 6, 9, 12)]
+    assert sorted(p.name for p in tmp_path.glob("az-*.pt")) == ["az-10.pt", "az-12.pt"]
+    assert opponents == [f"plan:{SELFPLAY}"] * 4  # the network it started from
     assert "entropy 1.200" in shown[1] and "fresh 1.400, 0.450" in shown[1]
     assert "1 from endgames" in shown[1] and "1 with small teams" in shown[1]
-    assert (tmp_path / "az-1.pt").is_file()  # saved each iteration
 
     opponents.clear()
     assert command.main([*argv, "--iterations", "1", "--against", "planner"], shown.append) == 0

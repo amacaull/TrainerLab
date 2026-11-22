@@ -6,8 +6,7 @@ trainerlab pretrain imitate-forecaster-vs-calculator-110000-111999.npz --out net
 import argparse
 from pathlib import Path
 
-from trainerlab.commands.console import stdout
-from trainerlab.terminal.screen import Write
+from trainerlab.commands.console import Write, stdout
 
 
 def main(argv: list[str] | None = None, write: Write = stdout) -> int:

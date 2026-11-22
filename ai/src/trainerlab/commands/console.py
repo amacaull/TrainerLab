@@ -2,6 +2,9 @@
 
 import signal
 import sys
+from collections.abc import Callable
+
+Write = Callable[[str], None]
 
 
 def stdout(text: str) -> None:

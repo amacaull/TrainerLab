@@ -1,6 +1,7 @@
 """Each check must find the mistakes found by hand in the error analysis (ai/analysis/)."""
 
 import pytest
+from consoles import recording, shown
 
 from trainerlab import _engine
 from trainerlab._engine import Action
@@ -133,41 +134,49 @@ def test_audit_counts_each_check_by_outcome() -> None:
 
 
 def test_the_report_gives_a_rate_and_the_share_of_won_and_lost_battles() -> None:
-    out: list[str] = []
+    console = recording()
     argv = ["survivor", "matcher", "--pairs", "2", "--from", "20042"]
-    assert main(argv, write=out.append) == 0
-    lines = "".join(out).splitlines()
-    assert lines[0] == (
-        "survivor against matcher, seeds 20042-20043: 4 battles (2 won, 0 drawn, 2 lost), "
-        f"{audit(BOTS['survivor'], BOTS['matcher'], seeds=range(20042, 20044)).decisions} "
-        "decisions by survivor."
-    )
-    assert lines[2].split() == ["check", "per", "1000", "decisions", "in", "lost", "in", "won"]
-    rows = _table(lines)
-    assert [line.split()[0] for line in rows] == [*CHECKS, *STRATEGIC]
-    assert lines[3 + len(CHECKS)] == "strategic"
-    assert lines[-1].startswith("of the ") and "boosts: wasted " in lines[-1]
+    assert main(argv, console=console) == 0
+    text = shown(console)
     result = audit(BOTS["survivor"], BOTS["matcher"], seeds=range(20042, 20044))
-    fixed = next(line for line in lines if line.startswith("fixed-damage-ko-missed"))
+    assert "survivor's mistakes" in text and "against matcher · 2 pairs · 4 battles" in text
+    assert f"2 won · 0 drawn · 2 lost · {result.decisions} decisions" in text
+    assert text.index("Move that fails") < text.index("Strategic") < text.index("Sure knock-out")
     rate = 1000 * result.checks["fixed-damage-ko-missed"].occurrences / result.decisions
-    assert fixed.split()[1] == f"{rate:.1f}"
+    fixed = next(line for line in text.splitlines() if "Fixed-damage knock-out missed" in line)
+    assert fixed.split()[3] == f"{rate:.1f}"
+    assert "Of the " in text and " boosts: wasted " in text
 
 
 def test_a_share_is_left_blank_when_there_is_no_battle_to_divide_by() -> None:
-    out: list[str] = []
-    assert main(["hitter", "random", "--pairs", "1"], write=out.append) == 0
+    console = recording()
+    assert main(["hitter", "random", "--pairs", "1"], console=console) == 0
     # Rule 1 never loses these two battles: the "in lost" column has nothing to divide by.
-    assert all(line.split()[-2] == "-" for line in _table("".join(out).splitlines()))
-    assert "".join(out).splitlines()[-1] == (
-        "of the 0 boosts: wasted -, into-phazer -, into-ko -"
-    )  # hitter never boosts
+    text = shown(console)
+    assert "Move that fails" in text
+    row = next(line for line in text.splitlines() if "Move that fails" in line)
+    assert row.split()[3:] == ["0.0", "-", "0.0", "%"]
+    assert "Of the 0 boosts: wasted - · before a phazing - · before a knock-out -" in text
 
 
-def _table(lines: list[str]) -> list[str]:
-    """The rows of the report's table: one per check."""
-    return [line for line in lines[3:] if line and line != "strategic" and " boosts:" not in line]
+def test_a_mistake_far_more_frequent_in_lost_battles_stands_out_in_red() -> None:
+    from trainerlab.terminal.reports import audit_report
+
+    report = audit_report(
+        "a",
+        "b",
+        1,
+        {"win": 1, "draw": 0, "loss": 1},
+        10,
+        [("failed", 1.0, 1, 0, False)],
+        0,
+        {"boost-wasted": 0, "boost-into-phazer": 0, "boost-into-ko": 0},
+    )
+    console = recording(terminal=True)
+    console.print(report)
+    assert "\x1b[31m" in shown(console) and "100.0 %" in shown(console)
 
 
 def test_by_default_the_report_goes_to_the_terminal(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["hitter", "random", "--pairs", "1"]) == 0
-    assert capsys.readouterr().out.startswith("hitter against random, seeds 0-0")
+    assert "hitter's mistakes" in capsys.readouterr().out

@@ -4,41 +4,47 @@ trainerlab usage forecaster calculator --pairs 200 --from 96000
 """
 
 import argparse
+from collections.abc import Iterator
+
+from rich.console import Console
 
 from trainerlab.bots.roster import factory
-from trainerlab.commands.console import stdout
 from trainerlab.commands.options import add_bots, add_pairs, seeds_of
-from trainerlab.experiments.usage import KINDS, usage
-from trainerlab.game.pairs import span
-from trainerlab.terminal.screen import Write
+from trainerlab.experiments.usage import usage
+from trainerlab.i18n import t
+from trainerlab.terminal import reports
+from trainerlab.terminal.progress import Bar, progress_bar
 
 PAIRS = 200
+ORDER = ["attack", "switch", "boost", "status", "recovery", "hazard", "other"]
 
 
-def main(argv: list[str] | None = None, write: Write = stdout) -> int:
-    parser = argparse.ArgumentParser(
-        prog="trainerlab usage", description="Count the kinds of moves a bot plays."
-    )
+def _counted(seeds: range, bar: Bar) -> Iterator[int]:
+    for done, seed in enumerate(seeds):
+        bar.update(done)
+        yield seed
+    bar.update(len(seeds))
+
+
+def main(argv: list[str] | None = None, *, console: Console | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="trainerlab usage", description=t("command.usage"))
     add_bots(parser)
     add_pairs(parser, PAIRS)
     args = parser.parse_args(argv)
+    console = console or Console(highlight=False)
 
     seeds = seeds_of(args)
-    result = usage(factory(args.bot_a), factory(args.bot_b), seeds=seeds)
-    write(
-        f"{args.bot_a} against {args.bot_b}, seeds {span(seeds)}: "
-        f"{result.turns} turns by {args.bot_a}.\n\n"
-    )
-    write(f"{'kind':<10}{'an option':>12}{'played':>10}{'when an option':>16}\n")
-    for kind in KINDS:
-        available, played = result.available[kind], result.played[kind]
-        when = f"{100 * played / available:.1f}%" if available else "-"
-        write(
-            f"{kind:<10}{_share(available, result.turns):>12}"
-            f"{_share(played, result.turns):>10}{when:>16}\n"
+    with progress_bar(console, t("duel.progress"), len(seeds)) as bar:
+        result = usage(factory(args.bot_a), factory(args.bot_b), seeds=_counted(seeds, bar))
+    console.print(
+        reports.usage_report(
+            args.bot_a,
+            args.bot_b,
+            len(seeds),
+            result.turns,
+            ORDER,
+            result.available,
+            result.played,
         )
+    )
     return 0
-
-
-def _share(part: int, whole: int) -> str:
-    return f"{100 * part / whole:.1f}%" if whole else "-"

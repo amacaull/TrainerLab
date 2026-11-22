@@ -45,33 +45,22 @@ BOTS: dict[str, BotFactory] = {
     "mcts": lambda seed: Mcts(seed=seed),  # rule 9
     "selfplay": lambda seed: _net_bot(str(SELFPLAY))(seed),  # rule 10, needs [rl]
     "planner": lambda seed: _planner(str(SELFPLAY), seed),  # rule 11, needs [rl]
-    "rule12": lambda seed: _planner(str(RULE12), seed),  # rule 12, needs [rl]
-    "rule13": lambda seed: _planner(str(RULE13), seed),  # rule 13, needs [rl]
-    "rule14": lambda seed: _planner(str(RULE14), seed),  # rule 14, needs [rl]
-    "rule15": lambda seed: _planner(str(RULE14), seed, replacements=True),  # rule 15
+    "zero": lambda seed: _planner(str(RULE12), seed),  # rule 12, needs [rl]
+    "deepzero": lambda seed: _planner(str(RULE13), seed),  # rule 13, needs [rl]
+    "focus": lambda seed: _planner(str(RULE14), seed),  # rule 14, needs [rl]
+    "scout": lambda seed: _planner(str(RULE14), seed, replacements=True),  # rule 15
     "alphazero": lambda seed: _planner(str(ALPHAZERO), seed, replacements=True),  # rule 16
 }
 
-# One line each, shown by the menu and by `trainerlab bots`.
-DESCRIPTIONS: dict[str, str] = {
-    "random": "picks any legal option at random",
-    "hitter": "rule 1: plays its highest power x STAB x type x accuracy",
-    "dodger": "rule 2: hitter, but leaves a super effective threat",
-    "matcher": "rule 3: hitter, but sends in the best matchup after a knock-out",
-    "survivor": "rule 4: matcher, but saves a healthy Pokemon about to fall first",
-    "calculator": "rule 5: survivor, but plays the damage the engine expects",
-    "forecaster": "rule 6: plays each option a turn ahead, keeps what the win model rates best",
-    "strategist": "rule 7: forecaster, but rates each option by the foe's best reply",
-    "nash": "rule 8: draws from the mixed strategy of the simultaneous game, a turn deep",
-    "mcts": "rule 9: a tree search over simultaneous moves, three turns deep",
-    "selfplay": "rule 10: a network trained by self-play, plays without search",
-    "planner": "rule 11: a tree search over simultaneous moves guided by rule 10's network",
-    "rule12": "rule 12: rule 11, its network trained on its own search (AlphaZero)",
-    "rule13": "rule 13: rule 12, its network trained further on deeper searches",
-    "rule14": "rule 14: a network with attention that sees the matchups, trained on its search",
-    "rule15": "rule 15: rule 14, its replacements after a knock-out searched",
-    "alphazero": "rule 16: rule 15, its network trained on its searched replacements",
-}
+# The rule each bot stands for (docs/results.md); the words saying what each does are in
+# trainerlab/i18n/messages.py (bot.NAME), in English and in French.
+RULES: dict[str, int | None] = {
+    "random": None, "hitter": 1, "dodger": 2, "matcher": 3, "survivor": 4, "calculator": 5,
+    "forecaster": 6, "strategist": 7, "nash": 8, "mcts": 9, "selfplay": 10, "planner": 11,
+    "zero": 12, "deepzero": 13, "focus": 14, "scout": 15, "alphazero": 16,
+}  # fmt: skip
+# The bots the menus offer first; every other one is a name to type.
+FEATURED = ["alphazero", "mcts", "forecaster", "calculator", "hitter", "random"]
 
 DEFAULT_OPPONENT = "forecaster"  # beats every bot but strategist, head to head
 # The bots that play with a win probability model, and can be given another one.
@@ -90,15 +79,15 @@ PLAN = "plan"
 # plan:FILE.pt, takes @N to search N simulations per decision instead of 200: alphazero@800.
 SEARCHERS = {
     "planner": SELFPLAY,
-    "rule12": RULE12,
-    "rule13": RULE13,
-    "rule14": RULE14,
-    "rule15": RULE14,
+    "zero": RULE12,
+    "deepzero": RULE13,
+    "focus": RULE14,
+    "scout": RULE14,
     "alphazero": ALPHAZERO,
 }
 # Those that search their replacements after a knock-out (palier 10.4), and plan:FILE.pt; the
 # bots measured before send in their network's favourite.
-REPLACING = {"rule15", "alphazero", PLAN}
+REPLACING = {"scout", "alphazero", PLAN}
 
 
 def factory(spec: str) -> BotFactory:

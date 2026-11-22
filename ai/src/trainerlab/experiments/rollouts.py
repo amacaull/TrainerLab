@@ -159,7 +159,7 @@ def verify_all(
     blunders: list[Blunder],
     games: int,
     jobs: int,
-    progress: parallel.Progress | None = None,
+    progress: parallel.Meter | None = None,
 ) -> list[Verification]:
     """`verify` on each blunder, one process each on `jobs` cores, in the order given."""
     results: dict[int, Verification] = {}

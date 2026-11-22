@@ -7,51 +7,53 @@ The strategic checks come after the first ones; the boost checks also as a share
 
 import argparse
 
-from trainerlab.commands.console import quiet_on_closed_pipe, stdout
+from rich.console import Console
+
+from trainerlab.commands.console import quiet_on_closed_pipe
 from trainerlab.commands.options import add_bots, add_jobs, add_pairs, seeds_of
-from trainerlab.experiments import parallel
 from trainerlab.experiments.audit import CHECKS, audit_on_cores
-from trainerlab.game.pairs import span
-from trainerlab.terminal.screen import Write
+from trainerlab.i18n import t
+from trainerlab.terminal import reports
+from trainerlab.terminal.progress import progress_bar
+
+BOOSTS = ("boost-wasted", "boost-into-phazer", "boost-into-ko")
 
 
-def main(argv: list[str] | None = None, write: Write = stdout) -> int:
-    parser = argparse.ArgumentParser(
-        prog="trainerlab audit", description="Count a bot's mistakes a program can spot."
-    )
+def main(argv: list[str] | None = None, *, console: Console | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="trainerlab audit", description=t("command.audit"))
     add_bots(parser)
     add_pairs(parser)
     add_jobs(parser)
     args = parser.parse_args(argv)
-    if write is stdout:
+    if console is None:
         quiet_on_closed_pipe()
+    console = console or Console(highlight=False)
 
     seeds = seeds_of(args)
-    progress = parallel.progress_on_terminal(len(seeds))
-    result = audit_on_cores(args.bot_a, args.bot_b, seeds, args.jobs, progress)
-    won, drawn, lost = (result.battles[o] for o in ("win", "draw", "loss"))
-    write(
-        f"{args.bot_a} against {args.bot_b}, seeds {span(seeds)}: "
-        f"{won + drawn + lost} battles ({won} won, {drawn} drawn, {lost} lost), "
-        f"{result.decisions} decisions by {args.bot_a}.\n\n"
-    )
-    write(f"{'check':<24}{'per 1000 decisions':>20}{'in lost':>10}{'in won':>10}\n")
-    for name, count in result.checks.items():
-        if name not in CHECKS and name == "boost":
-            write("strategic\n")
-        rate = 1000 * count.occurrences / result.decisions
-        write(
-            f"{name:<24}{rate:>20.1f}"
-            f"{_share(count.battles['loss'], lost):>10}{_share(count.battles['win'], won):>10}\n"
+    with progress_bar(console, t("duel.progress"), len(seeds)) as bar:
+        result = audit_on_cores(args.bot_a, args.bot_b, seeds, args.jobs, bar)
+    rows = [
+        (
+            name,
+            1000 * count.occurrences / result.decisions,
+            count.battles["loss"],
+            count.battles["win"],
+            name not in CHECKS,
         )
-    boosts = result.checks["boost"].occurrences
-    shares = ", ".join(
-        f"{name.removeprefix('boost-')} {_share(result.checks[name].occurrences, boosts)}"
-        for name in ("boost-wasted", "boost-into-phazer", "boost-into-ko")
+        for name, count in result.checks.items()
+        if name != "boost" and name not in BOOSTS
+    ]
+    boosts = {name: result.checks[name].occurrences for name in BOOSTS}
+    console.print(
+        reports.audit_report(
+            args.bot_a,
+            args.bot_b,
+            len(seeds),
+            {str(outcome): count for outcome, count in result.battles.items()},
+            result.decisions,
+            rows,
+            result.checks["boost"].occurrences,
+            boosts,
+        )
     )
-    write(f"\nof the {boosts} boosts: {shares}\n")
     return 0
-
-
-def _share(part: int, whole: int) -> str:
-    return f"{100 * part / whole:.1f}%" if whole else "-"
