@@ -119,6 +119,38 @@ TEST_CASE("self-play keeps each battle's first endgame, and battles can start fr
                   std::invalid_argument);
 }
 
+TEST_CASE("searched replacements are rows: the switch the search chose, no foe's option") {
+  const search::Network net = search::testing::randomNetwork(game());
+  search::SelfPlaySettings settings = small(200);
+  settings.replacementSimulations = 4;
+  const search::SelfPlayData data = search::selfPlay(game(), net, settings, 4, 31, 2);
+  constexpr size_t actions = search::Encoding::kActions;
+  int replacements = 0;
+  for (size_t r = 0; r < static_cast<size_t>(data.rows()); ++r) {
+    if (data.foe[r] >= 0)
+      continue;
+    ++replacements;
+    float total = 0.0f;
+    for (size_t a = 0; a < actions; ++a) {
+      if (a < 4)
+        CHECK(data.mask[r * actions + a] == 0.0f); // a replacement: switches only
+      total += data.policy[r * actions + a];
+      CHECK((data.policy[r * actions + a] == 0.0f || data.policy[r * actions + a] == 1.0f));
+      CHECK((data.mask[r * actions + a] == 1.0f || data.policy[r * actions + a] == 0.0f));
+    }
+    CHECK(total == 1.0f);
+  }
+  CHECK(replacements > 0);
+  const search::SelfPlayData alone = search::selfPlay(game(), net, settings, 4, 31, 1);
+  CHECK(alone.policy == data.policy);
+
+  // Without searched replacements, every row is a turn's decision.
+  for (int32_t foe : search::selfPlay(game(), net, small(200), 2, 31, 1).foe)
+    CHECK(foe >= 0);
+  settings.replacementSimulations = 1;
+  CHECK_THROWS_AS(search::selfPlay(game(), net, settings, 1, 0, 1), std::invalid_argument);
+}
+
 TEST_CASE("self-play's rows are the same for any number of threads") {
   const search::Network net = search::testing::randomNetwork(game());
   const search::SelfPlayData one = search::selfPlay(game(), net, small(40, 2, 4), 4, 3, 1);

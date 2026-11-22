@@ -110,9 +110,10 @@ def test_a_search_bot_searches_as_many_simulations_as_asked() -> None:
 
 def test_alphazero_searches_its_replacements_and_the_bots_measured_do_not() -> None:
     # Palier 10.4: a replacement after a knock-out was the network's favourite, never searched.
-    for name in ("planner", "rule12", "rule13", f"plan:{SELFPLAY}", "rule13@8"):
+    # rule14 is rule 15's network as rule 14 played it; plan:FILE.pt searches them, as alphazero.
+    for name in ("planner", "rule12", "rule13", "rule14", "rule14@8"):
         assert factory(name)(0)._replacements is False  # type: ignore[attr-defined]
-    for name in ("alphazero", "alphazero@8"):
+    for name in ("alphazero", "alphazero@8", f"plan:{SELFPLAY}", f"plan:{SELFPLAY}@4"):
         assert factory(name)(0)._replacements is True  # type: ignore[attr-defined]
 
     env = BattleEnvironment(["Snorlax", "Blissey", "Conkeldurr"], ["Excadrill"], seed=1)
