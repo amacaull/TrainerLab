@@ -32,16 +32,27 @@ def to_cpp(net: PolicyValueNet) -> _search.Network:
 
 
 SIMULATIONS = 200  # rule 11's, fixed before measuring
+# Palier 10.4: a replacement searched searches each option a quarter of a decision's simulations.
+REPLACEMENT_SHARE = 4
 
 
 class Planner:
     """Searches `simulations` simulations per decision (search/include/search/planner.hpp), and
-    plays the option visited most. Replacements are the network's favourite switch, no search."""
+    plays the option visited most. Replacements are the network's favourite switch, or with
+    `replacements` the option whose position a short search values most (palier 10.4)."""
 
-    def __init__(self, path: Path, *, seed: int = 0, simulations: int = SIMULATIONS) -> None:
+    def __init__(
+        self,
+        path: Path,
+        *,
+        seed: int = 0,
+        simulations: int = SIMULATIONS,
+        replacements: bool = False,
+    ) -> None:
         self.network = cpp_network(path)
         self._rng = random.Random(seed)
         self._simulations = simulations
+        self._replacements = replacements
 
     def choose_action(
         self, side: int, view: _engine.BattleState, legal: list[_engine.Action]
@@ -50,6 +61,10 @@ class Planner:
         return legal[self.network.plan_action(view, side, legal, seed, self._simulations)]
 
     def choose_replacement(self, side: int, view: _engine.BattleState, options: list[int]) -> int:
+        if self._replacements and len(options) > 1:  # palier 10.4: each option searched
+            seed = self._rng.getrandbits(63)
+            simulations = max(2, self._simulations // REPLACEMENT_SHARE)
+            return self.network.plan_replacement(view, side, options, seed, simulations)
         mask = np.zeros(ACTIONS, dtype=np.float32)
         mask[[MOVES + index for index in options]] = 1
         logits, _ = self.network.evaluate(view, side, mask)

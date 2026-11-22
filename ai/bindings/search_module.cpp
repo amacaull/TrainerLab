@@ -266,6 +266,20 @@ PYBIND11_MODULE(_search, m) {
           "Rule 11: the index, in `legal`, of the option a tree search guided by this network "
           "visits most, after `simulations` simulations; the same seed makes the same decision.")
       .def(
+          "plan_replacement",
+          [](const search::Network &net, const engine::BattleState &view, int side,
+             const std::vector<int> &options, uint64_t seed, int simulations) {
+            if (options.empty())
+              throw std::invalid_argument("plan_replacement: at least one option");
+            const py::gil_scoped_release free;
+            return search::Planner(loaded(), net)
+                .searchReplacement(view, side, options, seed, simulations);
+          },
+          py::arg("view"), py::arg("side"), py::arg("options"), py::arg("seed"),
+          py::arg("simulations"),
+          "Palier 10.4: the team index, among `options`, whose replacement leaves `side` the best "
+          "value, each searched `simulations` simulations; the same seed makes the same choice.")
+      .def(
           "judge",
           [](const search::Network &net, const engine::BattleState &view, int side,
              const std::vector<engine::ffi::FfiAction> &legal, uint64_t seed, int simulations,

@@ -3,10 +3,12 @@
 #include "random_network.hpp"
 
 #include "engine/core/observation.hpp"
+#include "engine/core/switching.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <string>
 #include <vector>
@@ -172,6 +174,24 @@ TEST_CASE("an attention network masks, values within -1 and 1, the same alone an
   const search::Planner planner(game(), net, {40, 2, 1.5, 0.0});
   const auto legal = game().rules().legalActions(states[0], 0);
   CHECK(static_cast<size_t>(planner.chooseAction(views[0], 0, legal, 3)) < legal.size());
+}
+
+TEST_CASE("a searched replacement is one of the options, the same for the same seed") {
+  const search::Network net = smallNetwork();
+  const search::Planner planner(game(), net, {40, 2, 1.5, 0.0});
+  int checked = 0;
+  for (const engine::BattleState &state : search::openings(game(), 8)) {
+    engine::BattleState view = engine::observe(state, 0);
+    view.active(0).currentHp = 0; // the lead knocked out: a replacement to choose
+    const std::vector<int> options = engine::validSwitchTargets(view, 0);
+    if (options.size() < 2)
+      continue;
+    const int choice = planner.searchReplacement(view, 0, options, 10, 12);
+    CHECK(std::find(options.begin(), options.end(), choice) != options.end());
+    CHECK(planner.searchReplacement(view, 0, options, 10, 12) == choice);
+    ++checked;
+  }
+  CHECK(checked > 0);
 }
 
 TEST_CASE("the network's kernel multiplies rows by a matrix, as the plain sums do") {

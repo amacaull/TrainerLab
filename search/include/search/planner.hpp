@@ -65,6 +65,11 @@ public:
 
   // The team index of the network's favourite Pokemon to send in, without search.
   int chooseReplacement(const engine::BattleState &view, int side) const;
+  // Palier 10.4: the team index, among `options`, whose replacement leaves `side` the best value:
+  // each option played on the view, then searched `simulations` simulations (the network's value
+  // when the side has one option or the battle is over). The seed fixes the searches.
+  int searchReplacement(const engine::BattleState &view, int side, const std::vector<int> &options,
+                        uint64_t seed, int simulations) const;
   // The same in two steps, for a caller that batches its queries: the mask of `side`'s switches
   // in `view`, then the team index the network's output for it picks.
   static std::array<float, Encoding::kActions> replacementMask(const engine::BattleState &view,

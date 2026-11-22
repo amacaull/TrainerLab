@@ -44,7 +44,7 @@ BOTS: dict[str, BotFactory] = {
     "planner": lambda seed: _planner(str(SELFPLAY), seed),  # rule 11, needs [rl]
     "rule12": lambda seed: _planner(str(RULE12), seed),  # rule 12, needs [rl]
     "rule13": lambda seed: _planner(str(RULE13), seed),  # rule 13, needs [rl]
-    "alphazero": lambda seed: _planner(str(ALPHAZERO), seed),  # rule 14, needs [rl]
+    "alphazero": lambda seed: _planner(str(ALPHAZERO), seed, replacements=True),  # rule 14
 }
 
 # One line each, shown by the menu and by `trainerlab bots`.
@@ -82,6 +82,9 @@ PLAN = "plan"
 # The bots that search a tree with a network, by the network they search with. Any of them, and
 # plan:FILE.pt, takes @N to search N simulations per decision instead of 200: alphazero@800.
 SEARCHERS = {"planner": SELFPLAY, "rule12": RULE12, "rule13": RULE13, "alphazero": ALPHAZERO}
+# Those that search their replacements after a knock-out (palier 10.4); the others, and
+# plan:FILE.pt, send in their network's favourite.
+REPLACING = {"alphazero"}
 
 
 def factory(spec: str) -> BotFactory:
@@ -90,7 +93,8 @@ def factory(spec: str) -> BotFactory:
     if simulations is not None:
         name, _, model = base.partition(":")
         path = str(Path(model).resolve()) if name == PLAN else str(SEARCHERS[name])
-        return lambda seed: _planner(path, seed, simulations)
+        replacing = name in REPLACING
+        return lambda seed: _planner(path, seed, simulations, replacements=replacing)
     name, _, model = spec.partition(":")
     if name == NET:
         return _net_bot(str(Path(model).resolve()))
@@ -109,10 +113,14 @@ def _net_bot(path: str) -> BotFactory:
     return lambda seed: NetBot(Path(path))
 
 
-def _planner(path: str, seed: int, simulations: int | None = None) -> Bot:
+def _planner(
+    path: str, seed: int, simulations: int | None = None, *, replacements: bool = False
+) -> Bot:
     from trainerlab.rl.planner import SIMULATIONS, Planner  # PyTorch, only for this bot
 
-    return Planner(Path(path), seed=seed, simulations=simulations or SIMULATIONS)
+    return Planner(
+        Path(path), seed=seed, simulations=simulations or SIMULATIONS, replacements=replacements
+    )
 
 
 def _depth(spec: str) -> tuple[str, int | None]:
