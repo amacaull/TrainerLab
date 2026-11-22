@@ -31,9 +31,10 @@ WINDOW = 4  # iterations whose decisions are learned from
 # by heart when each decision came back eight times, and its search drifted.
 EPOCHS = 1  # passes over the window per iteration
 BATCH = 1024
-# 1e-4 throughout: 3e-4 the first half (then 1e-4, 3e-5) made the network with attention worse on
-# battles it had not learned from, its value learning them by heart again.
-RATES = ((1.0, 1e-4),)
+# 3e-4 the first half (then 1e-4, 3e-5) made the network with attention worse on battles it had
+# not learned from, its value learning them by heart again. Palier 10.5: 1e-4, then 3e-5 the last
+# quarter of the iterations, to settle.
+RATES = ((0.75, 1e-4), (1.0, 3e-5))
 DECAY = 1e-4
 SIMULATIONS = 800  # a full search, recorded
 FAST = 100  # a fast search, unrecorded
@@ -49,7 +50,11 @@ SEARCH_SHARE = 0.5
 # Palier 10.3: a quarter of each iteration's battles start from the endgames (3 Pokemon or fewer
 # standing a side) the battles of the iteration before reached, with dice of their own: the
 # network sees many more of the long endgames it judged worst (palier 7).
-ENDGAME_SHARE = 0.25
+# Palier 10.5: off, the battles with small teams below taking their place.
+ENDGAME_SHARE = 0.0
+# Palier 10.5: half the battles 6 against 6, a quarter 4 against 4, a quarter 2 against 2: whole
+# battles, with more of the knock-outs and endgames the network judged worst.
+TEAM_SIZES = ((6, 0.5), (4, 0.25), (2, 0.25))
 # Palier 10.4: after a knock-out with a choice, each option searched this many simulations and the
 # best sent in, a row to learn from (the network never learnt its replacements before).
 REPLACEMENTS = 50
@@ -70,6 +75,7 @@ class Progress:
     policy_loss: float  # cross-entropy against the search's visits, on the last pass
     value_loss: float
     from_endgames: int = 0  # battles started from an endgame of the iteration before
+    small_teams: int = 0  # battles with teams of fewer than 6
 
 
 def play(
@@ -86,7 +92,8 @@ def play(
     replacements: int = REPLACEMENTS,
 ) -> Rows:
     """`games` battles of rule 11 against itself with this network, and what they leave; given
-    endgames, a share ENDGAME_SHARE of the battles start from one of them."""
+    endgames, a share ENDGAME_SHARE of the battles start from one of them; teams sized as
+    TEAM_SIZES."""
     rows: Rows = to_cpp(net).self_play(
         games,
         seed,
@@ -99,6 +106,7 @@ def play(
         endgames=endgames or [],
         endgame_share=ENDGAME_SHARE,
         replacement_simulations=replacements,
+        team_sizes=list(TEAM_SIZES),
     )
     return rows
 
@@ -256,6 +264,7 @@ def loop(
                     *fresh,
                     *learned,
                     int(played["from_endgame"].astype(np.int64).sum()),
+                    int((played["team_size"].astype(np.int64) < 6).sum()),
                 ),
                 net,
             )

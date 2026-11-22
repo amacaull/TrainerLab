@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <exception>
 #include <memory>
 #include <mutex>
@@ -30,6 +31,23 @@ int keyOf(const Action &action) {
              : engine::kMaxMovesPerPokemon + std::get<engine::SwitchAction>(action).teamIndex;
 }
 
+// The random battle's teams cut to a size drawn from the battle's number (palier 10.5).
+BattleState sized(BattleState state, const SelfPlaySettings &settings, uint64_t number) {
+  std::mt19937_64 draw(number ^ 0xA0761D6478BD642FULL);
+  double left = static_cast<double>(draw() >> 11) * 0x1.0p-53;
+  int size = settings.teamSizes.back().first;
+  for (const auto &[teamSize, share] : settings.teamSizes) {
+    left -= share;
+    if (left < 0.0) {
+      size = teamSize;
+      break;
+    }
+  }
+  for (int side : {0, 1})
+    state.team_size[at(side)] = std::min(state.team_size[at(side)], size);
+  return state;
+}
+
 // The result for `side` of a battle that is over: 1, -1, or 0 for a draw.
 double endValue(const BattleState &state, int side) {
   const bool lost = state.sideHasLost(side), won = state.sideHasLost(1 - side);
@@ -45,10 +63,10 @@ public:
          const SelfPlaySettings &settings, uint64_t number, int index,
          const BattleState *start = nullptr)
       : game_(game), full_(full), fast_(fast), replacer_(replacer), settings_(settings),
-        number_(number), index_(index), state_(start ? *start : game.randomBattle(number)),
-        dice_(number), draws_(number ^ 0x9E3779B97F4A7C15ULL),
-        caps_(number ^ 0xC2B2AE3D27D4EB4FULL), fromEndgame_(start != nullptr),
-        kept_(start != nullptr) {
+        number_(number), index_(index),
+        state_(start ? *start : sized(game.randomBattle(number), settings, number)), dice_(number),
+        draws_(number ^ 0x9E3779B97F4A7C15ULL), caps_(number ^ 0xC2B2AE3D27D4EB4FULL),
+        fromEndgame_(start != nullptr), kept_(start != nullptr) {
     advance();
   }
   Battle(const Battle &) = delete;
@@ -315,6 +333,7 @@ void Battle::finish() {
   data_.turns.push_back(state_.turn);
   data_.winner.push_back(static_cast<int8_t>(winner));
   data_.fromEndgame.push_back(fromEndgame_);
+  data_.teamSize.push_back(static_cast<int8_t>(state_.team_size[0]));
   done_ = true;
 }
 
@@ -375,6 +394,14 @@ SelfPlayData selfPlay(const Game &game, const Network &network, const SelfPlaySe
     throw std::invalid_argument(
         "selfPlay: games >= 0, threads >= 1, simulations >= 2, lanes "
         ">= 1, fast and replacement simulations 0 or >= 2, shares in [0, 1]");
+  double shares = 0.0;
+  for (const auto &[size, share] : settings.teamSizes) {
+    if (size < 1 || size > engine::kTeamSize || !(share >= 0.0))
+      throw std::invalid_argument("selfPlay: team sizes in [1, 6], shares >= 0");
+    shares += share;
+  }
+  if (settings.teamSizes.empty() || std::abs(shares - 1.0) > 1e-9)
+    throw std::invalid_argument("selfPlay: the team sizes' shares sum to 1");
   const Planner full(game, network, settings.planner);
   PlannerSettings quick = settings.planner;
   quick.simulations = settings.fast;
@@ -425,6 +452,7 @@ SelfPlayData selfPlay(const Game &game, const Network &network, const SelfPlaySe
     append(all.turns, b.turns);
     append(all.winner, b.winner);
     append(all.fromEndgame, b.fromEndgame);
+    append(all.teamSize, b.teamSize);
     append(all.endgames, b.endgames);
   }
   return all;
