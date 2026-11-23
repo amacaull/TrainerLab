@@ -407,6 +407,8 @@ MESSAGES: dict[str, tuple[str, str]] = {
                        "rejouer les pires erreurs relevées par un juge"),
     "command.teams": ("measure how much a team's composition decides",
                       "mesurer à quel point la composition d'équipe décide"),
+    "command.build": ("measure one team builder against another",
+                      "mesurer un constructeur d'équipe contre un autre"),
     "command.bench": ("measure how fast the bots play", "mesurer la vitesse des bots"),
     "command.alphazero": ("improve the network with its own search",
                           "améliorer le réseau avec sa propre recherche"),

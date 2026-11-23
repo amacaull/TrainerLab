@@ -32,16 +32,18 @@ from trainerlab.game.pairs import outcome_of
 TEST_EVERY = 5  # the pairs held out to score the regression, as for the win model
 PENALTY = 10.0  # L2 on the regression's weights: 49 of them, a few thousand battles
 POINTS = {"win": 1.0, "draw": 0.5, "loss": 0.0}
+TEAM_SIZE = 6
 
 Floats = npt.NDArray[np.float64]
 
 
-def play_block(bot: str, _: str, seeds: range) -> list[float]:
-    """The first team's points in both battles of each pair: a process of its own on a core."""
+def play_block(bot: str, size: str, seeds: range) -> list[float]:
+    """The first team's points in both battles of each pair: a process of its own on a core.
+    The size of the teams comes as text, where a duel's block takes bot B's name."""
     make = factory(bot)
     points: list[float] = []
     for seed in seeds:
-        team0, team1 = random_team_pair(seed)
+        team0, team1 = random_team_pair(seed, int(size))
         for replay in (0, 1):
             number = 2 * seed + replay  # dice and bots of its own
             first, second = (team0, team1) if replay == 0 else (team1, team0)
@@ -53,10 +55,14 @@ def play_block(bot: str, _: str, seeds: range) -> list[float]:
 
 
 def record(
-    bot: str, seeds: range, jobs: int, progress: parallel.Meter | None = None
+    bot: str,
+    seeds: range,
+    jobs: int,
+    progress: parallel.Meter | None = None,
+    size: int = TEAM_SIZE,
 ) -> tuple[npt.NDArray[np.int64], Floats]:
     """The seed and the first team's points of every battle, two per pair, in seed order."""
-    parts = parallel.run(play_block, bot, bot, seeds, jobs, progress)
+    parts = parallel.run(play_block, bot, str(size), seeds, jobs, progress)
     points = np.array([p for part in parts for p in part], dtype=np.float64)
     return np.repeat(np.arange(seeds.start, seeds.stop, dtype=np.int64), 2), points
 
@@ -82,15 +88,16 @@ class Analysis:
     species: list[Species]  # best first
 
 
-def analyze(seeds: npt.NDArray[np.int64], points: Floats) -> Analysis:
-    """What these battles say about the teams; `seeds` and `points` as `record` gives them."""
+def analyze(seeds: npt.NDArray[np.int64], points: Floats, size: int = TEAM_SIZE) -> Analysis:
+    """What these battles say about teams of `size`; `seeds` and `points` as `record` gives
+    them."""
     first, second = points[0::2], points[1::2]
     decided = (first != 0.5) & (second != 0.5)
     same = int((first[decided] == second[decided]).sum())
     count = int(decided.sum())
     low, high = wilson_interval(same, count) if count else (math.nan, math.nan)
 
-    names, x = _compositions(seeds)
+    names, x = _compositions(seeds, size)
     test = seeds % TEST_EVERY == 0
     weights = _fit(x[~test], points[~test])
     p = 1 / (1 + np.exp(-x[test] @ weights))
@@ -120,14 +127,14 @@ def analyze(seeds: npt.NDArray[np.int64], points: Floats) -> Analysis:
     )
 
 
-def _compositions(seeds: npt.NDArray[np.int64]) -> tuple[list[str], Floats]:
+def _compositions(seeds: npt.NDArray[np.int64], size: int = TEAM_SIZE) -> tuple[list[str], Floats]:
     """The species, and per battle +1 for the first team's species, -1 for the second's."""
     _engine.engine_init(str(DATA_DIR))
     names = [_engine.species_id_string(i) for i in range(_engine.species_count())]
     index = {name: k for k, name in enumerate(names)}
     x = np.zeros((len(seeds), len(names)))
     for row, seed in enumerate(seeds):
-        team0, team1 = random_team_pair(int(seed))
+        team0, team1 = random_team_pair(int(seed), size)
         for name in team0:
             x[row, index[name]] += 1
         for name in team1:

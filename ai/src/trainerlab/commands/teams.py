@@ -1,6 +1,7 @@
 """`trainerlab teams`: does the composition of a team decide battles? One bot against itself.
 
 trainerlab teams alphazero --pairs 3000 --from 190000 --out runs/teams.npz
+trainerlab teams alphazero --size 2 --pairs 3000 --from 340000 --out runs/teams-2.npz
 trainerlab teams --load runs/teams.npz
 
 The first form plays the pairs and keeps every battle's result in --out; the second reads such a
@@ -29,6 +30,9 @@ def main(argv: list[str] | None = None, write: Write = stdout) -> int:
     parser.add_argument(
         "--out", type=Path, default=Path("teams.npz"), help="where to keep the battles"
     )
+    parser.add_argument(
+        "--size", type=int, choices=range(1, 7), default=6, help="Pokemon per team (6)"
+    )
     add_pairs(parser)
     add_jobs(parser)
     args = parser.parse_args(argv)
@@ -38,15 +42,15 @@ def main(argv: list[str] | None = None, write: Write = stdout) -> int:
     if args.load is not None:
         saved = np.load(args.load)
         seeds, points = saved["seed"], saved["points"]
+        size = int(saved["size"]) if "size" in saved else 6  # files of palier 7: teams of 6
     else:
-        pairs = seeds_of(args)
-        seeds, points = record(
-            args.bot, pairs, args.jobs, parallel.progress_on_terminal(len(pairs))
-        )
-        np.savez(args.out, seed=seeds, points=points)
+        pairs, size = seeds_of(args), args.size
+        progress = parallel.progress_on_terminal(len(pairs))
+        seeds, points = record(args.bot, pairs, args.jobs, progress, size)
+        np.savez(args.out, seed=seeds, points=points, size=size)
 
-    result = analyze(seeds, points)
-    write(f"{result.battles} battles, seeds {seeds[0]}-{seeds[-1]}\n")
+    result = analyze(seeds, points, size)
+    write(f"{result.battles} battles of teams of {size}, seeds {seeds[0]}-{seeds[-1]}\n")
     write(
         f"the same team won both battles of a pair: {result.agreement:.3f} "
         f"[{result.agreement_low:.3f}, {result.agreement_high:.3f}] of {result.decided_pairs} "
