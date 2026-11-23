@@ -1,10 +1,12 @@
 """`trainerlab build`: one team builder against another, the same bot playing both sides.
 
-trainerlab build species:runs/teams-6.npz random --size 6 --pairs 2000 --from 350000
-trainerlab build random random --size 2 --core Gyarados
+trainerlab build species:runs/teams-6.npz random --size 6 --pairs 2000 --from 430000
+trainerlab build random random --size 2 --core Gyarados --pool 49
 
-Each pair draws a core of one or two Pokemon for each side from its seed (or takes --core for
-both); each builder completes both cores, once each (experiments/building.py).
+Each pair draws from its seed a core of one or two Pokemon for each side (or takes --core for
+both), then a pool of --pool species outside them, the same for both sides (12; 49, every
+species: free choice); each builder completes both cores from the pool, once each
+(game/building.py, experiments/building.py).
 """
 
 import argparse
@@ -16,6 +18,8 @@ from trainerlab.experiments import parallel
 from trainerlab.experiments.building import builder_of, duel
 from trainerlab.game.pairs import span
 from trainerlab.i18n import names
+
+ALL_SPECIES = 49
 
 
 def builder(spec: str) -> str:
@@ -54,6 +58,12 @@ def main(argv: list[str] | None = None, write: Write = stdout) -> int:
         "--size", type=int, choices=range(2, 7), default=6, help="Pokemon per team (6)"
     )
     parser.add_argument(
+        "--pool",
+        type=int,
+        default=12,
+        help="species to pick from, the same for both sides (12; 49: free choice)",
+    )
+    parser.add_argument(
         "--core", type=species_list, help="both sides' core, by names (else drawn from each seed)"
     )
     add_pairs(parser)
@@ -61,6 +71,8 @@ def main(argv: list[str] | None = None, write: Write = stdout) -> int:
     args = parser.parse_args(argv)
     if args.core is not None and len(args.core) >= args.size:
         parser.error(f"a core holds fewer than {args.size} Pokemon")
+    if args.pool < args.size:
+        parser.error(f"teams of {args.size} need a pool of {args.size} species at least")
 
     seeds = seeds_of(args)
     result = duel(
@@ -71,12 +83,15 @@ def main(argv: list[str] | None = None, write: Write = stdout) -> int:
         bot=args.bot,
         size=args.size,
         core=args.core,
+        pool=args.pool,
         progress=parallel.progress_on_terminal(len(seeds)),
     )
     low, high = result.interval
     core = f", core {','.join(args.core)}" if args.core else ""
+    pool = "free choice" if args.pool >= ALL_SPECIES else f"from pools of {args.pool}"
     write(
-        f"{args.builder_a} vs {args.builder_b}, teams of {args.size} played by {args.bot}{core}: "
+        f"{args.builder_a} vs {args.builder_b}, teams of {args.size}, {pool}, played by "
+        f"{args.bot}{core}: "
         f"{result.score:.3f} [{low:.3f}, {high:.3f}] ({result.wins} wins, {result.draws} draws, "
         f"{result.losses} losses, seeds {span(seeds)})\n"
     )

@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from trainerlab.experiments import building, teams
-from trainerlab.game.building import Builder, SpeciesBuilder, cores, random_builder
+from trainerlab.game.building import Builder, SpeciesBuilder, cores, draw_pool, random_builder
 
 
 def _scores_file(tmp_path: Path) -> Path:
@@ -30,9 +30,7 @@ def test_a_builder_is_named_random_or_species_with_its_file(tmp_path: Path) -> N
     assert building.builder_of("random") is random_builder
     species = building.builder_of(f"species:{path}")
     assert isinstance(species, SpeciesBuilder)
-    assert species.ranked == sorted(
-        building.species_scores(path), key=lambda n: -building.species_scores(path)[n]
-    )
+    assert species.ranked == SpeciesBuilder(building.species_scores(path)).ranked
     with pytest.raises(ValueError, match="random, or species:FILE.npz"):
         building.builder_of("best")
 
@@ -52,15 +50,17 @@ def test_in_a_pair_the_cores_stay_and_the_builders_swap_sides(
     monkeypatch.setattr(building, "play_battle", lambda env, b0, b1: next(winners))
 
     def mark(name: str) -> Builder:
-        return lambda core, size, seed: [*core, f"{name}{seed}"]
+        return lambda core, size, seed, pool: [*core, f"{name}{seed}", *pool[:1]]
 
     monkeypatch.setattr(building, "builder_of", mark)
 
-    result = building.play_block("a", "b", range(5, 7), bot="any", size=3, core=None)
+    result = building.play_block("a", "b", range(5, 7), bot="any", size=4, core=None, pool=12)
 
-    core0, core1 = cores(5, 3)
-    assert built[0] == ([*core0, "a10"], [*core1, "b11"], 5)
-    assert built[1] == ([*core0, "b10"], [*core1, "a11"], 5)
+    core0, core1 = cores(5, 4)
+    pool = draw_pool(5, 12, 4, (core0, core1))
+    first = pool[0]  # the builders see the pool of the pair, the same for both sides
+    assert built[0] == ([*core0, "a10", first], [*core1, "b11", first], 5)
+    assert built[1] == ([*core0, "b10", first], [*core1, "a11", first], 5)
     # Seed 5: A wins on side 0, loses on side 1. Seed 6: a draw, then A wins on side 1.
     assert (result.wins, result.draws, result.losses) == (2, 1, 1)
 
@@ -76,12 +76,30 @@ def test_a_core_given_is_both_sides_core(monkeypatch: pytest.MonkeyPatch) -> Non
     monkeypatch.setattr(building, "factory", lambda bot: lambda seed: seed)
     monkeypatch.setattr(building, "play_battle", lambda env, b0, b1: 0)
 
-    building.play_block("random", "random", range(1), bot="any", size=2, core=["Gyarados"])
+    building.play_block("random", "random", range(1), bot="any", size=2, core=["Gyarados"], pool=12)
 
     assert built == [["Gyarados"]] * 4
 
 
+def test_free_choice_plays_the_teams_of_palier_12_1(monkeypatch: pytest.MonkeyPatch) -> None:
+    built: list[tuple[list[str], list[str]]] = []
+
+    class Env:
+        def __init__(self, team0: list[str], team1: list[str], *, seed: int) -> None:
+            built.append((team0, team1))
+
+    monkeypatch.setattr(building, "BattleEnvironment", Env)
+    monkeypatch.setattr(building, "factory", lambda bot: lambda seed: seed)
+    monkeypatch.setattr(building, "play_battle", lambda env, b0, b1: 0)
+
+    building.play_block("random", "random", range(3, 4), bot="any", size=4, core=None, pool=49)
+
+    core0, core1 = cores(3, 4)
+    every = draw_pool(3, 49, 4, (core0, core1))
+    assert built[0] == (random_builder(core0, 4, 6, every), random_builder(core1, 4, 7, every))
+
+
 def test_a_builders_duel_adds_up_its_blocks() -> None:
-    result = building.duel("random", "random", range(4), 1, bot="hitter", size=2)
+    result = building.duel("random", "random", range(4), 1, bot="hitter", size=2, pool=12)
 
     assert result.games == 8
