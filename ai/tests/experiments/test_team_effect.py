@@ -43,7 +43,7 @@ def test_coin_flips_agree_half_the_time_and_draws_are_left_out() -> None:
 
 
 def test_a_pair_replays_one_matchup_with_dice_of_its_own() -> None:
-    points = teams.play_block("hitter", "hitter", range(190000, 190003))
+    points = teams.play_block("hitter", "6", range(190000, 190003))
 
     assert len(points) == 6
     assert set(points) <= {0.0, 0.5, 1.0}
@@ -76,7 +76,7 @@ def test_a_pair_plays_the_matchup_once_each_way_with_dice_and_bots_of_its_own(
     monkeypatch.setattr(teams, "factory", lambda bot: make)
     monkeypatch.setattr(teams, "play_battle", lambda env, b0, b1: next(winners))
 
-    points = teams.play_block("any", "any", range(7, 9))
+    points = teams.play_block("any", "6", range(7, 9))
 
     t0, t1 = random_team_pair(7)
     assert built[:2] == [(t0, t1, 14), (t1, t0, 15)]  # the teams swap sides, the dice change
@@ -157,3 +157,23 @@ def test_the_regression_finds_its_optimum_and_the_strengths_it_was_made_with() -
     gradient = x.T @ (p - y) + teams.PENALTY * w
     assert np.abs(gradient).max() < 1e-6  # Newton's method has converged on the penalised optimum
     assert np.abs(w - strengths).max() < 0.15
+
+
+def test_teams_of_any_size_can_be_measured(monkeypatch: pytest.MonkeyPatch) -> None:
+    built: list[int] = []
+
+    class Env:
+        def __init__(self, first: list[str], second: list[str], *, seed: int) -> None:
+            built.append(len(first))
+
+    monkeypatch.setattr(teams, "BattleEnvironment", Env)
+    monkeypatch.setattr(teams, "factory", lambda bot: lambda seed: seed)
+    monkeypatch.setattr(teams, "play_battle", lambda env, b0, b1: 0)
+
+    teams.play_block("any", "2", range(3))
+    assert built == [2] * 6
+
+    names, x = teams._compositions(np.array([3]), size=2)
+    assert abs(x).sum() == 4
+    seeds, points = _battles(0, 50, lambda seed, replay: float(replay))
+    assert teams.analyze(seeds, points, size=2).battles == 100
