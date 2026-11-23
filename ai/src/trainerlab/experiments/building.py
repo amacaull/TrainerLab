@@ -1,6 +1,7 @@
 """Measures one team builder against another: the same bot plays both sides.
 
-A pair draws a core for each side from its seed; builder A completes side 0's core and builder B
+A pair draws from its seed a core for each side, then a pool of species outside them, the same for
+both sides (game/building.py); builder A completes side 0's core from the pool and builder B
 side 1's, then they swap: each builder works on both cores, under the same dice. The bot that
 plays changes nothing between the sides, so the score is the builders' alone.
 """
@@ -16,7 +17,7 @@ from trainerlab.experiments import parallel
 from trainerlab.experiments.teams import TEAM_SIZE, analyze
 from trainerlab.experiments.tournament import TournamentResult
 from trainerlab.game.battle import play_battle
-from trainerlab.game.building import Builder, SpeciesBuilder, cores, random_builder
+from trainerlab.game.building import Builder, SpeciesBuilder, cores, draw_pool, random_builder
 from trainerlab.game.environment import BattleEnvironment
 from trainerlab.game.pairs import outcome_of
 
@@ -40,17 +41,27 @@ def builder_of(spec: str) -> Builder:
 
 
 def play_block(
-    builder_a: str, builder_b: str, seeds: range, *, bot: str, size: int, core: list[str] | None
+    builder_a: str,
+    builder_b: str,
+    seeds: range,
+    *,
+    bot: str,
+    size: int,
+    core: list[str] | None,
+    pool: int,
 ) -> TournamentResult:
-    """Builder A's record over these pairs; `core`, if given, is both sides' core."""
+    """Builder A's record over these pairs, in pools of `pool` species (all of them: free
+    choice); `core`, if given, is both sides' core."""
     build_a, build_b, make = builder_of(builder_a), builder_of(builder_b), factory(bot)
     tally = {"win": 0, "draw": 0, "loss": 0}
     for seed in seeds:
         core0, core1 = (core, core) if core is not None else cores(seed, size)
+        picks = draw_pool(seed, pool, size, (core0, core1))
         for a_side in (0, 1):
             first = build_a if a_side == 0 else build_b
             second = build_b if a_side == 0 else build_a
-            team0, team1 = first(core0, size, 2 * seed), second(core1, size, 2 * seed + 1)
+            team0 = first(core0, size, 2 * seed, picks)
+            team1 = second(core1, size, 2 * seed + 1, picks)
             env = BattleEnvironment(team0, team1, seed=seed)
             tally[outcome_of(play_battle(env, make(2 * seed), make(2 * seed + 1)), a_side)] += 1
     return TournamentResult(tally["win"], tally["draw"], tally["loss"])
@@ -64,12 +75,13 @@ def duel(
     *,
     bot: str,
     size: int,
+    pool: int,
     core: list[str] | None = None,
     progress: parallel.Meter | None = None,
     on_part: Callable[[TournamentResult], None] | None = None,
 ) -> TournamentResult:
     """Builder A's record against builder B over the pairs of these seeds, on `jobs` processes."""
-    work = partial(play_block, bot=bot, size=size, core=core)
+    work = partial(play_block, bot=bot, size=size, core=core, pool=pool)
     parts = parallel.run(work, builder_a, builder_b, seeds, jobs, progress, on_part)
     return TournamentResult(
         wins=sum(p.wins for p in parts),
