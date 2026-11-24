@@ -31,13 +31,41 @@ def test_each_team_plays_its_pairs_against_random_teams_on_both_sides(
     monkeypatch.setattr(truth, "play_battle", lambda env, b0, b1: next(winners))
 
     # Seeds 100-101: the second team of the list (pairs=1 each, from seed 99).
-    points = truth.play_block("any", "", range(100, 102), first=99, pairs=1)
+    points = truth.play_block("any", "2", range(100, 102), first=99, pairs=1, count=None)
 
     team, foe = truth.every_team()[1], random_team_pair(100, 2)[0]
     assert built[:2] == [(team, foe, 200), (foe, team, 201)]
     assert built[2][0] == truth.every_team()[2]
     # The team wins on side 0, loses on side 1 (side 0 wins); a draw, then a win on side 1.
     assert points == [1.0, 0.0, 0.5, 1.0]
+
+
+def test_teams_of_more_than_two_are_a_sample_drawn_once_for_all() -> None:
+    sample = truth.teams_of(6, 12)
+
+    assert sample == truth.teams_of(6, 12) and truth.teams_of(6, 5) == sample[:5]
+    assert all(len(team) == 6 and legal(team) for team in sample)
+    assert len({tuple(sorted(team)) for team in sample}) == 12
+    assert truth.teams_of(2, 3) == truth.every_team()[:3]
+    assert truth.teams_of(2, None) == truth.every_team()
+    with pytest.raises(ValueError, match="teams of 6: how many to sample"):
+        truth.teams_of(6, None)
+
+
+def test_a_team_of_six_plays_random_teams_of_six(monkeypatch: pytest.MonkeyPatch) -> None:
+    given: list[tuple[list[str], list[str], int]] = []
+
+    def play(bot: object, battles: list, jobs: int, done: object = None) -> list:  # type: ignore[type-arg]
+        given.extend(battles)
+        return [0] * len(battles)
+
+    monkeypatch.setattr(arena, "play", play)
+
+    index, _ = truth.record("alphazero", first=10, pairs=1, jobs=1, count=2, size=6)
+
+    assert given[0] == (truth.teams_of(6, 2)[0], random_team_pair(10, 6)[0], 20)
+    assert given[2][0] == truth.teams_of(6, 2)[1]
+    assert index.tolist() == [0, 0, 1, 1]
 
 
 def test_record_lists_each_team_s_battles_in_order() -> None:
@@ -55,6 +83,8 @@ def test_the_analysis_separates_the_teams_from_the_dice() -> None:
 
     assert [t.score for t in result.teams] == [0.75, 0.5, 0.25]
     assert result.teams[0].names == truth.every_team()[0]
+    sample = truth.teams_of(6, 3)
+    assert truth.analyze(index, points, sample).teams[-1].names == sample[2]
     assert result.teams[0].low < 0.75 < result.teams[0].high
     assert result.spread == pytest.approx(np.std([0.75, 0.5, 0.25]))
     # The error of a score over n battles, s(1 - s) / n, as if every battle were won or lost.
@@ -91,3 +121,8 @@ def test_a_search_bot_plays_every_team_s_battles_in_cpp(monkeypatch: pytest.Monk
     assert points.tolist() == [1.0, 0.0] * 4
     assert told == [4, -1]
     assert truth.record("alphazero", first=0, pairs=1, jobs=1, count=1)[1].tolist() == [1.0, 0.0]
+
+
+def test_teams_all_equal_leave_nothing_to_explain() -> None:
+    index = np.repeat(np.arange(2), 2)
+    assert math.isnan(truth.analyze(index, np.array([1.0, 0.0, 0.0, 1.0])).explained)
