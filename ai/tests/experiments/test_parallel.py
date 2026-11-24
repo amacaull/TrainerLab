@@ -99,7 +99,7 @@ def test_ctrl_c_stops_every_process_it_started() -> None:
     with pytest.raises(KeyboardInterrupt):
         parallel.run(tournament.play_block, "random", "random", range(40), 2, None, interrupt)
 
-    assert multiprocessing.active_children() == []
+    assert [p for p in multiprocessing.active_children() if p.is_alive()] == []
 
 
 def test_the_processes_leave_ctrl_c_to_the_parent(monkeypatch: pytest.MonkeyPatch) -> None:

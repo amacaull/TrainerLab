@@ -411,6 +411,8 @@ MESSAGES: dict[str, tuple[str, str]] = {
                       "mesurer un constructeur d'équipe contre un autre"),
     "command.truth": ("measure every team of two against random teams",
                       "mesurer chaque équipe de deux contre des équipes au hasard"),
+    "command.evaluator": ("learn the strength of a team from battles",
+                          "apprendre la force d'une équipe à partir de combats"),
     "command.bench": ("measure how fast the bots play", "mesurer la vitesse des bots"),
     "command.alphazero": ("improve the network with its own search",
                           "améliorer le réseau avec sa propre recherche"),

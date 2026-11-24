@@ -28,6 +28,7 @@ from trainerlab.commands import (
     dataset,
     distill,
     duel,
+    evaluator,
     imitate,
     judge,
     play,
@@ -94,7 +95,11 @@ SECTIONS: dict[str, dict[str, Run]] = {
         "truth": _plain(truth.main),
         "bench": _plain(bench.main),
     },
-    "train": {"alphazero": _plain(alphazero.main), "distill": _plain(distill.main)},
+    "train": {
+        "alphazero": _plain(alphazero.main),
+        "distill": _plain(distill.main),
+        "evaluator": _plain(evaluator.main),
+    },
     "history": {
         "dataset": _plain(dataset.main),
         "train": _plain(train.main),
