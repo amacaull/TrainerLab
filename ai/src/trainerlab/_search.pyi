@@ -84,6 +84,10 @@ class Network:
         """
         Rule 11: the index, in `legal`, of the option a tree search guided by this network visits most, after `simulations` simulations; the same seed makes the same decision.
         """
+    def play_matches(self, starts: collections.abc.Sequence[trainerlab._engine.BattleState], seeds: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex], threads: typing.SupportsInt | typing.SupportsIndex, simulations: typing.SupportsInt | typing.SupportsIndex = 200, replacement_simulations: typing.SupportsInt | typing.SupportsIndex = 50, lanes: typing.SupportsInt | typing.SupportsIndex = 16, max_turns: typing.SupportsInt | typing.SupportsIndex = 1000) -> tuple:
+        """
+        Palier 12.3: the battles of a measure, rule 11 with this network on both sides, side by side (search/include/search/self_play.hpp): battle k from starts[k] (started), its dice and searches from seeds[k], as Python's referee plays it. (winner[k]: 0, 1 or -1 for a draw, turns[k]).
+        """
     def plan_replacement(self, view: trainerlab._engine.BattleState, side: typing.SupportsInt | typing.SupportsIndex, options: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex], seed: typing.SupportsInt | typing.SupportsIndex, simulations: typing.SupportsInt | typing.SupportsIndex) -> int:
         """
         Palier 10.4: the team index, among `options`, whose replacement leaves `side` the best value, each searched `simulations` simulations; the same seed makes the same choice.

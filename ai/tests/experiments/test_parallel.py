@@ -1,3 +1,6 @@
+from collections.abc import Callable
+from typing import Any
+
 import pytest
 
 from trainerlab.experiments import parallel, tournament
@@ -85,3 +88,37 @@ def test_progress_can_count_other_things_than_pairs() -> None:
     shown: list[str] = []
     parallel.Progress(4, shown.append, lambda: 0.0, unit="blunders").update(0)
     assert " 0/4 blunders (0 %)" in shown[0]
+
+
+def test_ctrl_c_stops_every_process_it_started() -> None:
+    import multiprocessing
+
+    def interrupt(part: tournament.TournamentResult) -> None:
+        raise KeyboardInterrupt
+
+    with pytest.raises(KeyboardInterrupt):
+        parallel.run(tournament.play_block, "random", "random", range(40), 2, None, interrupt)
+
+    assert multiprocessing.active_children() == []
+
+
+def test_the_processes_leave_ctrl_c_to_the_parent(monkeypatch: pytest.MonkeyPatch) -> None:
+    import signal
+    from concurrent.futures import ProcessPoolExecutor
+
+    built: list[object] = []
+
+    def pool(workers: int, *, mp_context: Any, initializer: Callable[[], None]) -> Any:
+        built.append(initializer)
+        return ProcessPoolExecutor(workers, mp_context=mp_context, initializer=initializer)
+
+    monkeypatch.setattr(parallel, "ProcessPoolExecutor", pool)
+    parallel.run(tournament.play_block, "random", "random", range(10), 2)
+    assert built == [parallel.ignore_ctrl_c]
+
+    before = signal.getsignal(signal.SIGINT)
+    try:
+        parallel.ignore_ctrl_c()
+        assert signal.getsignal(signal.SIGINT) == signal.SIG_IGN
+    finally:
+        signal.signal(signal.SIGINT, before)

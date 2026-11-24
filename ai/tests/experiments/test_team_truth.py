@@ -3,7 +3,7 @@ import math
 import numpy as np
 import pytest
 
-from trainerlab.experiments import truth
+from trainerlab.experiments import arena, truth
 from trainerlab.game.building import legal
 from trainerlab.game.environment import random_team_pair
 
@@ -61,3 +61,33 @@ def test_the_analysis_separates_the_teams_from_the_dice() -> None:
     noise = math.sqrt(np.mean([0.75 * 0.25 / 4, 0.5 * 0.5 / 4, 0.25 * 0.75 / 4]))
     assert result.noise == pytest.approx(noise)
     assert result.explained == pytest.approx(1 - noise**2 / result.spread**2)
+
+
+def test_a_search_bot_plays_every_team_s_battles_in_cpp(monkeypatch: pytest.MonkeyPatch) -> None:
+    given: list[tuple[list[str], list[str], int]] = []
+
+    def play(bot: object, battles: list, jobs: int, done: object = None) -> list:  # type: ignore[type-arg]
+        given.extend(battles)
+        if callable(done):
+            done(len(battles))
+        return [0] * len(battles)  # side 0 wins
+
+    monkeypatch.setattr(arena, "play", play)
+    told: list[int] = []
+
+    class Meter:
+        def update(self, done: int) -> None:
+            told.append(done)
+
+        def finish(self) -> None:
+            told.append(-1)
+
+    index, points = truth.record("alphazero", first=40, pairs=2, jobs=2, count=2, progress=Meter())
+
+    team, foe = truth.every_team()[0], random_team_pair(40, 2)[0]
+    assert given[:2] == [(team, foe, 80), (foe, team, 81)]
+    assert len(given) == 8
+    assert index.tolist() == [0, 0, 0, 0, 1, 1, 1, 1]
+    assert points.tolist() == [1.0, 0.0] * 4
+    assert told == [4, -1]
+    assert truth.record("alphazero", first=0, pairs=1, jobs=1, count=1)[1].tolist() == [1.0, 0.0]

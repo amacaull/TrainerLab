@@ -7,6 +7,7 @@ results are the same whatever the number of processes, only faster.
 
 import multiprocessing
 import os
+import signal
 import sys
 import time
 from collections.abc import Callable
@@ -104,6 +105,21 @@ def progress_on_terminal(total: int, unit: str = "pairs") -> Progress | None:
     return Progress(total, colour=True, unit=unit) if sys.stderr.isatty() else None
 
 
+def ignore_ctrl_c() -> None:
+    """In a process of the pool: Ctrl-C is the parent's, which stops every process itself (a
+    process left waiting on its parent, once the parent is gone, would never end)."""
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+
+def _stop(pool: ProcessPoolExecutor) -> None:
+    processes = list(pool._processes.values())  # the executor keeps them to itself
+    pool.shutdown(wait=False, cancel_futures=True)
+    for process in processes:
+        process.terminate()
+    for process in processes:
+        process.join()
+
+
 def run(
     work: "Work[T]",
     bot_a: str,
@@ -136,10 +152,17 @@ def run(
     else:
         # spawn on every system, as macOS does by default: a fresh interpreter per process.
         context = multiprocessing.get_context("spawn")
-        with ProcessPoolExecutor(min(jobs, len(parts)), mp_context=context) as pool:
+        pool = ProcessPoolExecutor(
+            min(jobs, len(parts)), mp_context=context, initializer=ignore_ctrl_c
+        )
+        try:
             futures = {pool.submit(work, bot_a, bot_b, part): i for i, part in enumerate(parts)}
             for future in as_completed(futures):
                 record(futures[future], future.result())
+        except BaseException:
+            _stop(pool)  # Ctrl-C, or a block that failed: no process left behind
+            raise
+        pool.shutdown()
     if progress is not None:
         progress.finish()
     return [results[i] for i in range(len(parts))]

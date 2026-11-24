@@ -306,6 +306,34 @@ PYBIND11_MODULE(_search, m) {
           "of a search that tries every legal option at least `min_visits` times; the value is "
           "the mean result for `side`, in [-1, 1].")
       .def(
+          "play_matches",
+          [](const search::Network &net, const std::vector<engine::BattleState> &starts,
+             const std::vector<uint64_t> &seeds, int threads, int simulations,
+             int replacement_simulations, int lanes, int max_turns) {
+            search::MatchSettings settings;
+            settings.planner.simulations = simulations;
+            settings.replacementSimulations = replacement_simulations;
+            settings.lanes = lanes;
+            settings.maxTurns = max_turns;
+            search::MatchResult result;
+            {
+              const py::gil_scoped_release free; // the threads run without Python
+              result = search::playMatches(loaded(), net, settings, starts, seeds, threads);
+            }
+            py::array_t<int8_t> winner(static_cast<py::ssize_t>(result.winner.size()));
+            py::array_t<int32_t> turns(static_cast<py::ssize_t>(result.turns.size()));
+            std::copy(result.winner.begin(), result.winner.end(), winner.mutable_data());
+            std::copy(result.turns.begin(), result.turns.end(), turns.mutable_data());
+            return py::make_tuple(winner, turns);
+          },
+          py::arg("starts"), py::arg("seeds"), py::arg("threads"), py::arg("simulations") = 200,
+          py::arg("replacement_simulations") = 50, py::arg("lanes") = 16,
+          py::arg("max_turns") = 1000,
+          "Palier 12.3: the battles of a measure, rule 11 with this network on both sides, side "
+          "by side (search/include/search/self_play.hpp): battle k from starts[k] (started), its "
+          "dice and searches from seeds[k], as Python's referee plays it. (winner[k]: 0, 1 or -1 "
+          "for a draw, turns[k]).")
+      .def(
           "self_play",
           [](const search::Network &net, int games, uint64_t seed, int threads, int simulations,
              int worlds, double noise, int max_turns, int lanes, int fast, double full_share,
