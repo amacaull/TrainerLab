@@ -23,7 +23,7 @@ import numpy.typing as npt
 
 from trainerlab import _engine
 from trainerlab.bots.roster import factory
-from trainerlab.experiments import parallel
+from trainerlab.experiments import arena, parallel
 from trainerlab.experiments.tournament import wilson_interval
 from trainerlab.game.battle import play_battle
 from trainerlab.game.environment import DATA_DIR, BattleEnvironment, random_team_pair
@@ -37,20 +37,23 @@ TEAM_SIZE = 6
 Floats = npt.NDArray[np.float64]
 
 
+def battles(seed: int, size: int) -> list[arena.Battle]:
+    """The pair's two battles: the matchup once each way, with dice of its own (2 * seed and
+    2 * seed + 1); the first team plays side 0, then side 1."""
+    team0, team1 = random_team_pair(seed, size)
+    return [(team0, team1, 2 * seed), (team1, team0, 2 * seed + 1)]
+
+
 def play_block(bot: str, size: str, seeds: range) -> list[float]:
     """The first team's points in both battles of each pair: a process of its own on a core.
     The size of the teams comes as text, where a duel's block takes bot B's name."""
     make = factory(bot)
     points: list[float] = []
     for seed in seeds:
-        team0, team1 = random_team_pair(seed, int(size))
-        for replay in (0, 1):
-            number = 2 * seed + replay  # dice and bots of its own
-            first, second = (team0, team1) if replay == 0 else (team1, team0)
+        for side, (first, second, number) in enumerate(battles(seed, int(size))):
             env = BattleEnvironment(first, second, seed=number)
             winner = play_battle(env, make(2 * number), make(2 * number + 1))
-            side = 0 if replay == 0 else 1  # where the first team plays
-            points.append(POINTS[outcome_of(winner, side)])
+            points.append(POINTS[outcome_of(winner, side)])  # the first team plays `side`
     return points
 
 
@@ -61,9 +64,20 @@ def record(
     progress: parallel.Meter | None = None,
     size: int = TEAM_SIZE,
 ) -> tuple[npt.NDArray[np.int64], Floats]:
-    """The seed and the first team's points of every battle, two per pair, in seed order."""
-    parts = parallel.run(play_block, bot, str(size), seeds, jobs, progress)
-    points = np.array([p for part in parts for p in part], dtype=np.float64)
+    """The seed and the first team's points of every battle, two per pair, in seed order. A
+    search bot plays in C++, battles side by side (experiments/arena.py)."""
+    found = arena.searcher_of(bot)
+    if found is None:
+        parts = parallel.run(play_block, bot, str(size), seeds, jobs, progress)
+        played = [p for part in parts for p in part]
+    else:
+        listed = [battle for seed in seeds for battle in battles(seed, size)]
+        done = None if progress is None else (lambda count: progress.update(count // 2))
+        winners = arena.play(found, listed, jobs, done)
+        played = [POINTS[outcome_of(w, k % 2)] for k, w in enumerate(winners)]
+        if progress is not None:
+            progress.finish()
+    points = np.array(played, dtype=np.float64)
     return np.repeat(np.arange(seeds.start, seeds.stop, dtype=np.int64), 2), points
 
 

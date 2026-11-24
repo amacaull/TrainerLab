@@ -44,11 +44,11 @@ struct SelfPlayData {
   std::vector<float> policy;      // rows x 10
   std::vector<float> result;      // rows
   std::vector<float> searchValue; // rows: the search's mean result for the side, over its visits
-  std::vector<int32_t> foe;   // rows: the option the foe played that turn (Encoding's numbering)
-  std::vector<float> foeMask; // rows x 10: the foe's legal options that turn
-  std::vector<int32_t> game;  // rows: the battle each row comes from
-  std::vector<int32_t> turns; // per battle
-  std::vector<int8_t> winner; // per battle: 0, 1, or -1 for a draw
+  std::vector<int32_t> foe;     // rows: the option the foe played that turn (Encoding's numbering)
+  std::vector<float> foeMask;   // rows x 10: the foe's legal options that turn
+  std::vector<int32_t> game;    // rows: the battle each row comes from
+  std::vector<int32_t> turns;   // per battle
+  std::vector<int8_t> winner;   // per battle: 0, 1, or -1 for a draw
   std::vector<int8_t> teamSize; // per battle: the size of the teams
 
   int rows() const { return static_cast<int>(result.size()); }
@@ -65,4 +65,28 @@ struct SelfPlayData {
 // any number of threads.
 SelfPlayData selfPlay(const Game &game, const Network &network, const SelfPlaySettings &settings,
                       int games, uint64_t seed, int threads);
+
+// Palier 12.3: the battles of a measure, one bot on both sides (rule 11 with this network, as
+// trainerlab.rl.planner plays it), played side by side as self-play's.
+struct MatchSettings {
+  PlannerSettings planner{};       // rule 11's: 200 simulations, no noise
+  int replacementSimulations = 50; // per option of a replacement with a choice; 0: the favourite
+  int lanes = 16;
+  int maxTurns = 1000; // then a draw
+};
+
+struct MatchResult {
+  std::vector<int8_t> winner; // per battle: 0, 1, or -1 for a draw
+  std::vector<int32_t> turns;
+};
+
+// Battle k starts from starts[k] (set up and started by the caller) and plays as Python's referee
+// plays it (ai/src/trainerlab/game/environment.py) with seed seeds[k]: the dice of turn t from
+// seeds[k] * 1'000'003 + t, the faster side replacing first. Each side plays the option its search
+// visits most, the searches seeded seeds[k] * 1'000'003 + 0, 1, 2… in the order they are made; a
+// replacement with a choice searches each option, from one such seed onwards (Planner::
+// searchReplacement). The same results for any number of threads and, with our kernel, of lanes.
+MatchResult playMatches(const Game &game, const Network &network, const MatchSettings &settings,
+                        const std::vector<engine::BattleState> &starts,
+                        const std::vector<uint64_t> &seeds, int threads);
 } // namespace search

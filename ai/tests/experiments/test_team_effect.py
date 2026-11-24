@@ -4,7 +4,7 @@ from collections.abc import Callable
 import numpy as np
 import pytest
 
-from trainerlab.experiments import teams
+from trainerlab.experiments import arena, teams
 from trainerlab.experiments.tournament import wilson_interval
 from trainerlab.game.environment import random_team_pair
 
@@ -177,3 +177,42 @@ def test_teams_of_any_size_can_be_measured(monkeypatch: pytest.MonkeyPatch) -> N
     assert abs(x).sum() == 4
     seeds, points = _battles(0, 50, lambda seed, replay: float(replay))
     assert teams.analyze(seeds, points, size=2).battles == 100
+
+
+class _Arena:
+    """arena.play, recorded: the battles it is given; side 0 wins each."""
+
+    def __init__(self) -> None:
+        self.battles: list[tuple[list[str], list[str], int]] = []
+        self.jobs = 0
+
+    def __call__(self, bot: object, battles: list, jobs: int, done: object = None) -> list:  # type: ignore[type-arg]
+        self.battles, self.jobs = list(battles), jobs
+        if callable(done):
+            done(len(battles))
+        return [0] * len(battles)
+
+
+def test_a_search_bot_plays_its_battles_in_cpp_side_by_side(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    played = _Arena()
+    monkeypatch.setattr(arena, "play", played)
+    told: list[int] = []
+
+    class Meter:
+        def update(self, done: int) -> None:
+            told.append(done)
+
+        def finish(self) -> None:
+            told.append(-1)
+
+    seeds, points = teams.record("alphazero", range(7, 9), jobs=3, progress=Meter(), size=2)
+
+    t0, t1 = random_team_pair(7, 2)
+    assert played.battles[:2] == [(t0, t1, 14), (t1, t0, 15)]  # as the Python path plays them
+    assert len(played.battles) == 4 and played.jobs == 3
+    assert seeds.tolist() == [7, 7, 8, 8]
+    assert points.tolist() == [1.0, 0.0, 1.0, 0.0]  # side 0 always wins: the first team, then not
+    assert told == [2, -1]
+    assert teams.record("alphazero", range(3), jobs=1, size=2)[1].tolist() == [1.0, 0.0] * 3

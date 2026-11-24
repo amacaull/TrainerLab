@@ -6,6 +6,7 @@ measure a newly trained model against the shipped one.
 
 import argparse
 from collections.abc import Callable
+from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
 
@@ -92,6 +93,31 @@ SEARCHERS = {
 # Those that search their replacements after a knock-out (palier 10.4), and plan:FILE.pt; the
 # bots measured before send in their network's favourite.
 REPLACING = {"scout", "scholar", "alphazero", PLAN}
+
+
+@dataclass(frozen=True)
+class Searcher:
+    """A bot that searches with a network (rule 11 and after): what a measure needs to play it in
+    C++, battles side by side (experiments/arena.py)."""
+
+    network: Path
+    simulations: int
+    replacements: bool  # searched after a knock-out (palier 10.4)
+
+
+def searcher(spec: str) -> Searcher | None:
+    """The search bot a name stands for; None for any other bot."""
+    base, simulations = _depth(spec)
+    name, _, model = base.partition(":")
+    if name == PLAN:
+        path = Path(model).resolve()
+    elif name in SEARCHERS:
+        path = SEARCHERS[name]
+    else:
+        return None
+    from trainerlab.rl.planner import SIMULATIONS  # PyTorch, only for these bots
+
+    return Searcher(path, simulations or SIMULATIONS, name in REPLACING)
 
 
 def factory(spec: str) -> BotFactory:

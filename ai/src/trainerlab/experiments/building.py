@@ -13,7 +13,7 @@ from pathlib import Path
 import numpy as np
 
 from trainerlab.bots.roster import factory
-from trainerlab.experiments import parallel
+from trainerlab.experiments import arena, parallel
 from trainerlab.experiments.teams import TEAM_SIZE, analyze
 from trainerlab.experiments.tournament import TournamentResult
 from trainerlab.game.battle import play_battle
@@ -40,6 +40,20 @@ def builder_of(spec: str) -> Builder:
     raise ValueError(f"unknown builder {spec!r}: random, or species:FILE.npz")
 
 
+def battles(
+    builder_a: str, builder_b: str, seed: int, *, size: int, core: list[str] | None, pool: int
+) -> list[arena.Battle]:
+    """The pair's two battles, under the same dice: builder A on side 0, then on side 1; each
+    side keeps its core, the pool is both sides'."""
+    build_a, build_b = builder_of(builder_a), builder_of(builder_b)
+    core0, core1 = (core, core) if core is not None else cores(seed, size)
+    picks = draw_pool(seed, pool, size, (core0, core1))
+    return [
+        (build_a(core0, size, 2 * seed, picks), build_b(core1, size, 2 * seed + 1, picks), seed),
+        (build_b(core0, size, 2 * seed, picks), build_a(core1, size, 2 * seed + 1, picks), seed),
+    ]
+
+
 def play_block(
     builder_a: str,
     builder_b: str,
@@ -52,18 +66,14 @@ def play_block(
 ) -> TournamentResult:
     """Builder A's record over these pairs, in pools of `pool` species (all of them: free
     choice); `core`, if given, is both sides' core."""
-    build_a, build_b, make = builder_of(builder_a), builder_of(builder_b), factory(bot)
+    make = factory(bot)
     tally = {"win": 0, "draw": 0, "loss": 0}
     for seed in seeds:
-        core0, core1 = (core, core) if core is not None else cores(seed, size)
-        picks = draw_pool(seed, pool, size, (core0, core1))
-        for a_side in (0, 1):
-            first = build_a if a_side == 0 else build_b
-            second = build_b if a_side == 0 else build_a
-            team0 = first(core0, size, 2 * seed, picks)
-            team1 = second(core1, size, 2 * seed + 1, picks)
-            env = BattleEnvironment(team0, team1, seed=seed)
-            tally[outcome_of(play_battle(env, make(2 * seed), make(2 * seed + 1)), a_side)] += 1
+        pair = battles(builder_a, builder_b, seed, size=size, core=core, pool=pool)
+        for a_side, (team0, team1, number) in enumerate(pair):
+            env = BattleEnvironment(team0, team1, seed=number)
+            winner = play_battle(env, make(2 * number), make(2 * number + 1))
+            tally[outcome_of(winner, a_side)] += 1
     return TournamentResult(tally["win"], tally["draw"], tally["loss"])
 
 
@@ -80,7 +90,25 @@ def duel(
     progress: parallel.Meter | None = None,
     on_part: Callable[[TournamentResult], None] | None = None,
 ) -> TournamentResult:
-    """Builder A's record against builder B over the pairs of these seeds, on `jobs` processes."""
+    """Builder A's record against builder B over the pairs of these seeds, on `jobs` processes;
+    a search bot plays in C++, battles side by side (experiments/arena.py), on `jobs` threads."""
+    found = arena.searcher_of(bot)
+    if found is not None:
+        listed = [
+            battle
+            for seed in seeds
+            for battle in battles(builder_a, builder_b, seed, size=size, core=core, pool=pool)
+        ]
+        done = None if progress is None else (lambda count: progress.update(count // 2))
+        tally = {"win": 0, "draw": 0, "loss": 0}
+        for k, winner in enumerate(arena.play(found, listed, jobs, done)):
+            tally[outcome_of(winner, k % 2)] += 1
+        if progress is not None:
+            progress.finish()
+        result = TournamentResult(tally["win"], tally["draw"], tally["loss"])
+        if on_part is not None:
+            on_part(result)
+        return result
     work = partial(play_block, bot=bot, size=size, core=core, pool=pool)
     parts = parallel.run(work, builder_a, builder_b, seeds, jobs, progress, on_part)
     return TournamentResult(

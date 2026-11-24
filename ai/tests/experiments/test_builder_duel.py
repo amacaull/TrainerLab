@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from trainerlab.experiments import building, teams
+from trainerlab.experiments import arena, building, teams
 from trainerlab.game.building import Builder, SpeciesBuilder, cores, draw_pool, random_builder
 
 
@@ -103,3 +103,53 @@ def test_a_builders_duel_adds_up_its_blocks() -> None:
     result = building.duel("random", "random", range(4), 1, bot="hitter", size=2, pool=12)
 
     assert result.games == 8
+
+
+def test_a_search_bot_plays_the_builders_battles_in_cpp(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    scores = "species:" + str(_scores_file(tmp_path))
+    given: list[tuple[list[str], list[str], int]] = []
+
+    def play(bot: object, battles: list, jobs: int, done: object = None) -> list:  # type: ignore[type-arg]
+        given.extend(battles)
+        if callable(done):
+            done(len(battles))
+        return [0] * len(battles)  # side 0 wins
+
+    monkeypatch.setattr(arena, "play", play)
+    parts: list[object] = []
+
+    result = building.duel(
+        "random",
+        scores,
+        range(5, 7),
+        2,
+        bot="alphazero",
+        size=4,
+        pool=12,
+        on_part=parts.append,
+    )
+
+    core0, core1 = cores(5, 4)
+    pool = draw_pool(5, 12, 4, (core0, core1))
+    species = building.builder_of(scores)
+    assert given[0] == (random_builder(core0, 4, 10, pool), species(core1, 4, 11, pool), 5)
+    assert given[1] == (species(core0, 4, 10, pool), random_builder(core1, 4, 11, pool), 5)
+    # A wins on side 0, loses on side 1, in both pairs.
+    assert (result.wins, result.draws, result.losses) == (2, 0, 2)
+    assert len(parts) == 1
+
+    told: list[int] = []
+
+    class Meter:
+        def update(self, done: int) -> None:
+            told.append(done)
+
+        def finish(self) -> None:
+            told.append(-1)
+
+    building.duel(
+        "random", "random", range(3), 1, bot="alphazero", size=2, pool=12, progress=Meter()
+    )
+    assert told == [3, -1]

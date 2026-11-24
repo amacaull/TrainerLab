@@ -67,6 +67,14 @@ public:
         caps_(number ^ 0xC2B2AE3D27D4EB4FULL) {
     advance();
   }
+  // Palier 12.3: a measure's battle, from `start`, as Python's referee plays it (playMatches).
+  Battle(const Game &game, const Planner &planner, const Planner &replacer,
+         const SelfPlaySettings &settings, const BattleState &start, uint64_t seed, int index)
+      : game_(game), full_(planner), fast_(planner), replacer_(replacer), settings_(settings),
+        number_(seed), index_(index), state_(start), dice_(seed), draws_(seed), caps_(seed),
+        measure_(true) {
+    advance();
+  }
   Battle(const Battle &) = delete;
   Battle &operator=(const Battle &) = delete;
 
@@ -90,6 +98,8 @@ private:
   bool nextCandidate(); // a replacement searched: on to the next option; true if it waits
   void sendReplacement();
   void finish();
+  // The dice: self-play's, one stream; a measure's, a stream per turn, as Python's referee.
+  engine::MersenneRNG &dice();
 
   const Game &game_;
   const Planner &full_, &fast_, &replacer_;
@@ -102,6 +112,10 @@ private:
   std::mt19937_64 caps_; // which searches are full
   uint64_t decision_ = 0;
   bool fullSearch_ = true;
+  // A measure: the most visited option played, no rows, the dice of each turn on their own.
+  bool measure_ = false;
+  engine::MersenneRNG turnDice_{0};
+  uint64_t replacementSeed_ = 0; // a measure's replacement searched: option k from this + k
   SelfPlayData data_;
   std::vector<int> sides_;       // the side of each row, for its result
   std::vector<size_t> turnRows_; // the rows of the turn under way, to learn what the foe played
@@ -138,7 +152,7 @@ void Battle::advance() {
         return;
       }
       if (state_.active(0).isFainted() || state_.active(1).isFainted()) {
-        const int first = rules.fasterSide(state_, dice_);
+        const int first = rules.fasterSide(state_, dice());
         replacing_ = state_.active(first).isFainted() ? first : 1 - first;
         replacingView_ = engine::observe(state_, replacing_);
         mask_ = Planner::replacementMask(replacingView_, replacing_);
@@ -146,6 +160,7 @@ void Battle::advance() {
         if (settings_.replacementSimulations > 0 && options_.size() > 1) {
           searchingReplacement_ = true;
           values_.clear();
+          replacementSeed_ = number_ * 1'000'003 + decision_++;
           if (nextCandidate())
             return;
           sendReplacement();
@@ -163,7 +178,7 @@ void Battle::advance() {
                        data_.foeMask.data() + row * Encoding::kActions);
       }
       turnRows_.clear();
-      rules.resolveTurn(state_, chosen_[0], chosen_[1], dice_);
+      rules.resolveTurn(state_, chosen_[0], chosen_[1], dice());
       turnSide_ = 0;
       continue;
     }
@@ -232,8 +247,10 @@ bool Battle::nextCandidate() {
       query_ = {&after_, replacing_, mask_.data()};
       return true;
     }
-    candidateSearch_ = std::make_unique<Planner::Search>(replacer_, after_, replacing_, legal,
-                                                         number_ * 1'000'003 + decision_++);
+    const uint64_t seed =
+        measure_ ? replacementSeed_ + values_.size() : number_ * 1'000'003 + decision_++;
+    candidateSearch_ =
+        std::make_unique<Planner::Search>(replacer_, after_, replacing_, legal, seed);
     if (!candidateSearch_->done())
       return true;
     candidateSearch_.reset(); // cannot happen with two options or more; kept safe
@@ -248,10 +265,12 @@ void Battle::sendReplacement() {
   for (size_t k = 1; k < values_.size(); ++k)
     if (values_[k] > values_[best])
       best = k;
-  std::array<float, Encoding::kActions> policy{};
-  policy[at(engine::kMaxMovesPerPokemon + options_[best])] = 1.0f;
-  addRow(replacingView_, replacing_, Planner::replacementMask(replacingView_, replacing_), policy,
-         values_[best]);
+  if (!measure_) {
+    std::array<float, Encoding::kActions> policy{};
+    policy[at(engine::kMaxMovesPerPokemon + options_[best])] = 1.0f;
+    addRow(replacingView_, replacing_, Planner::replacementMask(replacingView_, replacing_), policy,
+           values_[best]);
+  }
   game_.rules().resolveReplacement(state_, replacing_, options_[best]);
   searchingReplacement_ = false;
 }
@@ -290,6 +309,17 @@ void Battle::record() {
   int total = 0;
   for (int n : counts)
     total += n;
+  if (measure_) { // the option visited most, the first of them (Planner::chooseAction)
+    int bestVisits = -1;
+    for (const Action &action : legal_)
+      if (counts[at(keyOf(action))] > bestVisits) {
+        bestVisits = counts[at(keyOf(action))];
+        chosen_[at(side)] = action;
+      }
+    search_.reset();
+    ++turnSide_;
+    return;
+  }
   // An option drawn in proportion to its visits.
   int left = static_cast<int>(draws_() % static_cast<uint64_t>(total));
   for (const Action &action : legal_) {
@@ -311,6 +341,13 @@ void Battle::record() {
   turnRows_.push_back(addRow(view_, side, mask, policy, searched));
 }
 
+engine::MersenneRNG &Battle::dice() {
+  if (!measure_)
+    return dice_;
+  turnDice_ = engine::MersenneRNG(number_ * 1'000'003 + static_cast<uint64_t>(state_.turn));
+  return turnDice_;
+}
+
 void Battle::finish() {
   const bool lost0 = state_.sideHasLost(0), lost1 = state_.sideHasLost(1);
   const int winner = lost0 == lost1 ? -1 : (lost1 ? 0 : 1);
@@ -324,14 +361,12 @@ void Battle::finish() {
 
 // Battles [first, first + count) side by side: each round, every battle not over gives what it
 // waits on, all evaluated in one batch, in battle order.
-void playTogether(const Game &game, const Network &network, const Planner &full,
-                  const Planner &fast, const Planner &replacer, const SelfPlaySettings &settings,
-                  uint64_t seed, int first, int count, std::vector<SelfPlayData> &battles) {
+template <typename Make>
+void playTogether(const Network &network, int first, int count, const Make &make,
+                  std::vector<SelfPlayData> &battles) {
   std::vector<std::unique_ptr<Battle>> lanes;
-  for (int g = first; g < first + count; ++g) {
-    const uint64_t number = seed * 1'000'003 + static_cast<uint64_t>(g);
-    lanes.push_back(std::make_unique<Battle>(game, full, fast, replacer, settings, number, g));
-  }
+  for (int g = first; g < first + count; ++g)
+    lanes.push_back(make(g));
   std::vector<Network::Query> queries;
   std::vector<Network::Output> outputs;
   while (true) {
@@ -358,6 +393,38 @@ void playTogether(const Game &game, const Network &network, const Planner &full,
 
 template <typename T> void append(std::vector<T> &to, const std::vector<T> &from) {
   to.insert(to.end(), from.begin(), from.end());
+}
+
+// Groups of `lanes` battles shared among the threads: battles[g] for g in [0, games).
+template <typename Make>
+std::vector<SelfPlayData> playGroups(const Network &network, int games, int lanes, int threads,
+                                     const Make &make) {
+  std::vector<SelfPlayData> battles(at(games));
+  const int groups = (games + lanes - 1) / lanes;
+  std::atomic<int> next{0};
+  std::exception_ptr failure;
+  std::mutex failureLock;
+  auto work = [&] {
+    try {
+      for (int g = next++; g < groups; g = next++) {
+        const int first = g * lanes;
+        playTogether(network, first, std::min(lanes, games - first), make, battles);
+      }
+    } catch (...) {
+      const std::lock_guard<std::mutex> lock(failureLock);
+      failure = std::current_exception();
+      next = groups; // the others stop at their next group
+    }
+  };
+  std::vector<std::thread> pool;
+  for (int t = 1; t < std::min(threads, std::max(groups, 1)); ++t)
+    pool.emplace_back(work);
+  work();
+  for (std::thread &thread : pool)
+    thread.join();
+  if (failure)
+    std::rethrow_exception(failure);
+  return battles;
 }
 } // namespace
 
@@ -386,32 +453,11 @@ SelfPlayData selfPlay(const Game &game, const Network &network, const SelfPlaySe
   PlannerSettings replacing = quick;
   replacing.simulations = std::max(settings.replacementSimulations, 2);
   const Planner replacer(game, network, replacing);
-  std::vector<SelfPlayData> battles(at(games));
-  const int groups = (games + settings.lanes - 1) / settings.lanes;
-  std::atomic<int> next{0};
-  std::exception_ptr failure;
-  std::mutex failureLock;
-  auto work = [&] {
-    try {
-      for (int g = next++; g < groups; g = next++) {
-        const int first = g * settings.lanes;
-        playTogether(game, network, full, fast, replacer, settings, seed, first,
-                     std::min(settings.lanes, games - first), battles);
-      }
-    } catch (...) {
-      const std::lock_guard<std::mutex> lock(failureLock);
-      failure = std::current_exception();
-      next = groups; // the others stop at their next group
-    }
-  };
-  std::vector<std::thread> pool;
-  for (int t = 1; t < std::min(threads, std::max(groups, 1)); ++t)
-    pool.emplace_back(work);
-  work();
-  for (std::thread &thread : pool)
-    thread.join();
-  if (failure)
-    std::rethrow_exception(failure);
+  const std::vector<SelfPlayData> battles =
+      playGroups(network, games, settings.lanes, threads, [&](int g) {
+        const uint64_t number = seed * 1'000'003 + static_cast<uint64_t>(g);
+        return std::make_unique<Battle>(game, full, fast, replacer, settings, number, g);
+      });
 
   SelfPlayData all;
   for (const SelfPlayData &b : battles) {
@@ -430,5 +476,38 @@ SelfPlayData selfPlay(const Game &game, const Network &network, const SelfPlaySe
     append(all.teamSize, b.teamSize);
   }
   return all;
+}
+
+MatchResult playMatches(const Game &game, const Network &network, const MatchSettings &settings,
+                        const std::vector<BattleState> &starts, const std::vector<uint64_t> &seeds,
+                        int threads) {
+  if (starts.size() != seeds.size() || threads < 1 || settings.planner.simulations < 2 ||
+      settings.lanes < 1 || settings.replacementSimulations == 1 ||
+      settings.replacementSimulations < 0)
+    throw std::invalid_argument("playMatches: a seed per battle, threads >= 1, simulations >= 2, "
+                                "lanes >= 1, replacement simulations 0 or >= 2");
+  SelfPlaySettings played;
+  played.planner = settings.planner;
+  played.maxTurns = settings.maxTurns;
+  played.lanes = settings.lanes;
+  played.fast = 0;
+  played.replacementSimulations = settings.replacementSimulations;
+  const Planner planner(game, network, settings.planner);
+  PlannerSettings replacing = settings.planner;
+  replacing.simulations = std::max(settings.replacementSimulations, 2);
+  replacing.noise = 0.0;
+  replacing.minRootVisits = 0;
+  const Planner replacer(game, network, replacing);
+  const std::vector<SelfPlayData> battles =
+      playGroups(network, static_cast<int>(starts.size()), settings.lanes, threads, [&](int g) {
+        return std::make_unique<Battle>(game, planner, replacer, played, starts[at(g)],
+                                        seeds[at(g)], g);
+      });
+  MatchResult result;
+  for (const SelfPlayData &b : battles) {
+    append(result.winner, b.winner);
+    append(result.turns, b.turns);
+  }
+  return result;
 }
 } // namespace search
