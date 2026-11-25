@@ -2,6 +2,7 @@
 
 trainerlab build species:runs/teams-6.npz random --size 6 --pairs 2000 --from 430000
 trainerlab build random random --size 2 --core Gyarados --pool 49
+trainerlab build net:runs/evaluator.pt species:runs/teams-6b.npz --size 6 --from 525000
 
 Each pair draws from its seed a core of one or two Pokemon for each side (or takes --core for
 both), then a pool of --pool species outside them, the same for both sides (12; 49, every
