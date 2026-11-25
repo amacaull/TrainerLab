@@ -5,6 +5,7 @@
 #include "engine/core/observation.hpp"
 #include "engine/core/rng.hpp"
 #include "engine/core/switching.hpp"
+#include "engine/ffi/ffi.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -478,14 +479,33 @@ SelfPlayData selfPlay(const Game &game, const Network &network, const SelfPlaySe
   return all;
 }
 
+engine::BattleState matchStart(const Match &match) {
+  BattleState state;
+  for (size_t side = 0; side < 2; ++side) {
+    const std::vector<int> &team = match.teams[side];
+    if (team.empty() || team.size() > static_cast<size_t>(engine::kTeamSize))
+      throw std::invalid_argument("playMatches: a team has 1 to 6 Pokemon");
+    for (size_t i = 0; i < team.size(); ++i)
+      state.teams[side][i] = engine::ffi::make_combatant(team[i]);
+    state.team_size[side] = static_cast<int>(team.size());
+    state.activeIndex[side] = 0;
+    engine::ffi::validate_team(state.teams[side], state.team_size[side]);
+  }
+  engine::ffi::start_battle(state, match.seed);
+  return state;
+}
+
 MatchResult playMatches(const Game &game, const Network &network, const MatchSettings &settings,
-                        const std::vector<BattleState> &starts, const std::vector<uint64_t> &seeds,
-                        int threads) {
-  if (starts.size() != seeds.size() || threads < 1 || settings.planner.simulations < 2 ||
-      settings.lanes < 1 || settings.replacementSimulations == 1 ||
-      settings.replacementSimulations < 0)
-    throw std::invalid_argument("playMatches: a seed per battle, threads >= 1, simulations >= 2, "
-                                "lanes >= 1, replacement simulations 0 or >= 2");
+                        const std::vector<Match> &matches, int threads, std::atomic<int> *done,
+                        const std::atomic<bool> *stop) {
+  if (threads < 1 || settings.planner.simulations < 2 || settings.lanes < 1 ||
+      settings.replacementSimulations == 1 || settings.replacementSimulations < 0)
+    throw std::invalid_argument("playMatches: threads >= 1, simulations >= 2, lanes >= 1, "
+                                "replacement simulations 0 or >= 2");
+  std::vector<BattleState> starts;
+  starts.reserve(matches.size());
+  for (const Match &match : matches)
+    starts.push_back(matchStart(match));
   SelfPlaySettings played;
   played.planner = settings.planner;
   played.maxTurns = settings.maxTurns;
@@ -498,16 +518,87 @@ MatchResult playMatches(const Game &game, const Network &network, const MatchSet
   replacing.noise = 0.0;
   replacing.minRootVisits = 0;
   const Planner replacer(game, network, replacing);
-  const std::vector<SelfPlayData> battles =
-      playGroups(network, static_cast<int>(starts.size()), settings.lanes, threads, [&](int g) {
-        return std::make_unique<Battle>(game, planner, replacer, played, starts[at(g)],
-                                        seeds[at(g)], g);
-      });
+
+  const size_t total = matches.size();
   MatchResult result;
-  for (const SelfPlayData &b : battles) {
-    append(result.winner, b.winner);
-    append(result.turns, b.turns);
-  }
+  result.winner.assign(total, 0);
+  result.turns.assign(total, 0);
+  std::exception_ptr failure;
+  std::mutex failureLock;
+  std::atomic<bool> failed{false};
+  auto stopped = [&] { return failed || (stop != nullptr && *stop); };
+
+  auto work = [&](size_t thread) {
+    try {
+      std::vector<std::unique_ptr<Battle>> lanes;
+      std::vector<size_t> index; // each lane's battle
+      size_t next = thread;
+      auto over = [&](size_t g, Battle &battle) {
+        result.winner[g] = battle.data().winner.front();
+        result.turns[g] = battle.data().turns.front();
+        if (done != nullptr)
+          ++*done;
+      };
+      auto refill = [&] {
+        while (lanes.size() < at(settings.lanes) && next < total) {
+          const size_t g = next;
+          next += static_cast<size_t>(threads);
+          auto battle = std::make_unique<Battle>(game, planner, replacer, played, starts[g],
+                                                 matches[g].seed, static_cast<int>(g));
+          if (battle->done()) {
+            over(g, *battle);
+            continue;
+          }
+          lanes.push_back(std::move(battle));
+          index.push_back(g);
+        }
+      };
+      std::vector<Network::Query> queries;
+      std::vector<Network::Output> outputs;
+      refill();
+      while (!lanes.empty()) {
+        if (stopped())
+          return;
+        queries.clear();
+        for (const auto &battle : lanes)
+          for (const Network::Query &query : battle->pending())
+            queries.push_back(query);
+        outputs.resize(queries.size());
+        network.evaluate(queries, outputs.data());
+        const Network::Output *answer = outputs.data();
+        size_t kept = 0;
+        for (size_t k = 0; k < lanes.size(); ++k) {
+          const size_t size = lanes[k]->pending().size();
+          lanes[k]->resume(answer);
+          answer += size;
+          if (lanes[k]->done()) {
+            over(index[k], *lanes[k]);
+            continue;
+          }
+          lanes[kept] = std::move(lanes[k]);
+          index[kept] = index[k];
+          ++kept;
+        }
+        lanes.resize(kept);
+        index.resize(kept);
+        refill();
+      }
+    } catch (...) {
+      const std::lock_guard<std::mutex> lock(failureLock);
+      failure = std::current_exception();
+      failed = true;
+    }
+  };
+  std::vector<std::thread> pool;
+  for (size_t t = 1; t < static_cast<size_t>(threads); ++t)
+    pool.emplace_back(work, t);
+  work(0);
+  for (std::thread &thread : pool)
+    thread.join();
+  if (failure)
+    std::rethrow_exception(failure);
+  if (stop != nullptr && *stop)
+    throw Stopped();
   return result;
 }
 } // namespace search

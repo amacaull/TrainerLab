@@ -4,7 +4,10 @@
 #include "search/network.hpp"
 #include "search/planner.hpp"
 
+#include <array>
+#include <atomic>
 #include <cstdint>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -80,13 +83,32 @@ struct MatchResult {
   std::vector<int32_t> turns;
 };
 
-// Battle k starts from starts[k] (set up and started by the caller) and plays as Python's referee
-// plays it (ai/src/trainerlab/game/environment.py) with seed seeds[k]: the dice of turn t from
-// seeds[k] * 1'000'003 + t, the faster side replacing first. Each side plays the option its search
-// visits most, the searches seeded seeds[k] * 1'000'003 + 0, 1, 2… in the order they are made; a
-// replacement with a choice searches each option, from one such seed onwards (Planner::
-// searchReplacement). The same results for any number of threads and, with our kernel, of lanes.
+// A measure's battle: each side's species (engine ids, the lead first), and its seed.
+struct Match {
+  std::array<std::vector<int>, 2> teams;
+  uint64_t seed = 0;
+};
+
+// The battle set up as Python's referee sets it up (BattleEnvironment): each team built and
+// checked, then started with the seed.
+engine::BattleState matchStart(const Match &match);
+
+// Thrown when a measure is asked to stop (Ctrl-C).
+struct Stopped : std::runtime_error {
+  Stopped() : std::runtime_error("playMatches: stopped") {}
+};
+
+// Each battle plays as Python's referee plays it (ai/src/trainerlab/game/environment.py) with its
+// seed: the dice of turn t from seed * 1'000'003 + t, the faster side replacing first. Each side
+// plays the option its search visits most, the searches seeded seed * 1'000'003 + 0, 1, 2… in the
+// order they are made; a replacement with a choice searches each option, from one such seed
+// onwards (Planner::searchReplacement).
+//
+// Thread t plays battles t, t + threads, t + 2 threads… `lanes` at a time, side by side, their
+// network queries batched; as soon as one ends, the next of its battles takes its place. `done`,
+// if given, counts the battles over; `stop`, once true, ends the measure (Stopped). The same
+// results for the same number of threads; with our kernel, for any number of threads and lanes.
 MatchResult playMatches(const Game &game, const Network &network, const MatchSettings &settings,
-                        const std::vector<engine::BattleState> &starts,
-                        const std::vector<uint64_t> &seeds, int threads);
+                        const std::vector<Match> &matches, int threads,
+                        std::atomic<int> *done = nullptr, const std::atomic<bool> *stop = nullptr);
 } // namespace search

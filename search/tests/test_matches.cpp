@@ -8,6 +8,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <atomic>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -18,13 +19,17 @@ const search::Game &game() {
   return instance;
 }
 
-// Random battles cut to teams of `size`, as a measure hands them over: started, nothing played.
-std::vector<engine::BattleState> starts(int count, int size) {
-  std::vector<engine::BattleState> out;
+// The teams of random battles cut to `size`, each with its seed: a measure's battles.
+std::vector<search::Match> matches(int count, int size, uint64_t firstSeed) {
+  std::vector<search::Match> out;
   for (int k = 0; k < count; ++k) {
-    engine::BattleState state = game().randomBattle(static_cast<uint64_t>(100 + k));
-    state.team_size = {size, size};
-    out.push_back(state);
+    const engine::BattleState state = game().randomBattle(static_cast<uint64_t>(100 + k));
+    search::Match match;
+    for (size_t side = 0; side < 2; ++side)
+      for (int i = 0; i < size; ++i)
+        match.teams[side].push_back(state.teams[side][static_cast<size_t>(i)].species_id);
+    match.seed = firstSeed + static_cast<uint64_t>(k);
+    out.push_back(match);
   }
   return out;
 }
@@ -92,13 +97,13 @@ TEST_CASE("a measure's battles, side by side, play as rule 11 does one decision 
     return;
   }
   const search::Network net = search::testing::randomNetwork(game());
-  const std::vector<engine::BattleState> battles = starts(6, 6);
-  const std::vector<uint64_t> seeds{11, 12, 13, 14, 15, 16};
+  const std::vector<search::Match> battles = matches(6, 6, 11);
 
-  const search::MatchResult together = search::playMatches(game(), net, small(), battles, seeds, 1);
+  const search::MatchResult together = search::playMatches(game(), net, small(4), battles, 2);
 
   for (size_t k = 0; k < battles.size(); ++k) {
-    const search::Outcome alone = oneByOne(net, small(), battles[k], seeds[k]);
+    const search::Outcome alone =
+        oneByOne(net, small(), search::matchStart(battles[k]), battles[k].seed);
     CHECK(together.winner[k] == alone.winner);
     CHECK(together.turns[k] == alone.turns);
   }
@@ -108,35 +113,57 @@ TEST_CASE("without searched replacements, the network's favourite is sent in") {
   if (std::string(search::Network::backend()) != "kernel")
     return;
   const search::Network net = search::testing::randomNetwork(game());
-  const std::vector<engine::BattleState> battles = starts(4, 3);
-  const std::vector<uint64_t> seeds{21, 22, 23, 24};
+  const std::vector<search::Match> battles = matches(4, 3, 21);
 
-  const search::MatchResult played =
-      search::playMatches(game(), net, small(16, 0), battles, seeds, 1);
+  const search::MatchResult played = search::playMatches(game(), net, small(16, 0), battles, 1);
 
   for (size_t k = 0; k < battles.size(); ++k)
-    CHECK(played.turns[k] == oneByOne(net, small(16, 0), battles[k], seeds[k]).turns);
+    CHECK(played.turns[k] ==
+          oneByOne(net, small(16, 0), search::matchStart(battles[k]), battles[k].seed).turns);
 }
 
-TEST_CASE("a measure's battles are the same for any number of threads and lanes") {
+TEST_CASE("a measure's battles are the same for the same threads, and counted as they end") {
   const search::Network net = search::testing::randomNetwork(game());
-  const std::vector<engine::BattleState> battles = starts(5, 2);
-  const std::vector<uint64_t> seeds{1, 2, 3, 4, 5};
+  const std::vector<search::Match> battles = matches(7, 2, 1);
+  std::atomic<int> done{0};
 
-  const search::MatchResult one = search::playMatches(game(), net, small(2), battles, seeds, 1);
-  const search::MatchResult three = search::playMatches(game(), net, small(2), battles, seeds, 3);
+  const search::MatchResult one = search::playMatches(game(), net, small(2), battles, 3, &done);
+  const search::MatchResult again = search::playMatches(game(), net, small(2), battles, 3);
 
-  CHECK(one.winner == three.winner);
-  CHECK(one.turns == three.turns);
-  CHECK(one.winner.size() == 5);
+  CHECK(one.winner == again.winner);
+  CHECK(one.turns == again.turns);
+  CHECK(one.winner.size() == 7);
+  CHECK(done == 7);
+}
+
+TEST_CASE("with our kernel, threads and lanes change nothing: a battle ending lets the next in") {
+  if (std::string(search::Network::backend()) != "kernel")
+    return;
+  const search::Network net = search::testing::randomNetwork(game());
+  const std::vector<search::Match> battles = matches(9, 2, 30);
+
+  const search::MatchResult wide = search::playMatches(game(), net, small(16), battles, 1);
+  const search::MatchResult narrow = search::playMatches(game(), net, small(2), battles, 3);
+
+  CHECK(wide.winner == narrow.winner);
+  CHECK(wide.turns == narrow.turns);
+}
+
+TEST_CASE("a measure asked to stop stops") {
+  const search::Network net = search::testing::randomNetwork(game());
+  const std::atomic<bool> stop{true};
+  CHECK_THROWS_AS(search::playMatches(game(), net, small(), matches(3, 2, 1), 1, nullptr, &stop),
+                  search::Stopped);
 }
 
 TEST_CASE("a measure refuses what it cannot play") {
   const search::Network net = search::testing::randomNetwork(game());
-  const std::vector<engine::BattleState> battles = starts(1, 2);
-  CHECK_THROWS_AS(search::playMatches(game(), net, small(), battles, {}, 1), std::invalid_argument);
-  CHECK_THROWS_AS(search::playMatches(game(), net, small(0), battles, {1}, 1),
+  const std::vector<search::Match> battles = matches(1, 2, 1);
+  CHECK_THROWS_AS(search::playMatches(game(), net, small(), battles, 0), std::invalid_argument);
+  CHECK_THROWS_AS(search::playMatches(game(), net, small(0), battles, 1), std::invalid_argument);
+  CHECK_THROWS_AS(search::playMatches(game(), net, small(16, 1), battles, 1),
                   std::invalid_argument);
-  CHECK_THROWS_AS(search::playMatches(game(), net, small(16, 1), battles, {1}, 1),
-                  std::invalid_argument);
+  search::Match empty;
+  empty.teams[0] = {0};
+  CHECK_THROWS_AS(search::playMatches(game(), net, small(), {empty}, 1), std::invalid_argument);
 }

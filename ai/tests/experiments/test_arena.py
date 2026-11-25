@@ -64,19 +64,16 @@ def test_a_measure_s_battles_play_as_the_python_referee_plays_them() -> None:
         assert winner == expected
 
 
-def test_the_winners_come_in_order_whatever_the_threads_and_the_progress_is_told(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(arena, "CHUNK", 3)  # battles per call, for each thread
+def test_the_winners_come_in_order_and_the_progress_is_told_from_the_start() -> None:
     battles = [(*random_team_pair(seed, 2), seed) for seed in range(7)]
     told: list[int] = []
 
-    one = arena.play(Searcher(ALPHAZERO, 4, False), battles, jobs=1, done=told.append)
-    two = arena.play(Searcher(ALPHAZERO, 4, False), battles, jobs=2)
+    one = arena.play(Searcher(ALPHAZERO, 4, False), battles, jobs=2, done=told.append)
+    again = arena.play(Searcher(ALPHAZERO, 4, False), battles, jobs=2)
 
-    assert one == two and len(one) == 7
+    assert one == again and len(one) == 7
     assert set(one) <= {0, 1, None}
-    assert told == [3, 6, 7]
+    assert told[0] == 0 and told[-1] == 7 and told == sorted(told)
 
 
 def test_no_battle_no_call() -> None:
@@ -87,3 +84,19 @@ def test_a_variable_keeps_the_battles_in_python_one_by_one(monkeypatch: pytest.M
     assert arena.searcher_of("alphazero") == searcher("alphazero")
     monkeypatch.setenv("TRAINERLAB_ONE_BY_ONE", "1")
     assert arena.searcher_of("alphazero") is None
+
+
+def test_ctrl_c_stops_the_battles_at_once() -> None:
+    import os
+    import signal
+    import threading
+    import time
+
+    battles = [(*random_team_pair(seed, 6), seed) for seed in range(400)]
+    threading.Timer(0.5, os.kill, (os.getpid(), signal.SIGINT)).start()
+    start = time.monotonic()
+
+    with pytest.raises(KeyboardInterrupt):
+        arena.play(Searcher(ALPHAZERO, 50, True), battles, jobs=2)
+
+    assert time.monotonic() - start < 10
