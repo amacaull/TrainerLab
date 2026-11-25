@@ -19,10 +19,14 @@
 #include <pybind11/stl.h>
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <exception>
 #include <map>
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <type_traits>
 #include <vector>
 
@@ -307,32 +311,70 @@ PYBIND11_MODULE(_search, m) {
           "the mean result for `side`, in [-1, 1].")
       .def(
           "play_matches",
-          [](const search::Network &net, const std::vector<engine::BattleState> &starts,
-             const std::vector<uint64_t> &seeds, int threads, int simulations,
-             int replacement_simulations, int lanes, int max_turns) {
+          [](const search::Network &net, const std::vector<std::vector<int>> &teams0,
+             const std::vector<std::vector<int>> &teams1, const std::vector<uint64_t> &seeds,
+             int threads, int simulations, int replacement_simulations, int lanes, int max_turns,
+             const py::object &progress) {
+            if (teams0.size() != seeds.size() || teams1.size() != seeds.size())
+              throw std::invalid_argument("play_matches: two teams and a seed per battle");
+            std::vector<search::Match> matches(seeds.size());
+            for (size_t k = 0; k < seeds.size(); ++k)
+              matches[k] = {{teams0[k], teams1[k]}, seeds[k]};
             search::MatchSettings settings;
             settings.planner.simulations = simulations;
             settings.replacementSimulations = replacement_simulations;
             settings.lanes = lanes;
             settings.maxTurns = max_turns;
+            std::atomic<int> done{0};
+            std::atomic<bool> stop{false};
             search::MatchResult result;
-            {
-              const py::gil_scoped_release free; // the threads run without Python
-              result = search::playMatches(loaded(), net, settings, starts, seeds, threads);
+            std::exception_ptr failure;
+            std::atomic<bool> finished{false};
+            std::thread worker([&] {
+              try {
+                result =
+                    search::playMatches(loaded(), net, settings, matches, threads, &done, &stop);
+              } catch (...) {
+                failure = std::current_exception();
+              }
+              finished = true;
+            });
+            // Python waits here, its progress told every second; Ctrl-C stops the battles.
+            while (!finished) {
+              {
+                const py::gil_scoped_release free;
+                for (int tick = 0; tick < 20 && !finished; ++tick)
+                  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+              }
+              if (PyErr_CheckSignals() != 0) {
+                stop = true;
+                {
+                  const py::gil_scoped_release free;
+                  worker.join();
+                }
+                throw py::error_already_set();
+              }
+              if (!progress.is_none())
+                progress(done.load());
             }
+            worker.join();
+            if (failure)
+              std::rethrow_exception(failure);
             py::array_t<int8_t> winner(static_cast<py::ssize_t>(result.winner.size()));
             py::array_t<int32_t> turns(static_cast<py::ssize_t>(result.turns.size()));
             std::copy(result.winner.begin(), result.winner.end(), winner.mutable_data());
             std::copy(result.turns.begin(), result.turns.end(), turns.mutable_data());
             return py::make_tuple(winner, turns);
           },
-          py::arg("starts"), py::arg("seeds"), py::arg("threads"), py::arg("simulations") = 200,
-          py::arg("replacement_simulations") = 50, py::arg("lanes") = 16,
-          py::arg("max_turns") = 1000,
-          "Palier 12.3: the battles of a measure, rule 11 with this network on both sides, side "
-          "by side (search/include/search/self_play.hpp): battle k from starts[k] (started), its "
-          "dice and searches from seeds[k], as Python's referee plays it. (winner[k]: 0, 1 or -1 "
-          "for a draw, turns[k]).")
+          py::arg("teams0"), py::arg("teams1"), py::arg("seeds"), py::arg("threads"),
+          py::arg("simulations") = 200, py::arg("replacement_simulations") = 50,
+          py::arg("lanes") = 16, py::arg("max_turns") = 1000, py::arg("progress") = py::none(),
+          "Palier 12.3: the battles of a measure, rule 11 with this network on both sides "
+          "(search/include/search/self_play.hpp): battle k between the species (engine ids) of "
+          "teams0[k] and teams1[k], set up and played as Python's referee does with seed "
+          "seeds[k]; each thread keeps `lanes` battles side by side, the next taking the place of "
+          "one that ends. `progress`, if given, hears the battles over every second; Ctrl-C "
+          "stops. (winner[k]: 0, 1 or -1 for a draw, turns[k]).")
       .def(
           "self_play",
           [](const search::Network &net, int games, uint64_t seed, int threads, int simulations,
