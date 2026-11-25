@@ -7,15 +7,25 @@ alone. With every species in the pool, the choice is free.
 A builder takes the core, the size of the team, a seed (for those that draw) and the pool, and
 returns the whole team, the core first. Every species has one set (moves, item, ability), so a
 team is its species alone.
+
+The bot of `trainerlab play` builds its team this way: a core from the seed, completed from a pool
+of POOL species by the species strengths shipped in species-strength.json (palier 12, written by
+`trainerlab teams --load runs/teams-6b.npz --strengths ...`).
 """
 
+import json
 import math
 import random
 from collections.abc import Callable, Sequence
+from functools import cache
 from itertools import combinations
+from pathlib import Path
 
 from trainerlab import _engine
 from trainerlab.game.environment import DATA_DIR, _build_team
+
+POOL = 12  # the species a draft offers
+STRENGTHS = Path(__file__).parent / "species-strength.json"
 
 # A team from its core, its size, a seed and the pool it picks from.
 Builder = Callable[[list[str], int, int, list[str]], list[str]]
@@ -106,9 +116,25 @@ class SpeciesBuilder:
 
     def __call__(self, core: list[str], size: int, seed: int, pool: list[str]) -> list[str]:
         team = list(core)
+        if len(team) == size:
+            return team
         for name in self.ranked:
             if name in pool and name not in team and completable([*team, name], pool, size):
                 team.append(name)
                 if len(team) == size:
                     return team
         raise ValueError(f"{len(self.ranked)} scored species cannot complete a team of {size}")
+
+
+@cache
+def strengths() -> dict[str, float]:
+    """Each species' shipped strength: the share of points of the teams of six that held it."""
+    scores: dict[str, float] = json.loads(STRENGTHS.read_text())
+    return scores
+
+
+def bot_team(seed: int, size: int) -> list[str]:
+    """The bot's team for this seed: side 1's core, completed from the draft's pool by the
+    species strengths."""
+    both = cores(seed, size)
+    return SpeciesBuilder(strengths())(both[1], size, seed, draw_pool(seed, POOL, size, both))

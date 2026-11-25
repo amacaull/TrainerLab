@@ -17,6 +17,7 @@ from rich.console import Console
 
 from trainerlab import _engine
 from trainerlab.bots.roster import DEFAULT_OPPONENT, WITH_MODEL, bot_spec, factory
+from trainerlab.game.building import bot_team
 from trainerlab.game.environment import BattleEnvironment, random_team_pair
 from trainerlab.i18n import names, settings, t
 from trainerlab.terminal.human import Fled
@@ -71,8 +72,9 @@ def main(
             log = Console(file=log_file, color_system=None, width=console.width, highlight=False)
         screen = Screen(console, speed=args.speed, clear=terminal, log=log)
         while True:
-            team, foe_team = random_team_pair(seed, len(chosen) if chosen else args.size)
-            mine = chosen or team
+            size = len(chosen) if chosen else args.size
+            mine = chosen or random_team_pair(seed, size)[0]
+            foe_team = bot_team(seed, size)
             try:
                 BattleEnvironment(mine, foe_team, seed=seed)  # the teams checked before asking
             except (ValueError, _engine.TeamError) as error:

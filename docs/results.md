@@ -917,3 +917,161 @@ what the loop can still teach this network with these settings is little.
 
 Chained, each rule against the one before: rule 14 +3.9 points, rule 15 +4.9,
 rule 16 +4.0, rule 17 +1.7.
+
+## Palier 12: teams, built by the AI
+
+Until now every battle was played with two random teams. Palier 12 asks how
+much the composition of a team decides a battle, and whether the AI can choose
+a better one. Every measure is played by `alphazero` (rule 17) on both sides, so
+only the teams differ. Measured on the Mac, 22 to 25 November 2026.
+
+### How much the teams decide (12.1)
+
+`trainerlab teams` plays each matchup of two random teams twice, the sides
+swapped, under different dice. If teams did not matter, the same team would win
+both battles of a pair half the time:
+
+```bash
+trainerlab teams alphazero --size 6 --pairs 55000 --from 450000 --out runs/teams-6b.npz
+```
+
+| Teams of | Pairs | Seeds | Same team wins both | Composition alone: winners called (log loss) | Species outside 0.5 |
+|---|---|---|---|---|---|
+| 6 | 10 000 | 340000 | 0.654 [0.645, 0.664] | 0.678 (0.609) | 35 / 49 |
+| 6 (`teams-6b`) | 55 000 | 450000 | 0.658 [0.654, 0.662] | 0.663 (0.616) | 42 / 49 |
+| 4 | 10 000 | 400000 | 0.675 [0.666, 0.685] | 0.652 (0.622) | 34 / 49 |
+| 2 | 10 000 | 350000 | 0.778 [0.769, 0.786] | 0.662 (0.621) | 37 / 49 |
+
+Rule 17 at 6 agrees with rule 12 in palier 7 (0.654). The smaller the team,
+the more each Pokémon weighs. A species' score is the share of points of the
+teams that held it. At 6 (`teams-6b`, 110 000 battles) Toxapex leads by far
+(0.738 [0.733, 0.743]), then Mega Rayquaza 0.679, Galarian Weezing 0.587,
+Mega Mawile 0.585, Corviknight 0.579; Snorlax is last (0.405), with Drampa
+0.419, Blissey 0.428, Starmie 0.429. At 2, Mimikyu leads (0.727) and Toxapex
+is only average (0.514): a wall needs teammates.
+
+### Builders, and the draft (12.1)
+
+A builder completes a team around a core. A pair draws from its seed a core of
+one or two Pokémon for each side (always fewer than the team holds), builder A
+completes side 0's core and builder B side 1's, then they swap, under the same
+dice. `random` adds species at random; `species` adds the best scored species
+of `teams-6b` it may, skipping one after which no legal team could be completed.
+
+With every species to choose from, `species` always builds nearly the same
+team. In the **draft**, the seed also draws a pool of 12 species, the same for
+both sides, outside the cores, without Megas or legendaries when a core holds
+one, and drawn again until every core can be completed. Each builder picks from
+the pool alone. The draft is the main measure; free choice the secondary one.
+
+```bash
+trainerlab build species:runs/teams-6b.npz random --size 6 --pairs 2000 --from 430000
+```
+
+| Teams of | `species` vs `random`, free choice | in the draft |
+|---|---|---|
+| 2 | 0.715 [0.700, 0.728] | **0.648** [0.633, 0.663] |
+| 4 | 0.814 [0.802, 0.826] | **0.696** [0.681, 0.710] |
+| 6 | 0.821 [0.809, 0.833] | **0.712** [0.698, 0.726] |
+
+Seeds 360000 / 370000 / 380000 (free) and 410000 / 420000 / 430000 (draft).
+Choosing the species well wins 15 to 32 points, more than any rule since rule 11.
+
+### The truth (12.2, 12.4)
+
+`trainerlab truth` measures teams one by one: each against many random ones,
+each pair twice. Every team of two (1093), 300 pairs each:
+
+```bash
+trainerlab truth alphazero --pairs 300 --from 1000000 --out runs/truth-2.npz
+trainerlab truth alphazero --size 6 --teams 150 --pairs 200 --from 3000000 --out runs/truth-6.npz
+```
+
+| Teams of | Teams × pairs | Spread of the scores | Error of a score | Share of the spread due to the teams |
+|---|---|---|---|---|
+| 2 | 1093 × 300 | 0.131 | 0.020 | 98 % |
+| 6 | 150 × 200 | 0.138 | 0.024 | 97 % |
+
+At 2 the best team is Azumarill + Mega Rayquaza (0.882), the worst Blissey +
+Drampa (0.112). The sum of the species' strengths (an additive model, in
+logits) explains 90 % of the spread, the dice about 2.5 %, and synergies the
+remaining 7.5 % (Alolan Ninetales + Hisuian Zoroark 0.613 where 0.474 was
+expected; Golisopod + Toxapex 0.393 for 0.509). At 6 the species' scores of an
+independent measure (`teams-6`) rank the 150 teams with a rank correlation of
+0.933 and explain 88.7 % of the spread.
+
+### Faster measures (12.3)
+
+92 % of a measure's time was the C++ search. `search::playMatches` now plays a
+measure's battles side by side in C++, 16 per thread, with the referee's dice:
+
+| Measure (Mac) | Before | After |
+|---|---|---|
+| 200 battles, 6 against 6 | 71.5 s | 54.7 s (×1.31) |
+| 2000 battles, 2 against 2 | 116.1 s | 77.4 s (×1.50) |
+
+Refilling each place as soon as its battle ends, in one call, gave **no more
+speed** (0.348 s per battle of 6 against 6 over the 110 000 of `teams-6b`, 10 h
+37 min, against 0.345 s before): the M4's matrix units, shared by the cores,
+are the limit, not idle cores. It was kept for its progress bar and an
+immediate Ctrl-C.
+
+### An evaluator of teams (12.4)
+
+`trainerlab evaluator` learns the strength of a team from every battle above
+(Bradley-Terry: P(A beats B) = σ(v_A − v_B)), and is judged on battles set
+aside: 20 % of each truth file's teams, and the pairs of the `teams` files whose
+seed is a multiple of 5. The judge was chosen before: the held-out battles of
+`teams-6b`, the log loss compared battle by battle with a 95 % interval.
+
+```bash
+trainerlab evaluator runs/truth-2.npz runs/truth-6.npz runs/teams-2.npz runs/teams-4.npz \
+    runs/teams-6.npz runs/teams-6b.npz --out runs/evaluator.pt
+```
+
+First attempt, **negative**: attention over the species' identities fits the
+battles it learnt better than the additive model (loss 0.6213 against 0.6264)
+but does no better on the rest (0.626 / 0.622 / 0.621 against 0.626 / 0.623 /
+0.620): it remembers, it does not generalise.
+
+Second attempt, declared as such: attention over what each species is (its
+types, base stats, ability, item, moves; 201 numbers), with dropout and weight
+decay, every setting fixed before. 885 800 battles, 597 568 learnt:
+
+| Model | Judge (`teams-6b` held out): log loss lower than additive by | Rank correlation, teams of 2 / of 6 |
+|---|---|---|
+| additive | — | 0.945 / 0.922 |
+| attention, identities | — | 0.934 / 0.924 |
+| **attention, traits** | **+0.0023** [+0.0010, +0.0037] | 0.942 / **0.959** |
+
+The criterion is met, but the gain is small: composition alone lowers the log
+loss from 0.693 (a coin) to 0.616; the traits add 0.0023 to that.
+
+### A builder that uses the evaluator (12.5): measured negative
+
+`net:FILE.pt` rates every legal completion of the core from the pool with the
+evaluator (a beam of 64 when there are more than 20 000), and keeps the best.
+To be kept, it had to beat `species` in the draft, the whole interval above 0.5:
+
+```bash
+trainerlab build net:runs/evaluator.pt species:runs/teams-6b.npz --size 6 --pairs 2000 --from 525000
+```
+
+| Teams of | Seeds | `net` vs `species` |
+|---|---|---|
+| 2 | 505000 | 0.499 [0.484, 0.514] |
+| 4 | 515000 | 0.507 [0.491, 0.522] |
+| 6 | 525000 | 0.507 [0.492, 0.522] |
+
+Not kept. What the evaluator knows beyond the species' strengths does not turn
+into wins: composition has reached its ceiling with this roster.
+
+### What changes
+
+The bot of `trainerlab play` now builds its team as `species` does in the
+draft: a core from the seed, completed from a pool of 12 with the species'
+strengths of `teams-6b`, shipped in `ai/src/trainerlab/game/species-strength.json`:
+
+```bash
+trainerlab teams --load runs/teams-6b.npz --strengths ai/src/trainerlab/game/species-strength.json
+```

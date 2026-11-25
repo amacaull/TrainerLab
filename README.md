@@ -8,8 +8,9 @@ and measured in Python.
 > **Status: version 1.** The engine is complete and tested. Seventeen rules are
 > measured, the best of them a tree search guided by a network trained on its
 > own search, as AlphaZero. `trainerlab` opens a menu, in English or in French:
-> build a team and play any bot, or measure them. Next: teams built by the AI
-> itself.
+> build a team and play any bot, or measure them. The bots build their own teams
+> from the species' measured strengths. Next: the choice of the lead, and how
+> the search imagines the foe's hidden Pokémon.
 
 ## Results so far
 
@@ -61,6 +62,15 @@ a knock-out, rather than sending in the network's favourite, won 5 more points
 (rule 15); learning those replacements in the loop, 4 more (rule 16); smaller
 teams in self-play, 1.7 more (rule 17). Replaying real endgames brought nothing
 and was removed.
+
+Palier 12 measured the teams themselves. The composition decides much: the
+same team wins both battles of a pair (sides swapped) 66 % of the time at 6,
+78 % at 2, and 97 % of the spread of teams' scores is the teams', not the dice.
+Picking the best measured species from a draft of 12 beats picking at random by
+21 points at 6 (0.712 [0.698, 0.726]). A network judging whole teams predicts
+battles slightly better than the sum of the species, but building with it wins
+nothing more (0.507 [0.492, 0.522]): with 49 species, composition has reached
+its ceiling. The bots now build their teams that way.
 
 ## Where to look
 
