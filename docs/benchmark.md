@@ -223,3 +223,21 @@ Linux machine), small next to the network.
 With a quarter of the battles 4 against 4 and a quarter 2 against 2, battles are
 shorter: an iteration of the loop (960 battles, searched replacements included)
 takes about 5.9 minutes on the Mac, rather than 7.5.
+
+## Palier 12: a measure's battles in C++
+
+The measures of teams (`teams`, `build`, `truth`) now play their battles side
+by side in C++ (`search::playMatches`), 16 per thread, rather than one by one
+from Python:
+
+| Measure (Mac, `alphazero`) | One by one | Side by side |
+|---|---|---|
+| 200 battles, 6 against 6 | 71.5 s | **54.7 s** (×1.31) |
+| 2000 battles, 2 against 2 | 116.1 s | **77.4 s** (×1.50) |
+
+Refilling each place as soon as its battle ends brought nothing more: 0.348 s
+per battle of 6 against 6 over 110 000 battles, against 0.345 s. The M4's matrix
+units are shared by every core and already busy. On the Mac the results are the
+same for the same `--jobs` only (Accelerate). `TRAINERLAB_ONE_BY_ONE=1` keeps
+the Python path.
+

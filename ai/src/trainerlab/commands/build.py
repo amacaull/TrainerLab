@@ -17,6 +17,7 @@ from trainerlab.commands.console import Write, stdout
 from trainerlab.commands.options import add_jobs, add_pairs, seeds_of
 from trainerlab.experiments import parallel
 from trainerlab.experiments.building import builder_of, duel
+from trainerlab.game.building import POOL
 from trainerlab.game.pairs import span
 from trainerlab.i18n import names
 
@@ -61,7 +62,7 @@ def main(argv: list[str] | None = None, write: Write = stdout) -> int:
     parser.add_argument(
         "--pool",
         type=int,
-        default=12,
+        default=POOL,
         help="species to pick from, the same for both sides (12; 49: free choice)",
     )
     parser.add_argument(

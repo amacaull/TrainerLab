@@ -1,9 +1,11 @@
+import json
 from pathlib import Path
 
 import numpy as np
 import pytest
 
 from trainerlab.commands import teams
+from trainerlab.experiments.teams import analyze
 
 
 def test_the_command_plays_keeps_and_reads_again(tmp_path: Path) -> None:
@@ -55,3 +57,14 @@ def test_a_file_of_palier_7_holds_teams_of_six(tmp_path: Path) -> None:
     again: list[str] = []
     assert teams.main(["--load", str(out)], again.append) == 0
     assert again == shown[:-1]
+
+
+def test_the_species_strengths_can_be_written_for_the_bot(tmp_path: Path) -> None:
+    out, scores = tmp_path / "t.npz", tmp_path / "strengths.json"
+    teams.main(["random", "--pairs", "20", "--from", "0", "--out", str(out)], lambda _: None)
+
+    assert teams.main(["--load", str(out), "--strengths", str(scores)], lambda _: None) == 0
+
+    saved = np.load(out)
+    expected = {s.name: s.score for s in analyze(saved["seed"], saved["points"], 6).species}
+    assert json.loads(scores.read_text()) == pytest.approx(expected, nan_ok=True)

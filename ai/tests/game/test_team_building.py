@@ -2,13 +2,16 @@ import pytest
 
 from trainerlab import _engine
 from trainerlab.game.building import (
+    POOL,
     SpeciesBuilder,
+    bot_team,
     completable,
     cores,
     draw_pool,
     legal,
     random_builder,
     species,
+    strengths,
 )
 from trainerlab.game.environment import DATA_DIR
 
@@ -116,3 +119,23 @@ def test_the_species_builder_keeps_the_team_completable() -> None:
     pool = list(scores)
 
     assert SpeciesBuilder(scores)(["Gyarados"], 3, 0, pool) == ["Gyarados", "MegaGengar", "Azelf"]
+
+
+def test_every_species_has_a_shipped_strength() -> None:
+    assert set(strengths()) == set(species())
+    assert all(0 < score < 1 for score in strengths().values())
+
+
+def test_the_bot_completes_its_core_from_a_pool_with_the_species_strengths() -> None:
+    both = cores(5, 6)
+    pool = draw_pool(5, POOL, 6, both)
+
+    team = bot_team(5, 6)
+
+    assert team == SpeciesBuilder(strengths())(both[1], 6, 5, pool)
+    assert legal(team) and bot_team(5, 6) == team
+    assert len({tuple(bot_team(seed, 6)) for seed in range(10)}) > 5  # not the same team each time
+
+
+def test_alone_the_bot_s_pokemon_is_its_core() -> None:
+    assert bot_team(5, 1) == cores(5, 1)[1]

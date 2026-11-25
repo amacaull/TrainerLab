@@ -24,6 +24,18 @@ def english() -> Iterator[None]:
     i18n.set_language("en")
 
 
+@pytest.fixture(autouse=True)
+def random_foe(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The bot's team drawn at random, as before palier 12: the battles below do not depend on
+    the shipped species strengths."""
+    from trainerlab.game.environment import random_team_pair
+
+    def foe(seed: int, size: int) -> list[str]:
+        return random_team_pair(seed, size)[1]
+
+    monkeypatch.setattr("trainerlab.commands.play.bot_team", foe)
+
+
 def _play(
     args: list[str], prompter: Scripted | None = None, *, terminal: bool = False, **kwargs: bool
 ) -> tuple[int, str]:
@@ -250,3 +262,18 @@ def test_a_battle_can_be_saved_once_played(tmp_path: Path, monkeypatch: pytest.M
     assert f"Battle saved: {saved}" in shown.replace("\n", "")
     assert slug("Lt. Surge") == "lt-surge" and slug("Érika") == "erika"
     del prompter
+
+
+def test_the_bot_builds_its_own_team(monkeypatch: pytest.MonkeyPatch) -> None:
+    asked = []
+
+    def bot_team(seed: int, size: int) -> list[str]:
+        asked.append((seed, size))
+        return ["Snorlax", "Blissey"]
+
+    monkeypatch.setattr("trainerlab.commands.play.bot_team", bot_team)
+
+    shown = _play(["--seed", "3", "--against", "hitter", "--size", "2"])[1]
+
+    assert asked == [(3, 2)]
+    assert names.species_name("Snorlax") in shown

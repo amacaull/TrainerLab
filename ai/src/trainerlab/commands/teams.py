@@ -3,12 +3,15 @@
 trainerlab teams alphazero --pairs 3000 --from 190000 --out runs/teams.npz
 trainerlab teams alphazero --size 2 --pairs 3000 --from 340000 --out runs/teams-2.npz
 trainerlab teams --load runs/teams.npz
+trainerlab teams --load runs/teams-6b.npz --strengths src/trainerlab/game/species-strength.json
 
 The first form plays the pairs and keeps every battle's result in --out; the second reads such a
-file again, without playing (experiments/teams.py says what is measured).
+file again, without playing (experiments/teams.py says what is measured). --strengths also writes
+each species' score, as the bot of `trainerlab play` builds its team with them.
 """
 
 import argparse
+import json
 from pathlib import Path
 
 import numpy as np
@@ -33,6 +36,7 @@ def main(argv: list[str] | None = None, write: Write = stdout) -> int:
     parser.add_argument(
         "--size", type=int, choices=range(1, 7), default=6, help="Pokemon per team (6)"
     )
+    parser.add_argument("--strengths", type=Path, help="write each species' score to this file")
     add_pairs(parser)
     add_jobs(parser)
     args = parser.parse_args(argv)
@@ -68,6 +72,10 @@ def main(argv: list[str] | None = None, write: Write = stdout) -> int:
     )
     for s in result.species:
         write(f"  {s.name:<16} {s.score:.3f} [{s.low:.3f}, {s.high:.3f}]  {s.battles} battles\n")
+    if args.strengths is not None:
+        scores = {s.name: s.score for s in result.species}
+        args.strengths.write_text(json.dumps(scores, indent=1) + "\n")
+        write(f"-> {args.strengths}\n")
     if args.load is None:
         write(f"-> {args.out}\n")
     return 0
