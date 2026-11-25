@@ -42,6 +42,8 @@ class Battles:
     test: npt.NDArray[np.bool_]  # held out
     group: Ints  # the measured team a is, in `names`; -1 for a teams file's battle
     names: list[list[str]]  # the measured teams of the truth files, in order
+    source: Ints  # the file each battle comes from, in `files`
+    files: list[str]  # their names
 
 
 @cache
@@ -88,7 +90,9 @@ def read(paths: list[Path]) -> Battles:
     test: list[bool] = []
     group: list[int] = []
     names: list[list[str]] = []
-    for saved in files:
+    source: list[int] = []
+    for number, saved in enumerate(files):
+        before = len(y)
         if "first" in saved:
             listed = _truth_names(saved)
             first = int(saved["first"])  # pair k // 2 of the file plays seed first + k // 2
@@ -116,6 +120,7 @@ def read(paths: list[Path]) -> Battles:
                     or key(second_team) in held
                 )
                 group.append(-1)
+        source += [number] * (len(y) - before)
     return Battles(
         np.array(a, dtype=np.int64),
         np.array(b, dtype=np.int64),
@@ -124,11 +129,14 @@ def read(paths: list[Path]) -> Battles:
         np.array(test, dtype=np.bool_),
         np.array(group, dtype=np.int64),
         names,
+        np.array(source, dtype=np.int64),
+        [path.name for path in paths],
     )
 
 
 @dataclass(frozen=True)
 class BattleRow:
+    source: str  # the file
     size: int
     count: int  # held-out battles
     accuracy: float  # winners called, draws aside
@@ -171,14 +179,16 @@ def report(model: torch.nn.Module, battles: Battles) -> Report:
     test = battles.test
     p = chances(model, battles.a[test], battles.b[test])
     y = battles.y[test].astype(np.float64)
-    sizes = battles.size[test]
+    sizes, sources = battles.size[test], battles.source[test]
     rows = []
-    for size in sorted(set(sizes.tolist())):
-        mine = sizes == size
-        decided = mine & (y != 0.5)
-        accuracy = float(((p[decided] > 0.5) == (y[decided] == 1)).mean()) if decided.any() else 0.0
-        loss = log_loss(torch.from_numpy(p[mine]), torch.from_numpy(y[mine]))
-        rows.append(BattleRow(size, int(mine.sum()), accuracy, loss))
+    for number, name in enumerate(battles.files):
+        for size in sorted(set(sizes[sources == number].tolist())):
+            mine = (sizes == size) & (sources == number)
+            decided = mine & (y != 0.5)
+            called = (p[decided] > 0.5) == (y[decided] == 1)
+            accuracy = float(called.mean()) if decided.any() else 0.0
+            loss = log_loss(torch.from_numpy(p[mine]), torch.from_numpy(y[mine]))
+            rows.append(BattleRow(name, size, int(mine.sum()), accuracy, loss))
 
     # The held-out measured teams: every battle of theirs held out (a team whose foe alone was
     # held out had its other battles learned).
@@ -200,11 +210,37 @@ def report(model: torch.nn.Module, battles: Battles) -> Report:
     return Report(rows, team_rows)
 
 
+@dataclass(frozen=True)
+class Gap:
+    mean: float  # how much lower the second model's log loss is, per battle
+    low: float  # its 95 % interval
+    high: float
+    count: int
+
+
+def _losses(p: npt.NDArray[np.float64], y: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+    q = np.clip(p, 1e-7, 1 - 1e-7)
+    out: npt.NDArray[np.float64] = -(y * np.log(q) + (1 - y) * np.log(1 - q))
+    return out
+
+
+def gap(first: torch.nn.Module, second: torch.nn.Module, battles: Battles, file: str) -> Gap:
+    """The second model against the first on the held-out battles of one file, battle by battle:
+    the mean of their log losses' difference, with its 95 % interval."""
+    rows = battles.test & (battles.source == battles.files.index(file))
+    y = battles.y[rows].astype(np.float64)
+    a, b = battles.a[rows], battles.b[rows]
+    diff = _losses(chances(first, a, b), y) - _losses(chances(second, a, b), y)
+    mean = float(diff.mean())
+    half = 1.96 * float(diff.std(ddof=1)) / float(np.sqrt(len(diff)))
+    return Gap(mean, mean - half, mean + half, len(diff))
+
+
 def describe(report: Report, model: str) -> list[str]:
     """The report's lines, for the model named."""
     lines = [
-        f"  {model:<10} teams of {row.size}: {row.count} held-out battles, winner called "
-        f"{row.accuracy:.3f}, log loss {row.log_loss:.3f}"
+        f"  {model:<10} {row.source}, teams of {row.size}: {row.count} held-out battles, "
+        f"winner called {row.accuracy:.3f}, log loss {row.log_loss:.3f}"
         for row in report.battles
     ]
     lines += [

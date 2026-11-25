@@ -95,8 +95,10 @@ def test_the_report_scores_held_out_battles_and_teams_by_size(tmp_path: Path) ->
 
     report = team_value.report(_Constant(), battles)
 
-    sizes = [row.size for row in report.battles]
-    assert sizes == [2, 4]
+    assert [(row.source, row.size) for row in report.battles] == [
+        ("truth-2.npz", 2),
+        ("teams-4.npz", 4),
+    ]
     assert all(0 <= row.accuracy <= 1 and row.log_loss > 0 for row in report.battles)
     assert report.battles[1].count == int(battles.test[battles.size == 4].sum())
     (row,) = report.teams
@@ -110,3 +112,27 @@ def test_the_report_scores_held_out_battles_and_teams_by_size(tmp_path: Path) ->
 def test_the_rank_correlation_of_two_orders() -> None:
     assert team_value.rank_correlation(np.array([1.0, 2, 3]), np.array([10.0, 20, 30])) == 1
     assert team_value.rank_correlation(np.array([1.0, 2, 3]), np.array([3.0, 2, 1])) == -1
+
+
+class _Strength(torch.nn.Module):
+    """A team as strong as `scale` times its first species' id."""
+
+    def __init__(self, scale: float) -> None:
+        super().__init__()
+        self.scale = scale
+
+    def forward(self, species: torch.Tensor) -> torch.Tensor:
+        return self.scale * species[:, 0].float()
+
+
+def test_two_models_compare_battle_by_battle_on_one_file(tmp_path: Path) -> None:
+    battles = team_value.read(
+        [_teams_file(tmp_path, 2, range(40)), _truth_file(tmp_path, 2, count=10, pairs=1, first=0)]
+    )
+
+    same = team_value.gap(_Strength(0.1), _Strength(0.1), battles, "teams-2.npz")
+    assert same.mean == 0 and same.low == 0 and same.high == 0
+    assert same.count == int((battles.test & (battles.source == 0)).sum())
+
+    sure = team_value.gap(_Strength(0.0), _Strength(100.0), battles, "teams-2.npz")
+    assert sure.low <= sure.mean <= sure.high  # a coin against a model sure of itself
