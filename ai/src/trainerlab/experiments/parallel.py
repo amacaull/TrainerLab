@@ -9,6 +9,7 @@ import multiprocessing
 import os
 import signal
 import sys
+import threading
 import time
 from collections.abc import Callable
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -112,11 +113,17 @@ def ignore_ctrl_c() -> None:
 
 
 def _stop(pool: ProcessPoolExecutor) -> None:
-    processes = list(pool._processes.values())  # the executor keeps them to itself
+    # The executor keeps its processes to itself, and may still start one as it shuts down
+    # (Python 3.12): its own table, read again once its manager is done, holds them all.
+    processes = pool._processes
+    manager: threading.Thread | None = getattr(pool, "_executor_manager_thread", None)
     pool.shutdown(wait=False, cancel_futures=True)
-    for process in processes:
+    for process in list(processes.values()):
         process.terminate()
-    for process in processes:
+    if manager is not None:
+        manager.join(timeout=5)
+    for process in list(processes.values()):
+        process.terminate()
         process.join()
 
 

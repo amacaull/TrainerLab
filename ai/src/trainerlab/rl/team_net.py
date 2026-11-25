@@ -12,17 +12,25 @@ Two models give it:
   attention, each Pokemon reading its teammates (a weather setter and who uses the weather, a
   hazard setter and who profits); their mean, then a small head, one number. No position: the
   order of the team changes nothing.
+- TraitNet (the second attempt of 12.4): the same, but each Pokemon read from what it is, never
+  its name: its types, base stats, ability, item, moves with their types and categories, Mega or
+  legendary (traits()); with dropout, and learned with weight decay. It can only learn what a
+  snow setter and a snow user have in common, not that Toxapex wins.
 
 A team is a row of six engine species ids, PAD after its last Pokemon.
 
 Needs PyTorch: pip install -e "ai/.[rl]".
 """
 
+import json
 from pathlib import Path
 
 import numpy as np
 import torch
 from torch import nn
+
+from trainerlab import _engine
+from trainerlab.game.environment import DATA_DIR
 
 SPECIES = 49  # the engine's catalog
 PAD = SPECIES  # an empty place in a team
@@ -31,6 +39,44 @@ WIDTH = 64  # of each Pokemon's vector
 LAYERS = 2
 HEADS = 4
 FEEDFORWARD = 128
+
+
+TYPES = 18
+STATS = ("hp", "atk", "def", "specAtk", "specDef", "speed")
+CATEGORIES = 3  # physical, special, status
+DROPOUT = 0.1  # TraitNet's
+TRAITS = TYPES + len(STATS) + 45 + 14 + 95 + TYPES + CATEGORIES + 2  # 201
+
+
+def traits() -> torch.Tensor:
+    """Each species' traits, a row per engine id, the PAD row empty: its types, base stats / 255,
+    ability (or none), item (or none, the last), moves, their types, how many of each category,
+    then Mega and legendary."""
+    _engine.engine_init(str(DATA_DIR))
+    abilities, items, moves = _engine.ability_count(), _engine.item_count(), _engine.move_count()
+    table = torch.zeros(SPECIES + 1, TRAITS)
+    for species in range(SPECIES):
+        row, entry = table[species], _engine.species_entry(species)
+        data = json.loads((DATA_DIR / "pokemon" / f"{entry.id_string}.json").read_text())
+        row[entry.type1] = row[entry.type2] = 1
+        at = TYPES
+        for k, stat in enumerate(STATS):
+            row[at + k] = data["baseStats"][stat] / 255
+        at += len(STATS)
+        if data.get("ability"):
+            row[at + _engine.find_ability_id(data["ability"])] = 1
+        at += abilities
+        item = data.get("item")
+        row[at + (_engine.find_item_id(item) if item else items)] = 1
+        at += items + 1
+        for move_id in _engine.make_combatant(species).move_ids:
+            move = _engine.move_entry(move_id)
+            row[at + move_id] = 1
+            row[at + moves + move.type] = 1
+            row[at + moves + TYPES + move.category] += 1
+        at += moves + TYPES + CATEGORIES
+        row[at], row[at + 1] = float(entry.mega), float(entry.legendary)
+    return table
 
 
 def _sizes(species: torch.Tensor) -> torch.Tensor:
@@ -68,9 +114,13 @@ class TeamNet(nn.Module):
         self.attention = nn.TransformerEncoder(layer, LAYERS, enable_nested_tensor=False)
         self.head = nn.Sequential(nn.Linear(WIDTH, WIDTH), nn.ReLU(), nn.Linear(WIDTH, 1))
 
+    def tokens(self, species: torch.Tensor) -> torch.Tensor:
+        embedded: torch.Tensor = self.species(species)
+        return embedded
+
     def forward(self, species: torch.Tensor) -> torch.Tensor:
         empty = species == PAD
-        tokens = self.species(species) + self.size(_sizes(species))[:, None, :]
+        tokens = self.tokens(species) + self.size(_sizes(species))[:, None, :]
         read = self.attention(tokens, src_key_padding_mask=empty)
         kept = (~empty).unsqueeze(-1).float()
         mean = (read * kept).sum(dim=1) / kept.sum(dim=1)
@@ -81,10 +131,35 @@ class TeamNet(nn.Module):
         torch.save({"kind": self.kind, "state": self.state_dict()}, path)
 
 
+class TraitNet(TeamNet):
+    """TeamNet reading each Pokemon's traits rather than its species' name, with dropout."""
+
+    kind = "traits"
+
+    def __init__(self) -> None:
+        super().__init__()
+        del self.species
+        self.register_buffer("table", traits())
+        self.read = nn.Linear(TRAITS, WIDTH)
+        layer = nn.TransformerEncoderLayer(
+            WIDTH, HEADS, FEEDFORWARD, dropout=DROPOUT, batch_first=True
+        )
+        self.attention = nn.TransformerEncoder(layer, LAYERS, enable_nested_tensor=False)
+        self.head = nn.Sequential(
+            nn.Linear(WIDTH, WIDTH), nn.ReLU(), nn.Dropout(DROPOUT), nn.Linear(WIDTH, 1)
+        )
+        self.eval()  # dropout only while it learns (fit)
+
+    def tokens(self, species: torch.Tensor) -> torch.Tensor:
+        read: torch.Tensor = self.read(self.get_buffer("table")[species])
+        return read
+
+
 def load(path: Path) -> nn.Module:
     """A model kept by save()."""
     kept = torch.load(path, map_location="cpu")
-    model: nn.Module = TeamNet() if kept["kind"] == TeamNet.kind else Additive()
+    kinds = {TeamNet.kind: TeamNet, TraitNet.kind: TraitNet, Additive.kind: Additive}
+    model: nn.Module = kinds[kept["kind"]]()
     model.load_state_dict(kept["state"])
     return model
 
@@ -111,9 +186,10 @@ def fit(
     batch: int,
     rate: float,
     seed: int = 0,
+    weight_decay: float = 0.0,
 ) -> list[float]:
     """Learns from battles: team a against team b, a's points y. The mean loss of each epoch."""
-    optimizer = torch.optim.Adam(model.parameters(), lr=rate)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=rate, weight_decay=weight_decay)
     order = np.random.default_rng(seed)
     losses = []
     model.train()
