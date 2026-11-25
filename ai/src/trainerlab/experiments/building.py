@@ -8,18 +8,23 @@ plays changes nothing between the sides, so the score is the builders' alone.
 
 from collections.abc import Callable
 from functools import cache, partial
+from itertools import combinations
+from math import comb
 from pathlib import Path
 
 import numpy as np
+import torch
 
+from trainerlab import _engine
 from trainerlab.bots.roster import factory
 from trainerlab.experiments import arena, parallel
 from trainerlab.experiments.teams import TEAM_SIZE, analyze
 from trainerlab.experiments.tournament import TournamentResult
 from trainerlab.game.battle import play_battle
 from trainerlab.game.building import Builder, SpeciesBuilder, cores, draw_pool, random_builder
-from trainerlab.game.environment import BattleEnvironment
+from trainerlab.game.environment import DATA_DIR, BattleEnvironment
 from trainerlab.game.pairs import outcome_of
+from trainerlab.rl.team_net import PAD, TEAM, load
 
 
 @cache
@@ -31,13 +36,69 @@ def species_scores(path: Path) -> dict[str, float]:
     return {s.name: s.score for s in analyze(saved["seed"], saved["points"], size).species}
 
 
+class NetBuilder:
+    """Completes the core with the team a model of team strength rates best (palier 12.5): every
+    legal completion from the pool when they are at most `exhaustive`, else a beam of `beam`
+    partial teams grown one Pokemon at a time, each rated as a team of its size."""
+
+    def __init__(self, model: torch.nn.Module, exhaustive: int = 20_000, beam: int = 64) -> None:
+        _engine.engine_init(str(DATA_DIR))
+        self.model, self.exhaustive, self.beam = model, exhaustive, beam
+        count = _engine.species_count()
+        self.ids = {_engine.species_id_string(i): i for i in range(count)}
+        entries = [_engine.species_entry(i) for i in range(count)]
+        self.megas = {_engine.species_id_string(i) for i, e in enumerate(entries) if e.mega}
+        self.legends = {_engine.species_id_string(i) for i, e in enumerate(entries) if e.legendary}
+
+    def legal(self, team: list[str]) -> bool:
+        """The engine's rules, quickly: no species twice, one Mega and one legendary at most."""
+        return (
+            len(set(team)) == len(team)
+            and sum(n in self.megas for n in team) <= 1
+            and sum(n in self.legends for n in team) <= 1
+        )
+
+    def _strengths(self, teams: list[list[str]]) -> list[float]:
+        rows = torch.full((len(teams), TEAM), PAD, dtype=torch.long)
+        for r, team in enumerate(teams):
+            rows[r, : len(team)] = torch.tensor([self.ids[n] for n in team])
+        with torch.no_grad():
+            return [float(v) for v in self.model(rows)]
+
+    def __call__(self, core: list[str], size: int, seed: int, pool: list[str]) -> list[str]:
+        others = [n for n in pool if n not in core]
+        places = size - len(core)
+        if comb(len(others), places) <= self.exhaustive:
+            teams = [core + list(more) for more in combinations(others, places)]
+            teams = [team for team in teams if self.legal(team)]
+        else:
+            teams = [list(core)]
+            for _ in range(places):
+                grown = {
+                    tuple(team[: len(core)]) + tuple(sorted(team[len(core) :] + [n])): None
+                    for team in teams
+                    for n in others
+                    if n not in team
+                }
+                teams = [list(t) for t in grown if self.legal(list(t))]
+                strengths = self._strengths(teams)
+                order = sorted(range(len(teams)), key=lambda k: -strengths[k])
+                teams = [teams[k] for k in order[: self.beam]]
+        strengths = self._strengths(teams)
+        return teams[max(range(len(teams)), key=lambda k: strengths[k])]
+
+
+@cache
 def builder_of(spec: str) -> Builder:
-    """A builder by its name: random, or species:FILE.npz (the scores of `trainerlab teams`)."""
+    """A builder by its name: random, species:FILE.npz (the scores of `trainerlab teams`), or
+    net:FILE.pt (a model of team strength, `trainerlab evaluator`). Each is made once."""
     if spec == "random":
         return random_builder
     if spec.startswith("species:"):
         return SpeciesBuilder(species_scores(Path(spec.removeprefix("species:"))))
-    raise ValueError(f"unknown builder {spec!r}: random, or species:FILE.npz")
+    if spec.startswith("net:"):
+        return NetBuilder(load(Path(spec.removeprefix("net:"))))
+    raise ValueError(f"unknown builder {spec!r}: random, species:FILE.npz or net:FILE.pt")
 
 
 def battles(

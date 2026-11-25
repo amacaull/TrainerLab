@@ -2,9 +2,21 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+import torch
 
+from trainerlab import _engine
 from trainerlab.experiments import arena, building, teams
-from trainerlab.game.building import Builder, SpeciesBuilder, cores, draw_pool, random_builder
+from trainerlab.game.building import (
+    Builder,
+    SpeciesBuilder,
+    cores,
+    draw_pool,
+    legal,
+    random_builder,
+    species,
+)
+from trainerlab.game.environment import DATA_DIR
+from trainerlab.rl.team_net import PAD, TraitNet
 
 
 def _scores_file(tmp_path: Path) -> Path:
@@ -31,7 +43,7 @@ def test_a_builder_is_named_random_or_species_with_its_file(tmp_path: Path) -> N
     species = building.builder_of(f"species:{path}")
     assert isinstance(species, SpeciesBuilder)
     assert species.ranked == SpeciesBuilder(building.species_scores(path)).ranked
-    with pytest.raises(ValueError, match="random, or species:FILE.npz"):
+    with pytest.raises(ValueError, match="random, species:FILE.npz or net:FILE.pt"):
         building.builder_of("best")
 
 
@@ -153,3 +165,76 @@ def test_a_search_bot_plays_the_builders_battles_in_cpp(
         "random", "random", range(3), 1, bot="alphazero", size=2, pool=12, progress=Meter()
     )
     assert told == [3, -1]
+
+
+class _ByIds(torch.nn.Module):
+    """A team as strong as the sum of its species' engine ids: the highest ids are best."""
+
+    def forward(self, species: torch.Tensor) -> torch.Tensor:
+        return torch.where(species == PAD, 0, species).sum(dim=1).float()
+
+
+def _ids(names: list[str]) -> list[int]:
+    _engine.engine_init(str(DATA_DIR))
+    return [_engine.find_species_id(name) for name in names]
+
+
+def test_the_net_builder_completes_the_core_with_the_team_the_model_rates_best() -> None:
+    build = building.NetBuilder(_ByIds())
+    pool = ["Blissey", "Toxapex", "Snorlax", "Azumarill", "MegaGengar", "MegaSableye"]
+
+    team = build(["MegaMawile"], 3, 0, pool)
+
+    # The two highest ids among the pool, a second Mega aside.
+    allowed = [n for n in pool if not n.startswith("Mega")]
+    best = sorted(allowed, key=lambda n: -_ids([n])[0])[:2]
+    assert team[0] == "MegaMawile" and sorted(team[1:]) == sorted(best)
+
+
+def test_with_every_species_to_choose_from_the_builder_searches_a_beam() -> None:
+    build = building.NetBuilder(_ByIds())
+
+    team = build(["Gyarados"], 6, 0, species())
+
+    assert legal(team) and len(team) == 6 and team[0] == "Gyarados"
+    # Strengths that add up: the best legal team is the highest ids, one Mega and one legendary
+    # at most; the beam must find it.
+    _engine.engine_init(str(DATA_DIR))
+
+    def kind(name: str) -> tuple[bool, bool]:
+        entry = _engine.species_entry(_engine.find_species_id(name))
+        return entry.mega, entry.legendary
+
+    others = [n for n in species() if n != "Gyarados"]
+    plain = sorted((n for n in others if kind(n) == (False, False)), key=lambda n: -_ids([n])[0])
+    best: tuple[int, list[str]] = (-1, [])
+    choices: list[list[str]] = [[]] + [[m] for m in others if kind(m) != (False, False)]
+    choices += [
+        [m, legend]
+        for m in others
+        for legend in others
+        if kind(m) == (True, False) and kind(legend) == (False, True)
+    ]
+    for extra in choices:
+        picked = extra + plain[: 5 - len(extra)]
+        best = max(best, (sum(_ids(picked)), picked))
+    assert sorted(team[1:]) == sorted(best[1])
+
+
+def test_the_builder_s_quick_rule_is_the_engine_s() -> None:
+    build = building.NetBuilder(_ByIds())
+    rng = np.random.default_rng(0)
+    every = species()
+    for _ in range(500):
+        team = [every[i] for i in rng.choice(len(every), size=4, replace=False)]
+        assert build.legal(team) == legal(team)
+
+
+def test_a_net_builder_is_named_by_its_file(tmp_path: Path) -> None:
+    path = tmp_path / "evaluator.pt"
+    TraitNet().save(path)
+
+    found = building.builder_of(f"net:{path}")
+
+    assert isinstance(found, building.NetBuilder)
+    assert building.builder_of(f"net:{path}") is found  # loaded once
