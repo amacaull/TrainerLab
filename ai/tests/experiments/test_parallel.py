@@ -99,7 +99,45 @@ def test_ctrl_c_stops_every_process_it_started() -> None:
     with pytest.raises(KeyboardInterrupt):
         parallel.run(tournament.play_block, "random", "random", range(40), 2, None, interrupt)
 
+    for process in multiprocessing.active_children():
+        process.join(timeout=5)  # stopped, maybe not yet reaped
     assert [p for p in multiprocessing.active_children() if p.is_alive()] == []
+
+
+def test_a_process_the_pool_starts_while_it_stops_is_stopped_too() -> None:
+    class Process:
+        def __init__(self) -> None:
+            self.calls: list[str] = []
+
+        def terminate(self) -> None:
+            self.calls.append("terminate")
+
+        def join(self) -> None:
+            self.calls.append("join")
+
+    early, late = Process(), Process()
+
+    class Manager:
+        def join(self, timeout: float) -> None:
+            pool._processes[2] = late  # started as the pool shut down
+
+    class Pool:
+        def __init__(self) -> None:
+            self._processes = {1: early}
+            self._executor_manager_thread = Manager()
+
+        def shutdown(self, wait: bool, cancel_futures: bool) -> None:
+            assert not wait and cancel_futures
+
+    pool = Pool()
+    parallel._stop(pool)  # type: ignore[arg-type]
+
+    assert "terminate" in early.calls and "join" in early.calls
+    assert late.calls[:2] == ["terminate", "join"]
+
+    idle = Pool()  # a pool stopped before its manager started
+    idle._executor_manager_thread = None  # type: ignore[assignment]
+    parallel._stop(idle)  # type: ignore[arg-type]
 
 
 def test_the_processes_leave_ctrl_c_to_the_parent(monkeypatch: pytest.MonkeyPatch) -> None:
