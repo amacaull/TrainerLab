@@ -235,3 +235,19 @@ def test_a_bot_that_chooses_its_lead_sends_it_in_first_on_either_side() -> None:
     assert b_first.views[0].active(1).species_id == lead(TEAM1[0])
     assert a_second.views[0].active(1).species_id == lead(TEAM1[-1])
     assert b_second.views[0].active(0).species_id == lead(TEAM0[0])
+
+
+def test_a_duel_can_be_played_on_teams_built_by_the_species_strengths() -> None:
+    from trainerlab.bots.roster import BOTS
+    from trainerlab.experiments.tournament import TEAMS, play_block
+    from trainerlab.game.building import species_team_pair
+
+    assert TEAMS["species"] is species_team_pair
+    on_species = play_block("hitter", "random", range(3, 5), "species")
+    expected = run_tournament(
+        BOTS["hitter"], BOTS["random"], pairs=2, first_seed=3, teams=species_team_pair
+    )
+    assert on_species == expected
+    assert play_block("hitter", "random", range(3, 5)) == run_tournament(
+        BOTS["hitter"], BOTS["random"], pairs=2, first_seed=3
+    )

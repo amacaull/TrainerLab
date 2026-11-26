@@ -7,14 +7,19 @@ alone, so the record is the same whatever the number of processes.
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import partial
 
 from trainerlab.bots.roster import factory
 from trainerlab.experiments import parallel
 from trainerlab.game.battle import play_battle
+from trainerlab.game.building import species_team_pair
 from trainerlab.game.environment import BattleEnvironment, random_team_pair
 from trainerlab.game.pairs import BotFactory, TeamSource, outcome_of, pair_battles, play_pair
 
 Z_95 = 1.96  # two-sided 95 % confidence
+# The teams a duel is played on: random ones, or both built by the species strengths, as the bot
+# of `trainerlab play` builds its own (palier 13.2).
+TEAMS: dict[str, TeamSource] = {"random": random_team_pair, "species": species_team_pair}
 
 
 def wilson_interval(score: float, games: int) -> tuple[float, float]:
@@ -71,9 +76,11 @@ def run_tournament(
     return TournamentResult(wins=tally["win"], draws=tally["draw"], losses=tally["loss"])
 
 
-def play_block(bot_a: str, bot_b: str, seeds: range) -> TournamentResult:
+def play_block(bot_a: str, bot_b: str, seeds: range, teams: str = "random") -> TournamentResult:
     """One block of pairs, by the bots' names: a process of its own when spread over the cores."""
-    return run_tournament(factory(bot_a), factory(bot_b), pairs=len(seeds), first_seed=seeds[0])
+    return run_tournament(
+        factory(bot_a), factory(bot_b), pairs=len(seeds), first_seed=seeds[0], teams=TEAMS[teams]
+    )
 
 
 def duel(
@@ -83,10 +90,12 @@ def duel(
     jobs: int,
     progress: parallel.Meter | None = None,
     on_part: Callable[[TournamentResult], None] | None = None,
+    teams: str = "random",
 ) -> TournamentResult:
-    """Bot A's record against bot B over the pairs of these seeds, on `jobs` processes;
-    `on_part` hears the record of each block of pairs as it ends."""
-    parts = parallel.run(play_block, bot_a, bot_b, seeds, jobs, progress, on_part)
+    """Bot A's record against bot B over the pairs of these seeds, on `jobs` processes, on
+    `teams` (TEAMS); `on_part` hears the record of each block of pairs as it ends."""
+    work = partial(play_block, teams=teams)
+    parts = parallel.run(work, bot_a, bot_b, seeds, jobs, progress, on_part)
     return TournamentResult(
         wins=sum(p.wins for p in parts),
         draws=sum(p.draws for p in parts),

@@ -11,6 +11,7 @@ from trainerlab.bots.roster import BOTS
 from trainerlab.bots.rules import RuleBot, calculator, dodger, hitter, matcher, survivor
 from trainerlab.commands.duel import main
 from trainerlab.experiments.tournament import run_tournament
+from trainerlab.game.building import species_team_pair
 
 LINE = re.compile(
     r"^(\w+) vs (\w+): (\d\.\d{3}) \[(\d\.\d{3}), (\d\.\d{3})\] "
@@ -160,3 +161,32 @@ def test_in_french_the_verdict_is_in_french() -> None:
 
     text = shown(console)
     assert "a bat b" in text and "[0.894, 0.929] à 95 %" in text and "Victoires 906" in text
+
+
+def test_a_duel_on_species_teams_says_so(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["hitter", "random", "--pairs", "2", "--from", "5", "--teams", "species"]) == 0
+    line = capsys.readouterr().out.strip()
+
+    result = run_tournament(
+        BOTS["hitter"], BOTS["random"], pairs=2, first_seed=5, teams=species_team_pair
+    )
+    assert line.startswith(f"hitter vs random on species teams: {result.score:.3f} ")
+
+
+def test_in_a_pipe_the_progress_goes_to_the_terminal_watching(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    seen: list[int] = []
+
+    class Meter:
+        def update(self, done: int) -> None:
+            seen.append(done)
+
+        def finish(self) -> None:
+            seen.append(-1)
+
+    monkeypatch.setattr("trainerlab.commands.duel.parallel.progress_on_terminal", lambda n: Meter())
+
+    _run(["hitter", "random", "--pairs", "6", "--from", "5", "--jobs", "1"], capsys)
+
+    assert seen[0] == 0 and 6 in seen  # at once, then as the blocks end

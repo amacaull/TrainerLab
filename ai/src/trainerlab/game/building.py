@@ -133,8 +133,14 @@ def strengths() -> dict[str, float]:
     return scores
 
 
-def bot_team(seed: int, size: int) -> list[str]:
-    """The bot's team for this seed: side 1's core, completed from the draft's pool by the
-    species strengths."""
+def species_team_pair(seed: int, size: int = 6) -> tuple[list[str], list[str]]:
+    """Both sides' teams for this seed, as the bot builds its own: each core completed from the
+    draft's pool by the species strengths."""
     both = cores(seed, size)
-    return SpeciesBuilder(strengths())(both[1], size, seed, draw_pool(seed, POOL, size, both))
+    pool, build = draw_pool(seed, POOL, size, both), SpeciesBuilder(strengths())
+    return build(both[0], size, seed, pool), build(both[1], size, seed, pool)
+
+
+def bot_team(seed: int, size: int) -> list[str]:
+    """The bot's team for this seed: side 1's of the species pair."""
+    return species_team_pair(seed, size)[1]

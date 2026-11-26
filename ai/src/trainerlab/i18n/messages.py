@@ -437,6 +437,10 @@ MESSAGES: dict[str, tuple[str, str]] = {
     "opt.pairs": ("pairs of battles, two battles each, sides swapped (default: {default})",
                   "paires de combats, deux combats chacune, camps échangés (par défaut : "
                   "{default})"),
+    "opt.teams": ("random teams, or both built by the species strengths as the bot's (default: "
+                  "random)",
+                  "équipes au hasard, ou construites toutes deux par la force des espèces comme "
+                  "celle du bot (par défaut : random)"),
     "opt.from": ("the seed of the first pair, the next ones follow (default: 0)",
                  "la seed de la première paire, les suivantes à la suite (par défaut : 0)"),
     "opt.watch_seed": ("the pair of the battle to replay", "la paire du combat à revoir"),
