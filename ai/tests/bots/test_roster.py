@@ -94,3 +94,19 @@ def test_every_bot_has_its_rule_and_the_featured_ones_are_bots() -> None:
     names = ("zero", "deepzero", "focus", "scout", "scholar")
     assert [RULES[name] for name in names] == [12, 13, 14, 15, 16]
     assert FEATURED == ["alphazero", "mcts", "forecaster", "calculator", "hitter", "random"]
+
+
+def test_a_search_bot_can_choose_its_lead(tmp_path: Path) -> None:
+    from trainerlab.bots.roster import searcher
+
+    network = tmp_path / "n.pt"
+    network.write_bytes(b"")
+    for name in ("alphazero+lead", "alphazero@800+lead", f"plan:{network}+lead"):
+        assert bot_spec(name) == name
+        assert searcher(name) is None  # played from Python, where the lead is chosen
+    for wrong in ("hitter+lead", "alphazero+leads"):
+        with pytest.raises(argparse.ArgumentTypeError):
+            bot_spec(wrong)
+    with pytest.raises(argparse.ArgumentTypeError, match="no such network"):
+        bot_spec("plan:missing.pt+lead")
+    assert slug("alphazero@800+lead") == "alphazero-800-lead"

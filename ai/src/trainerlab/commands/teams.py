@@ -4,10 +4,12 @@ trainerlab teams alphazero --pairs 3000 --from 190000 --out runs/teams.npz
 trainerlab teams alphazero --size 2 --pairs 3000 --from 340000 --out runs/teams-2.npz
 trainerlab teams --load runs/teams.npz
 trainerlab teams --load runs/teams-6b.npz --strengths src/trainerlab/game/species-strength.json
+trainerlab teams --load runs/teams-6b.npz --leads src/trainerlab/game/lead-strength.json
 
 The first form plays the pairs and keeps every battle's result in --out; the second reads such a
 file again, without playing (experiments/teams.py says what is measured). --strengths also writes
-each species' score, as the bot of `trainerlab play` builds its team with them.
+each species' score, as the bot of `trainerlab play` builds its team with them; --leads each
+lead's, as a bot that chooses its lead expects the foe's from them.
 """
 
 import argparse
@@ -20,7 +22,7 @@ from trainerlab.bots.roster import bot_spec
 from trainerlab.commands.console import Write, stdout
 from trainerlab.commands.options import add_jobs, add_pairs, seeds_of
 from trainerlab.experiments import parallel
-from trainerlab.experiments.teams import analyze, record
+from trainerlab.experiments.teams import analyze, lead_scores, record
 
 
 def main(argv: list[str] | None = None, write: Write = stdout) -> int:
@@ -37,6 +39,7 @@ def main(argv: list[str] | None = None, write: Write = stdout) -> int:
         "--size", type=int, choices=range(1, 7), default=6, help="Pokemon per team (6)"
     )
     parser.add_argument("--strengths", type=Path, help="write each species' score to this file")
+    parser.add_argument("--leads", type=Path, help="write each lead's score to this file")
     add_pairs(parser)
     add_jobs(parser)
     args = parser.parse_args(argv)
@@ -76,6 +79,9 @@ def main(argv: list[str] | None = None, write: Write = stdout) -> int:
         scores = {s.name: s.score for s in result.species}
         args.strengths.write_text(json.dumps(scores, indent=1) + "\n")
         write(f"-> {args.strengths}\n")
+    if args.leads is not None:
+        args.leads.write_text(json.dumps(lead_scores(seeds, points, size), indent=1) + "\n")
+        write(f"-> {args.leads}\n")
     if args.load is None:
         write(f"-> {args.out}\n")
     return 0

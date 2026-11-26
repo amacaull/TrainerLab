@@ -277,3 +277,48 @@ def test_the_bot_builds_its_own_team(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert asked == [(3, 2)]
     assert names.species_name("Snorlax") in shown
+
+
+def test_a_bot_that_chooses_its_lead_sends_it_in_first(monkeypatch: pytest.MonkeyPatch) -> None:
+    from trainerlab.bots.baseline import RandomBot
+
+    class Leading(RandomBot):
+        def choose_lead(self, team: list[str]) -> int:
+            return 1
+
+    monkeypatch.setattr(
+        "trainerlab.commands.play.bot_team", lambda seed, size: ["Snorlax", "Blissey"]
+    )
+    monkeypatch.setattr(
+        "trainerlab.commands.play.factory", lambda spec: lambda seed: Leading(seed=seed)
+    )
+
+    shown = _play(["--seed", "3", "--against", "random", "--size", "2"])[1]
+
+    assert f"{names.leader(3)} sends out {names.species_name('Blissey')}" in shown
+
+
+@pytest.mark.parametrize(
+    ("against", "played"),
+    [
+        ("alphazero@2", "alphazero@2+lead"),
+        ("alphazero+lead", "alphazero+lead"),
+        ("hitter", "hitter"),
+    ],
+)
+def test_a_search_bot_chooses_its_lead_as_a_player_would(
+    monkeypatch: pytest.MonkeyPatch, against: str, played: str
+) -> None:
+    from trainerlab.bots.roster import BOTS
+
+    asked = []
+
+    def factory(spec: str) -> object:
+        asked.append(spec)
+        return BOTS["hitter"]
+
+    monkeypatch.setattr("trainerlab.commands.play.factory", factory)
+
+    _play(["--seed", "3", "--against", against])
+
+    assert asked == [played]
