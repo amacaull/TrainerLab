@@ -11,6 +11,7 @@ from trainerlab.game.building import (
     legal,
     random_builder,
     species,
+    species_team_pair,
     strengths,
 )
 from trainerlab.game.environment import DATA_DIR
@@ -139,3 +140,12 @@ def test_the_bot_completes_its_core_from_a_pool_with_the_species_strengths() -> 
 
 def test_alone_the_bot_s_pokemon_is_its_core() -> None:
     assert bot_team(5, 1) == cores(5, 1)[1]
+
+
+def test_both_sides_of_a_species_pair_are_built_by_the_species_strengths() -> None:
+    both = cores(9, 6)
+    pool = draw_pool(9, POOL, 6, both)
+    build = SpeciesBuilder(strengths())
+
+    assert species_team_pair(9) == (build(both[0], 6, 9, pool), build(both[1], 6, 9, pool))
+    assert bot_team(9, 6) == species_team_pair(9)[1]

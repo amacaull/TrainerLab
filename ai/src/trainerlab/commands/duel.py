@@ -3,7 +3,8 @@
 trainerlab duel calculator survivor --pairs 5000 --from 30000
 
 On a terminal: the duel in a frame, a progress bar with the score so far, then the verdict. In
-a pipe or a log: one line, the same as ever, for the reports.
+a pipe or a log: one line, the same as ever, for the reports, and the progress on stderr if a
+terminal watches it.
 """
 
 import argparse
@@ -13,7 +14,8 @@ from collections.abc import Callable
 from rich.console import Console
 
 from trainerlab.commands.options import add_bots, add_jobs, add_pairs, seeds_of
-from trainerlab.experiments.tournament import TournamentResult, duel
+from trainerlab.experiments import parallel
+from trainerlab.experiments.tournament import TEAMS, TournamentResult, duel
 from trainerlab.game.pairs import span
 from trainerlab.i18n import t
 from trainerlab.terminal import reports
@@ -33,6 +35,7 @@ def main(
 ) -> int:
     parser = argparse.ArgumentParser(prog="trainerlab duel", description=t("command.duel"))
     add_bots(parser)
+    parser.add_argument("--teams", choices=list(TEAMS), default="random", help=t("opt.teams"))
     add_pairs(parser)
     add_jobs(parser)
     args = parser.parse_args(argv)
@@ -40,10 +43,13 @@ def main(
 
     seeds = seeds_of(args)
     if not console.is_terminal:
-        result = duel(args.bot_a, args.bot_b, seeds, args.jobs)
+        # In a pipe (| tee): the progress still goes to a terminal watching, on stderr.
+        progress = parallel.progress_on_terminal(len(seeds))
+        result = duel(args.bot_a, args.bot_b, seeds, args.jobs, progress, teams=args.teams)
         low, high = result.interval
+        on = " on species teams" if args.teams == "species" else ""
         console.print(
-            f"{args.bot_a} vs {args.bot_b}: {result.score:.3f} [{low:.3f}, {high:.3f}] "
+            f"{args.bot_a} vs {args.bot_b}{on}: {result.score:.3f} [{low:.3f}, {high:.3f}] "
             f"({result.wins} wins, {result.draws} draws, {result.losses} losses, "
             f"seeds {span(seeds)})",
             highlight=False,
@@ -63,7 +69,7 @@ def main(
             score = TournamentResult(*so_far).score
             bar.note(t("duel.running", bot=args.bot_a, score=score))
 
-        result = duel(args.bot_a, args.bot_b, seeds, args.jobs, bar, count)
+        result = duel(args.bot_a, args.bot_b, seeds, args.jobs, bar, count, args.teams)
     record = (result.wins, result.draws, result.losses)
     console.print(
         reports.duel_result(
