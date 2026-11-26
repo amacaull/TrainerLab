@@ -93,6 +93,8 @@ SEARCHERS = {
 # Those that search their replacements after a knock-out (palier 10.4), and plan:FILE.pt; the
 # bots measured before send in their network's favourite.
 REPLACING = {"scout", "scholar", "alphazero", PLAN}
+# After a search bot (alphazero+lead, alphazero@800+lead): it chooses its lead (palier 13.1).
+LEAD = "+lead"
 
 
 @dataclass(frozen=True)
@@ -106,7 +108,10 @@ class Searcher:
 
 
 def searcher(spec: str) -> Searcher | None:
-    """The search bot a name stands for; None for any other bot."""
+    """The search bot a name stands for; None for any other bot, and for one that chooses its
+    lead: the measures play it from Python."""
+    if spec.endswith(LEAD):
+        return None
     base, simulations = _depth(spec)
     name, _, model = base.partition(":")
     if name == PLAN:
@@ -122,6 +127,8 @@ def searcher(spec: str) -> Searcher | None:
 
 def factory(spec: str) -> BotFactory:
     """The bot a name stands for: `forecaster:FILE.npz` plays with the model in that file."""
+    if spec.endswith(LEAD):
+        return _leading(factory(spec.removesuffix(LEAD)))
     base, simulations = _depth(spec)
     if simulations is not None:
         name, _, model = base.partition(":")
@@ -156,6 +163,12 @@ def _planner(
     )
 
 
+def _leading(make: BotFactory) -> BotFactory:
+    from trainerlab.rl.planner import LeadChooser  # PyTorch, only for these bots
+
+    return lambda seed: LeadChooser(make(seed))  # type: ignore[arg-type]
+
+
 def _depth(spec: str) -> tuple[str, int | None]:
     """A search bot's name and its number of simulations: alphazero@800 -> (alphazero, 800)."""
     base, at, count = spec.rpartition("@")
@@ -169,6 +182,15 @@ def _load(path: str) -> WinModel:
 
 def bot_spec(text: str) -> str:
     """Checks a bot's name on the command line (argparse type)."""
+    if text.endswith(LEAD):
+        base = text.removesuffix(LEAD)
+        if _depth(base)[0] not in SEARCHERS and not base.startswith(f"{PLAN}:"):
+            raise argparse.ArgumentTypeError(
+                f"{text!r}: {LEAD} goes after a search bot ({', '.join(SEARCHERS)} or "
+                f"{PLAN}:FILE.pt)"
+            )
+        bot_spec(base)
+        return text
     if "@" in text:
         base, _, count = text.rpartition("@")
         searcher = base in SEARCHERS or base.startswith(f"{PLAN}:")
@@ -199,6 +221,8 @@ def bot_spec(text: str) -> str:
 
 def slug(spec: str) -> str:
     """A bot's name fit for a file name: forecaster:models/gen2.npz -> forecaster-gen2."""
+    if spec.endswith(LEAD):
+        return f"{slug(spec.removesuffix(LEAD))}-lead"
     base, simulations = _depth(spec)
     name, _, model = base.partition(":")
     name = f"{name}-{Path(model).stem}" if model else name

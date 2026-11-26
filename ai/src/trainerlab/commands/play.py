@@ -16,9 +16,17 @@ from pathlib import Path
 from rich.console import Console
 
 from trainerlab import _engine
-from trainerlab.bots.roster import DEFAULT_OPPONENT, WITH_MODEL, bot_spec, factory
+from trainerlab.bots.roster import (
+    DEFAULT_OPPONENT,
+    LEAD,
+    WITH_MODEL,
+    bot_spec,
+    factory,
+    searcher,
+)
 from trainerlab.game.building import bot_team
 from trainerlab.game.environment import BattleEnvironment, random_team_pair
+from trainerlab.game.pairs import led
 from trainerlab.i18n import names, settings, t
 from trainerlab.terminal.human import Fled
 from trainerlab.terminal.prompts import Option, Prompter, QuestionaryPrompter
@@ -65,6 +73,9 @@ def main(
         [names.species_key(name) or name for name in args.team.split(",")] if args.team else None
     )
 
+    # A search bot chooses its lead, as a player does (palier 13.1); measures leave it out.
+    playing = args.against + LEAD if searcher(args.against) else args.against
+
     with ExitStack() as files:
         log = None
         if args.log:
@@ -83,8 +94,8 @@ def main(
             trainer = names.leader(seed)
             try:
                 mine = lead_first(asker, mine)
-                env = BattleEnvironment(mine, foe_team, seed=seed)
-                opponent = factory(args.against)(seed)
+                opponent = factory(playing)(seed)
+                env = BattleEnvironment(mine, led(opponent, foe_team), seed=seed)
                 screen.start_transcript()
                 try:
                     play_session(env, opponent, args.against, trainer, seed, screen, style, asker)

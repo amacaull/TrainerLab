@@ -13,6 +13,9 @@ Two finer measures follow:
   0.5 if it made no difference;
 - how well the composition alone calls the winner: a logistic regression on which species each
   side holds, fitted on the pairs whose seed is not a multiple of 5 and scored on the others.
+
+The first Pokemon of a random team leads it: a lead's score, the share of points of the teams it
+led, is what a bot expects of a foe's lead (palier 13).
 """
 
 import math
@@ -139,6 +142,22 @@ def analyze(seeds: npt.NDArray[np.int64], points: Floats, size: int = TEAM_SIZE)
         log_loss,
         species,
     )
+
+
+def lead_scores(
+    seeds: npt.NDArray[np.int64], points: Floats, size: int = TEAM_SIZE
+) -> dict[str, float]:
+    """Each species' share of points of the teams it led (nan if it never led)."""
+    _engine.engine_init(str(DATA_DIR))
+    names = [_engine.species_id_string(i) for i in range(_engine.species_count())]
+    won, led = dict.fromkeys(names, 0.0), dict.fromkeys(names, 0)
+    for seed, got in zip(seeds, points, strict=True):
+        first, second = (team[0] for team in random_team_pair(int(seed), size))
+        won[first] += got
+        won[second] += 1 - got
+        led[first] += 1
+        led[second] += 1
+    return {name: won[name] / led[name] if led[name] else math.nan for name in names}
 
 
 def _compositions(seeds: npt.NDArray[np.int64], size: int = TEAM_SIZE) -> tuple[list[str], Floats]:

@@ -216,3 +216,22 @@ def test_a_search_bot_plays_its_battles_in_cpp_side_by_side(
     assert points.tolist() == [1.0, 0.0, 1.0, 0.0]  # side 0 always wins: the first team, then not
     assert told == [2, -1]
     assert teams.record("alphazero", range(3), jobs=1, size=2)[1].tolist() == [1.0, 0.0] * 3
+
+
+def test_a_lead_s_score_is_the_share_of_points_of_the_teams_it_led() -> None:
+    # Pairs 20 and 21: the first team leads with its first Pokemon in both battles of a pair.
+    seeds = np.repeat(np.arange(20, 22), 2)
+    points = np.array([1.0, 0.5, 0.0, 0.0])
+    leads = [(random_team_pair(s, 4)[0][0], random_team_pair(s, 4)[1][0]) for s in (20, 21)]
+
+    scores = teams.lead_scores(seeds, points, 4)
+
+    won: dict[str, list[float]] = {}
+    for (first, second), got in zip(leads, ([1.0, 0.5], [0.0, 0.0]), strict=True):
+        won.setdefault(first, []).extend(got)
+        won.setdefault(second, []).extend(1 - p for p in got)
+    for name, score in scores.items():
+        if name in won:
+            assert score == pytest.approx(sum(won[name]) / len(won[name]))
+        else:
+            assert math.isnan(score)  # never led

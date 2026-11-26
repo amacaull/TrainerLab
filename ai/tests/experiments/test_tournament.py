@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 import pytest
 from teams import TEAM0, TEAM1
 
@@ -206,3 +208,30 @@ def test_the_losses_of_bot_a_say_how_each_battle_ended_and_follow_the_seeds() ->
     assert [(loss.seed, loss.side) for loss in lost] == expected
     assert all(loss.mine == 0 < loss.theirs and loss.turns > 0 for loss in lost)
     assert done == [1, 2, 3, 4, 5, 6]
+
+
+class LeadingBot(RecordingBot):
+    """Sends in its last Pokemon first."""
+
+    def choose_lead(self, team: list[str]) -> int:
+        return len(team) - 1
+
+
+def test_a_bot_that_chooses_its_lead_sends_it_in_first_on_either_side() -> None:
+    created: list[RecordingBot] = []
+
+    def make(kind: type[RecordingBot]) -> Callable[[int], RecordingBot]:
+        def bot(seed: int) -> RecordingBot:
+            created.append(kind())
+            return created[-1]
+
+        return bot
+
+    play_pair(make(LeadingBot), make(RecordingBot), seed=4, team0=TEAM0, team1=TEAM1)
+
+    a_first, b_first, a_second, b_second = created
+    lead = _engine.find_species_id
+    assert a_first.views[0].active(0).species_id == lead(TEAM0[-1])
+    assert b_first.views[0].active(1).species_id == lead(TEAM1[0])
+    assert a_second.views[0].active(1).species_id == lead(TEAM1[-1])
+    assert b_second.views[0].active(0).species_id == lead(TEAM0[0])

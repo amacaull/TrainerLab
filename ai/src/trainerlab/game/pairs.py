@@ -39,10 +39,20 @@ def pair_battles(
     tournament plays exactly the battles it measured.
     """
     for a_side in (0, 1):
-        env = BattleEnvironment(team0, team1, seed=seed)
         bot_a, bot_b = make_a(2 * seed), make_b(2 * seed + 1)
         bot0, bot1 = (bot_a, bot_b) if a_side == 0 else (bot_b, bot_a)
+        env = BattleEnvironment(led(bot0, team0), led(bot1, team1), seed=seed)
         yield a_side, env, bot0, bot1
+
+
+def led(bot: Bot, team: list[str]) -> list[str]:
+    """The team, the Pokemon the bot leads with first if it chooses (palier 13.1); as given
+    otherwise."""
+    choose = getattr(bot, "choose_lead", None)
+    if choose is None:
+        return team
+    lead: int = choose(team)
+    return [team[lead], *team[:lead], *team[lead + 1 :]]
 
 
 def play_pair(

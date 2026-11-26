@@ -7,7 +7,7 @@ from trainerlab.bots.roster import ALPHAZERO, RULE12, RULE13, RULE14, RULE16, SE
 from trainerlab.experiments import judge
 from trainerlab.game.environment import BattleEnvironment, random_team_pair
 from trainerlab.rl.net import PolicyValueNet, Shape
-from trainerlab.rl.planner import Planner, cpp_network, to_cpp
+from trainerlab.rl.planner import LeadChooser, Planner, cpp_network, lead_view, to_cpp
 
 
 def test_the_cpp_network_gives_what_pytorch_gives() -> None:
@@ -135,3 +135,64 @@ def test_alphazero_searches_its_replacements_and_the_bots_measured_do_not() -> N
     assert choice in (1, 2)
     again = Planner(SELFPLAY, seed=3, simulations=8, replacements=True)
     assert again.choose_replacement(0, view, [1, 2]) == choice
+
+
+def test_the_view_of_two_leads_hides_the_rest_of_the_foe_s_team() -> None:
+    team = ["Snorlax", "Blissey", "Toxapex"]
+
+    view = lead_view(team, 2, "Gyarados")
+
+    assert view.active(0).species_id == _engine.find_species_id("Toxapex")
+    assert view.active(1).species_id == _engine.find_species_id("Gyarados")
+    assert view.team_size[1] == 3
+    assert [view.pokemon(1, i).species_id for i in (1, 2)] == [-1, -1]
+
+
+def test_a_lead_is_worth_the_network_s_values_against_each_foe_lead_by_its_chance(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import numpy as np
+
+    from trainerlab.game import leads
+
+    chances = {"Gyarados": 0.75, "Mimikyu": 0.25}
+    monkeypatch.setattr(leads, "foe_leads", lambda: chances)
+    chooser = LeadChooser(Planner(SELFPLAY, seed=0, simulations=8))
+    team = ["Snorlax", "Blissey", "Toxapex"]
+    every = np.ones(10, dtype=np.float32)
+
+    values = chooser.lead_values(team)
+
+    for k in range(3):
+        expected = sum(
+            p * chooser.network.evaluate(lead_view(team, k, foe), 0, every)[1]
+            for foe, p in chances.items()
+        )
+        assert values[k] == pytest.approx(expected)
+    assert chooser.choose_lead(team) == int(np.argmax(values))
+
+
+def test_alone_a_pokemon_leads_without_asking_the_network() -> None:
+    chooser = LeadChooser(Planner(SELFPLAY, seed=0, simulations=8))
+    chooser.lead_values = None  # type: ignore[assignment,method-assign]
+
+    assert chooser.choose_lead(["Snorlax"]) == 0
+
+
+def test_the_lead_chooser_plays_as_the_bot_it_wraps() -> None:
+    env = BattleEnvironment(*random_team_pair(25), seed=25)
+    view, legal = env.observe(0), env.legal_actions(0)
+    chooser, alone = (
+        LeadChooser(Planner(SELFPLAY, seed=3, simulations=8)),
+        Planner(SELFPLAY, seed=3, simulations=8),
+    )
+
+    assert chooser.choose_action(0, view, legal) == alone.choose_action(0, view, legal)
+    assert chooser.choose_replacement(0, view, [1, 2]) == alone.choose_replacement(0, view, [1, 2])
+
+
+def test_a_search_bot_with_lead_chooses_its_lead() -> None:
+    for name in ("alphazero+lead", "alphazero@8+lead", f"plan:{SELFPLAY}+lead"):
+        bot = factory(name)(0)
+        assert isinstance(bot, LeadChooser) and isinstance(bot.bot, Planner)
+    assert factory("alphazero@8+lead")(0).bot._simulations == 8  # type: ignore[attr-defined]

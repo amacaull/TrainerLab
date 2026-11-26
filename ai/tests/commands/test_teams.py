@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from trainerlab.commands import teams
-from trainerlab.experiments.teams import analyze
+from trainerlab.experiments.teams import analyze, lead_scores
 
 
 def test_the_command_plays_keeps_and_reads_again(tmp_path: Path) -> None:
@@ -68,3 +68,14 @@ def test_the_species_strengths_can_be_written_for_the_bot(tmp_path: Path) -> Non
     saved = np.load(out)
     expected = {s.name: s.score for s in analyze(saved["seed"], saved["points"], 6).species}
     assert json.loads(scores.read_text()) == pytest.approx(expected, nan_ok=True)
+
+
+def test_the_lead_scores_can_be_written_for_the_bots(tmp_path: Path) -> None:
+    out, leads = tmp_path / "t.npz", tmp_path / "leads.json"
+    teams.main(["random", "--pairs", "20", "--from", "0", "--out", str(out)], lambda _: None)
+
+    assert teams.main(["--load", str(out), "--leads", str(leads)], lambda _: None) == 0
+
+    saved = np.load(out)
+    expected = lead_scores(saved["seed"], saved["points"], 6)
+    assert json.loads(leads.read_text()) == pytest.approx(expected, nan_ok=True)
