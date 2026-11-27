@@ -5,6 +5,11 @@ one, then the mistakes a program can spot were counted over many battles. It
 led to rule 5 ([results](results.md#rule-5-the-damage-the-engine-expects)).
 Seeds 20000 and up: none of them served to choose or measure a rule.
 
+This study covers the rule bots. For the network bots (rule 12 on), mistakes
+were rated by a judge searching 16 times deeper, then checked by playing them
+out: reliable on average, not decision by decision (palier 7, in
+[results](results.md#palier-7-how-good-is-rule-12-and-where-it-goes-wrong)).
+
 ## By hand: 15 losses
 
 `trainerlab watch survivor matcher --losses --pairs 50 --from 20000` lists the

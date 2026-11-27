@@ -13,7 +13,8 @@ from rich.console import Console, Group
 from rich.panel import Panel
 from rich.text import Text
 
-from trainerlab.bots.roster import BOTS, DEFAULT_OPPONENT, FEATURED
+from trainerlab.bots.levels import DEFAULT_LEVEL, LEVELS
+from trainerlab.bots.roster import BOTS, FEATURED
 from trainerlab.commands.options import PAIRS, SCANNED_PAIRS, count, seed
 from trainerlab.commands.usage import PAIRS as USAGE_PAIRS
 from trainerlab.i18n import LANGUAGES, language, names, set_language, settings, t
@@ -109,24 +110,23 @@ def choose(prompter: Prompter, message: str, options: list[Line]) -> Any:
     return chosen
 
 
-def _bot_label(name: str, described: bool) -> Label:
-    if not described:
-        return name
+def _bot_label(name: str) -> Label:
     return [("bold", f"{name:<12}"), ("fg:ansibrightblack", t(f"short.{name}"))]
 
 
-def bot_step(message: str, *, described: bool = True) -> Step:
+def bot_step(message: str) -> Step:
     """One of the featured bots, or any bot from the whole list, filtered as one types; Back
     from the whole list returns to the featured ones."""
 
     def ask(prompter: Prompter, answers: Answers) -> str:
-        options: list[Line] = [Option(name, _bot_label(name, described)) for name in FEATURED]
-        other: Label = t("menu.other_bot")
-        if described:
-            other = [("bold", f"{other:<12}"), ("fg:ansibrightblack", t("menu.other_bot_card"))]
+        options: list[Line] = [Option(name, _bot_label(name)) for name in FEATURED]
+        other: Label = [
+            ("bold", f"{t('menu.other_bot'):<12}"),
+            ("fg:ansibrightblack", t("menu.other_bot_card")),
+        ]
         options += [Separator(), Option(OTHER, other)]
         every: list[Line] = [
-            Option(name, _bot_label(name, True)) for name in BOTS if name not in FEATURED
+            Option(name, _bot_label(name)) for name in BOTS if name not in FEATURED
         ]
         every += [Separator(), Option(BACK, t("back"))]
         while True:
@@ -238,8 +238,28 @@ def _measure(default: int) -> tuple[list[tuple[str, Step]], Callable[[Answers], 
     return steps, lambda answers: [answers["a"], answers["b"], *_pair_args(answers, default)]
 
 
+def _level(prompter: Prompter, answers: Answers) -> str:
+    """A level, or any bot by its name from the whole list, filtered as one types; Back from the
+    whole list returns to the levels."""
+    options: list[Line] = [Option(level, t(f"level.{level}")) for level in LEVELS]
+    options += [Separator(), Option(OTHER, t("menu.other_bot"))]
+    every: list[Line] = [Option(name, _bot_label(name)) for name in BOTS]
+    every += [Separator(), Option(BACK, t("back"))]
+    while True:
+        chosen = str(choose(prompter, t("menu.opponent"), options))
+        if chosen != OTHER:
+            return chosen
+        picked = str(prompter.select(t("menu.which_bot"), every, search=True))
+        if picked != BACK:
+            return picked
+
+
 def _play_args(answers: Answers) -> list[str]:
-    args = [] if answers["against"] == DEFAULT_OPPONENT else ["--against", answers["against"]]
+    against = answers["against"]
+    if against in LEVELS:
+        args = [] if against == DEFAULT_LEVEL else ["--level", against]
+    else:
+        args = ["--against", against]
     if answers["team"] is not SKIP:
         args += ["--team", ",".join(answers["team"])]
     elif answers["size"] != 6:
@@ -264,7 +284,7 @@ def _losses(answers: Answers) -> bool:
 FORMS: dict[str, tuple[list[tuple[str, Step]], Callable[[Answers], list[str]]]] = {
     "play": (
         [
-            ("against", bot_step("menu.opponent", described=False)),
+            ("against", _level),
             ("size", _size),
             ("mode", _team_mode),
             ("team", _unless(lambda answers: answers["mode"] == "random", _builder)),

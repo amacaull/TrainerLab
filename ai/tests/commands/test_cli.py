@@ -111,8 +111,17 @@ def test_ctrl_c_in_a_text_goes_back_to_the_question_before() -> None:
     assert main([], Scripted([KeyboardInterrupt()]), recording()) == 130  # at the menu: quits
 
 
-def test_play_asks_the_opponent_the_team_size_the_team_the_seed_and_the_speed() -> None:
-    command, prompter = _menu(["play", OTHER, "nash", 3, "random", "42", "fast"])
+def test_play_asks_the_level_the_team_size_the_team_the_seed_and_the_speed() -> None:
+    command, prompter = _menu(["play", "hard", 3, "random", "42", "fast"])
+
+    assert command == ["play", "--level", "hard", "--size", "3", "--seed", "42", "--speed", "fast"]
+    levels = [plain(o.label) for o in prompter.asked[1][2] if isinstance(o, Option)]
+    assert levels == ["Easy", "Medium", "Hard", "Impossible", "Another bot…", "← Back"]
+    assert _menu(["play", "medium", 6, "random", "", "normal"])[0] == ["play"]
+
+
+def test_play_can_still_face_any_bot_by_its_name() -> None:
+    command, prompter = _menu(["play", OTHER, BACK, OTHER, "nash", 3, "random", "42", "fast"])
 
     assert command == [
         "play",
@@ -125,16 +134,16 @@ def test_play_asks_the_opponent_the_team_size_the_team_the_seed_and_the_speed() 
         "--speed",
         "fast",
     ]
-    assert _label(prompter.asked[1][2], 0) == "alphazero"  # no description to play
-    assert _labels(prompter.asked[3][2]) == ["6", "5", "4", "3", "2", "1", "←"]
+    assert prompter.asked[3][1] == "Your opponent"  # Back from the whole list: the levels again
+    assert "nash" in [o.value for o in prompter.asked[4][2] if isinstance(o, Option)]
+    assert _labels(prompter.asked[5][2]) == ["6", "5", "4", "3", "2", "1", "←"]
     speeds = [o.value for o in prompter.asked[-1][2] if isinstance(o, Option)]
     assert speeds == ["slow", "normal", "fast", BACK]  # no instant text to play
-    assert _menu(["play", "forecaster", 6, "random", "", "normal"])[0] == ["play"]
 
 
 def test_a_team_is_built_from_the_list_and_a_pokemon_can_be_taken_out() -> None:
     i18n.set_language("fr")
-    answers = ["play", "forecaster", 2, "own", "add", "Gyarados", "add", "Blissey"]
+    answers = ["play", "medium", 2, "own", "add", "Gyarados", "add", "Blissey"]
     answers += ["remove", "Blissey", "add", "Snorlax", "done", "", "normal"]
 
     command, prompter = _menu(answers)
@@ -151,7 +160,7 @@ def test_a_team_is_built_from_the_list_and_a_pokemon_can_be_taken_out() -> None:
 
 
 def test_the_team_can_be_confirmed_only_full_and_back_leaves_the_team() -> None:
-    answers = ["play", "forecaster", 1, "own", "add", BACK, "add", "Gyarados", "remove", BACK]
+    answers = ["play", "medium", 1, "own", "add", BACK, "add", "Gyarados", "remove", BACK]
     answers += ["remove", "Gyarados", BACK, "random", "", "normal"]
 
     command, prompter = _menu(answers)
@@ -232,7 +241,7 @@ def test_the_menu_runs_the_command_shows_it_in_one_line_and_comes_back() -> None
 
 
 def test_play_from_the_menu_ends_on_back_to_the_menu() -> None:
-    prompter = First(["play", "hitter", 6, "random", "3", "fast"])
+    prompter = First(["play", OTHER, "hitter", 6, "random", "3", "fast"])
 
     assert main([], prompter, recording()) == 130  # the script ends at the menu: Ctrl-D
 

@@ -5,18 +5,19 @@
 A Pokémon-style battle engine in C++20, and AI agents that play it, written
 and measured in Python.
 
-> **Status: version 1.** The engine is complete and tested. Seventeen rules are
-> measured, the best of them a tree search guided by a network trained on its
-> own search, as AlphaZero. `trainerlab` opens a menu, in English or in French:
-> build a team and play any bot, or measure them. The bots build their own teams
-> from the species' measured strengths, and choose their lead. Next: four levels
-> of difficulty.
+> **Status: version 2, finished.** The engine is complete and tested.
+> Seventeen rules are measured, the best of them a tree search guided by a
+> network trained on its own search, as AlphaZero. The bots build their own
+> teams from the species' measured strengths. `trainerlab` opens a menu, in
+> English or in French: play one of four levels, from easy to impossible, or
+> measure the bots.
 
-## Results so far
+## Results
 
-Every claim is a measurement: a score over 5000 pairs of battles on random
-teams (10 000 battles; 2000 pairs from rule 11 on), with its 95 % Wilson
-interval, reproducible with one command.
+Every claim is a measurement: a score over paired battles (5000 pairs on random
+teams up to rule 10, 2000 from rule 11 on), with its 95 % Wilson interval,
+reproducible with one command. A rule is kept only if the whole interval is
+above 0.5.
 
 | Bot | Against | Score | 95 % interval |
 |---|---|---|---|
@@ -35,49 +36,101 @@ interval, reproducible with one command.
 | rule 16: its network trained on those replacements | rule 15 | **0.540** | [0.524, 0.555] |
 | `alphazero` (rule 17): trained on teams of 2 to 6 too | rule 16 | **0.517** | [0.502, 0.532] |
 
-`forecaster` beats every earlier bot; `strategist` beats it head to head but
-does worse against every other bot. Tree searches (Nash, MCTS) brought nothing:
-the limit was the win model judging the positions. Rule 10 lifts it: a network
-that learned the worth of a position by playing millions of games against
-itself beats `forecaster` and `strategist` by 17 points, without any search, and
-is the first bot that looks ahead to lay hazards as often as chance does. And a
-tree search guided by that network (rule 11) beats it by 26 more points: once
-the positions are judged well, search pays. Trained on its own search, as
-AlphaZero, the network lifts that search by 8 more points (rule 12): strong in
-tactics, still weak in long-term strategy. Measured further (palier 7, in
-[`docs/results.md`](docs/results.md)): four times its simulations win 7 more
-points; the composition of the teams decides about three matchups in four; and
-neither simple rules nor a deeper search judging it decision by decision pin
-down its mistakes reliably, so duels stay the measure. Palier 8 made the loop
-about twice as fast on the Mac (fused multiply-adds, Apple's matrix unit through
-Accelerate, battles played side by side) and its targets four times deeper; 140
-more iterations, in an afternoon, gave rule 13, 3 points above rule 12. Palier 10
-gave the network attention, each Pokémon reading the others, and the
-arithmetic it had to guess before (each move's effectiveness and damage, who is
-faster, what it would take): taught rule 13's search, it plays as rule 13 does,
-where without the arithmetic it fell 12 points short. Once the loop stopped
-learning the battles' results by heart and learned the search's value beside
-them, it gave rule 14, 4 points above rule 13. Searching the replacement after
-a knock-out, rather than sending in the network's favourite, won 5 more points
-(rule 15); learning those replacements in the loop, 4 more (rule 16); smaller
-teams in self-play, 1.7 more (rule 17). Replaying real endgames brought nothing
-and was removed.
+The four levels of `trainerlab play`, each against the one below (palier 14):
 
-Palier 12 measured the teams themselves. The composition decides much: the
-same team wins both battles of a pair (sides swapped) 66 % of the time at 6,
-78 % at 2, and 97 % of the spread of teams' scores is the teams', not the dice.
-Picking the best measured species from a draft of 12 beats picking at random by
-21 points at 6 (0.712 [0.698, 0.726]). A network judging whole teams predicts
-battles slightly better than the sum of the species, but building with it wins
-nothing more (0.507 [0.492, 0.522]): with 49 species, composition has reached
-its ceiling. The bots now build their teams that way.
+| Level | Bot | Its team | Against the level below |
+|---|---|---|---|
+| Easy | `matcher` | random | — |
+| Medium | `forecaster` | random | **0.874** [0.863, 0.884] |
+| Hard | `alphazero`, 200 simulations | random | **0.881** [0.870, 0.890] |
+| Impossible | `alphazero`, 3200 simulations | built from the species' strengths | about 0.80 (estimated) |
 
-Palier 13 tried to strengthen the battle itself. Choosing the lead from the
-network's value of each pair of leads gains at most a point (0.509 [0.494,
-0.525]), kept in `play` as a player would; guessing the foe's hidden Pokémon by
-strength, and a loop learning from searches four times deeper, gain nothing.
-What does pay is searching more at play time: four times the simulations win 7
-points, each doubling after that about 2.5.
+## How it got here
+
+Each step answered a question the one before had raised. The details, the
+commands and every negative result are in [`docs/results.md`](docs/results.md).
+
+**Rules by hand (rules 1 to 5).** How far does a heuristic go? Playing the
+strongest move beats random play 97 % of the time. Then the replacement after
+a knock-out turned out to matter more than the move (rule 3, +9 points), and
+asking the engine for the damage it expects more than a hand-made estimate
+(rule 5, +13). Dodging a threat by switching was measured negative (rule 2).
+
+**A learned win model, a turn ahead (rules 6 and 7).** Rule 6 plays each option
+a turn ahead on a copy of what it sees and rates the result with a logistic
+regression learned from battles: **+34 points** over rule 5, the biggest step of
+the rules. Rule 7, which assumes the foe's best reply, beats it head to head but
+loses to every other bot: assuming the worst is a trap against foes that are
+not perfect.
+
+**Search without a better judge (rules 8 and 9): negative.** A mixed strategy
+from the game's equilibrium, then a Monte Carlo tree search three turns deep,
+gained nothing. More data or a hidden layer did not make the win model better
+either. The limit was the judge of positions, not the search.
+
+**A network, then a search it guides (rules 10 and 11).** A policy and value
+network, learned by imitation of rule 6 then by self-play (PPO), beats rule 6 by
+17 points with no search at all. A tree search guided by it (PUCT, as in
+AlphaZero) wins 26 more: once positions are judged well, search pays. The
+engine's hot paths, the features and then the search moved to C++ for this
+(paliers 5 and 6).
+
+**AlphaZero's loop (rules 12 to 17).** The network learns from its own search:
+the search's choices as targets, the results and the search's value. Each rule
+fixed what the measures showed: deeper targets (rule 13), attention between the
+Pokémon and the arithmetic the network had to guess (rule 14), searched
+replacements after a knock-out (rules 15 and 16), smaller teams in self-play
+(rule 17). The gains shrank: +8, +3, +4, +5, +4, +1.7 points.
+
+**Measuring the bot (palier 7).** Instead of improving, measure: the same team
+wins both battles of a matchup two times in three, so teams decide much; four
+times the simulations win 7 points; a judge searching 16 times deeper rates
+decisions reliably on average but not one by one, so duels stay the measure.
+Palier 8 then made the loop twice as fast on the Mac (Apple's matrix unit
+through Accelerate, battles side by side), and palier 9 found two changes to
+the search that gained nothing.
+
+**Teams, built by the AI (palier 12).** If teams decide that much, can the AI
+choose a better one? With a draft (a pool of 12 species shared by both sides,
+around a core the seed imposes), adding the best measured species wins **21
+points** over random picks. The true score of every team of two showed that a
+team's worth is about 90 % the sum of its species. A network judging whole
+teams predicted battles slightly better, but building with it won nothing: with
+49 species, composition has reached its ceiling.
+
+**The battle, with these teams (palier 13).** Choosing the lead gains at most a
+point (kept in `play`, as a player chooses); guessing the foe's hidden Pokémon
+by strength gains nothing; a loop learning from searches four times deeper
+gains nothing either, as this network no longer learns what such searches see.
+What pays is searching more at play time: 7 points for four times the
+simulations, about 2.5 for each doubling after.
+
+**Four levels (palier 14).** From the bots already measured, four levels with a
+regular step: each wins about 87 % of its battles against the one below. The
+last level adds the two things that still pay, a team built from the species'
+strengths and 3200 simulations. Palier 11, between, had given `trainerlab` its
+menu, in English and in French.
+
+## What we learned
+
+- **Paired battles.** Each pair plays the same teams and the same dice twice,
+  the bots swapping sides: luck and team strength cancel, and 2000 pairs tell
+  a 1.5-point difference apart.
+- **Fixed before measuring.** Settings, seeds and the duel that decides are
+  written down before running; a second attempt is declared as such and
+  judged on fresh seeds. One duel decides, its whole interval above 0.5.
+- **Negative results kept.** Many ideas did not work; each is in
+  `docs/results.md` with its measure, and its code removed.
+- **The judge before the search.** Search paid only once positions were judged
+  well (rule 11), and the network paid only once it learned from search (rule
+  12). When the loop stops learning, more search at play time still pays.
+- **Determinism.** The engine and the bots are deterministic, and the engine is
+  built without fused multiply-add: a seed replays a battle exactly, on macOS
+  and on Linux. Tests first, every line and branch covered, mutation testing
+  for the tests themselves.
+- **Speed where it matters.** Profiling first, then C++ for what is hot: the
+  engine, the features, the search, the network in batches, and a measure's
+  battles side by side.
 
 ## Where to look
 

@@ -22,6 +22,24 @@ from trainerlab.terminal import reports
 from trainerlab.terminal.progress import progress_bar
 
 
+def kinds_of_teams(text: str) -> str:
+    """Checks --teams (argparse type): one kind for both bots, or one per bot."""
+    kinds = text.split(",")
+    if len(kinds) > 2 or any(kind not in TEAMS for kind in kinds):
+        raise argparse.ArgumentTypeError(
+            f"{text!r}: random or species, or one per bot (species,random)"
+        )
+    return text
+
+
+def on_teams(teams: str) -> str:
+    """What the line of a duel says of its teams."""
+    if "," in teams:
+        a, b = teams.split(",")
+        return f", {a} teams against {b}"
+    return " on species teams" if teams == "species" else ""
+
+
 def elapsed(seconds: float) -> str:
     minutes, secs = divmod(round(seconds), 60)
     return f"{minutes}:{secs:02d}"
@@ -35,7 +53,7 @@ def main(
 ) -> int:
     parser = argparse.ArgumentParser(prog="trainerlab duel", description=t("command.duel"))
     add_bots(parser)
-    parser.add_argument("--teams", choices=list(TEAMS), default="random", help=t("opt.teams"))
+    parser.add_argument("--teams", type=kinds_of_teams, default="random", help=t("opt.teams"))
     add_pairs(parser)
     add_jobs(parser)
     args = parser.parse_args(argv)
@@ -47,7 +65,7 @@ def main(
         progress = parallel.progress_on_terminal(len(seeds))
         result = duel(args.bot_a, args.bot_b, seeds, args.jobs, progress, teams=args.teams)
         low, high = result.interval
-        on = " on species teams" if args.teams == "species" else ""
+        on = on_teams(args.teams)
         console.print(
             f"{args.bot_a} vs {args.bot_b}{on}: {result.score:.3f} [{low:.3f}, {high:.3f}] "
             f"({result.wins} wins, {result.draws} draws, {result.losses} losses, "

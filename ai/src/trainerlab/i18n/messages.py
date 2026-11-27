@@ -71,6 +71,11 @@ MESSAGES: dict[str, tuple[str, str]] = {
     "field.yours": ("Your side: {what}", "Ton côté : {what}"),
     "field.theirs": ("{trainer}'s side: {what}", "Côté {trainer} : {what}"),
     "board.turn": ("Turn {turn} · against {bot}", "Tour {turn} · contre {bot}"),
+    "board.turn_level": ("Turn {turn} · {level}", "Tour {turn} · {level}"),
+    "level.easy": ("Easy", "Facile"),
+    "level.medium": ("Medium", "Moyen"),
+    "level.hard": ("Hard", "Difficile"),
+    "level.impossible": ("Impossible", "Impossible"),
     "board.watch": ("Turn {turn} · {a} (side {side}) against {b}",
                     "Tour {turn} · {a} (camp {side}) contre {b}"),
     # The battle menu.
@@ -437,10 +442,12 @@ MESSAGES: dict[str, tuple[str, str]] = {
     "opt.pairs": ("pairs of battles, two battles each, sides swapped (default: {default})",
                   "paires de combats, deux combats chacune, camps échangés (par défaut : "
                   "{default})"),
-    "opt.teams": ("random teams, or both built by the species strengths as the bot's (default: "
-                  "random)",
-                  "équipes au hasard, ou construites toutes deux par la force des espèces comme "
-                  "celle du bot (par défaut : random)"),
+    "opt.level": ("the level of the bot: easy, medium, hard or impossible (default: medium)",
+                  "le niveau du bot : facile, moyen, difficile ou impossible (par défaut : moyen)"),
+    "opt.teams": ("random teams, or species: built by the species strengths as the bot's; one "
+                  "kind per bot with species,random (default: random)",
+                  "équipes au hasard, ou species : construites par la force des espèces comme "
+                  "celle du bot ; un type par bot avec species,random (par défaut : random)"),
     "opt.from": ("the seed of the first pair, the next ones follow (default: 0)",
                  "la seed de la première paire, les suivantes à la suite (par défaut : 0)"),
     "opt.watch_seed": ("the pair of the battle to replay", "la paire du combat à revoir"),

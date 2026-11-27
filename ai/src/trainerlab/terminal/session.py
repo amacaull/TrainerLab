@@ -29,10 +29,12 @@ def play_session(
     screen: Screen,
     style: Style,
     prompter: Prompter,
+    *,
+    level: bool = False,
 ) -> int | None:
-    """Plays the battle with the human as side 0, against `bot` named after `trainer`; returns
-    the winning side, None for a draw. Ctrl-C or a closed input stops it (KeyboardInterrupt,
-    EOFError)."""
+    """Plays the battle with the human as side 0, against `bot` named after `trainer` (`bot` a
+    level's name with `level`); returns the winning side, None for a draw. Ctrl-C or a closed
+    input stops it (KeyboardInterrupt, EOFError)."""
     trainers = (None, trainer)
     teller = Teller(ME, style, trainers)
     stats = BattleStats()
@@ -40,7 +42,12 @@ def play_session(
 
     def draw(view: _engine.BattleState) -> None:
         screen.clear()
-        title = t("board.turn", turn=view.turn + 1, bot=bot)
+        turn = view.turn + 1
+        title = (
+            t("board.turn_level", turn=turn, level=bot)
+            if level
+            else t("board.turn", turn=turn, bot=bot)
+        )
         screen.panel(title, board(view, ME, style, trainers))
         screen.lines(screen.take_history())
 

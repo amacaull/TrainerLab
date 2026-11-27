@@ -66,7 +66,6 @@ RULES: dict[str, int | None] = {
 # The bots the menus offer first; every other one is a name to type.
 FEATURED = ["alphazero", "mcts", "forecaster", "calculator", "hitter", "random"]
 
-DEFAULT_OPPONENT = "forecaster"  # beats every bot but strategist, head to head
 # The bots that play with a win probability model, and can be given another one.
 MODEL_BOTS: dict[str, Callable[[WinModel, int], Bot]] = {
     "forecaster": lambda model, seed: Forecaster(model),

@@ -1,6 +1,7 @@
 """`trainerlab play`: play a battle against a bot from the terminal.
 
-trainerlab play --against strategist --seed 42
+trainerlab play --level hard --seed 42
+trainerlab play --against strategist
 trainerlab play --team Dragapult,Snorlax,Toxapex,Excadrill,Blissey,Corviknight
 """
 
@@ -16,14 +17,8 @@ from pathlib import Path
 from rich.console import Console
 
 from trainerlab import _engine
-from trainerlab.bots.roster import (
-    DEFAULT_OPPONENT,
-    LEAD,
-    WITH_MODEL,
-    bot_spec,
-    factory,
-    searcher,
-)
+from trainerlab.bots.levels import DEFAULT_LEVEL, LEVELS, level_spec
+from trainerlab.bots.roster import LEAD, WITH_MODEL, bot_spec, factory, searcher
 from trainerlab.game.building import bot_team
 from trainerlab.game.environment import BattleEnvironment, random_team_pair
 from trainerlab.game.pairs import led
@@ -50,11 +45,12 @@ def main(
     in_menu: bool = False,
 ) -> int:
     parser = argparse.ArgumentParser(prog="trainerlab play", description=t("command.play"))
-    parser.add_argument(
+    who = parser.add_mutually_exclusive_group()
+    who.add_argument("--level", type=level_spec, help=t("opt.level"))
+    who.add_argument(
         "--against",
         type=bot_spec,
-        default=DEFAULT_OPPONENT,
-        help=t("opt.against", model=WITH_MODEL, default=DEFAULT_OPPONENT),
+        help=t("opt.against", model=WITH_MODEL, default=LEVELS[DEFAULT_LEVEL][0]),
     )
     parser.add_argument("--seed", type=int, help=t("opt.play_seed"))
     parser.add_argument("--team", help=t("opt.team"))
@@ -73,8 +69,14 @@ def main(
         [names.species_key(name) or name for name in args.team.split(",")] if args.team else None
     )
 
+    # A level names its bot and the kind of its team; a bot named builds its team as species.
+    if args.against is not None:
+        bot, species, label = args.against, True, args.against
+    else:
+        level = args.level or DEFAULT_LEVEL
+        (bot, species), label = LEVELS[level], t(f"level.{level}")
     # A search bot chooses its lead, as a player does (palier 13.1); measures leave it out.
-    playing = args.against + LEAD if searcher(args.against) else args.against
+    playing = bot + LEAD if searcher(bot) else bot
 
     with ExitStack() as files:
         log = None
@@ -84,8 +86,9 @@ def main(
         screen = Screen(console, speed=args.speed, clear=terminal, log=log)
         while True:
             size = len(chosen) if chosen else args.size
-            mine = chosen or random_team_pair(seed, size)[0]
-            foe_team = bot_team(seed, size)
+            mine, foe_team = random_team_pair(seed, size)
+            mine = chosen or mine
+            foe_team = bot_team(seed, size) if species else foe_team
             try:
                 BattleEnvironment(mine, foe_team, seed=seed)  # the teams checked before asking
             except (ValueError, _engine.TeamError) as error:
@@ -98,11 +101,21 @@ def main(
                 env = BattleEnvironment(mine, led(opponent, foe_team), seed=seed)
                 screen.start_transcript()
                 try:
-                    play_session(env, opponent, args.against, trainer, seed, screen, style, asker)
+                    play_session(
+                        env,
+                        opponent,
+                        label,
+                        trainer,
+                        seed,
+                        screen,
+                        style,
+                        asker,
+                        level=args.against is None,
+                    )
                 except Fled:
                     screen.panel(
                         style.bold(t("play.defeat")),
-                        t("play.fled", trainer=trainer, bot=args.against),
+                        t("play.fled", trainer=trainer, bot=label),
                     )
                 leave = t("play.menu") if in_menu else t("play.quit")
                 options = [
@@ -112,7 +125,7 @@ def main(
                     Option(LEAVE, leave),
                 ]
                 while (again := asker.select(t("play.again"), options)) == SAVE:
-                    path = save(screen.transcript(), trainer, args.against, seed)
+                    path = save(screen.transcript(), trainer, label, seed)
                     screen.message(t("play.saved", path=path))
             except (EOFError, KeyboardInterrupt):
                 screen.message(t("play.abandoned"))

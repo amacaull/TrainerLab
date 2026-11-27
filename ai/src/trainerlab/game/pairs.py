@@ -32,8 +32,11 @@ def pair_battles(
     seed: int,
     team0: list[str],
     team1: list[str],
+    follow: bool = False,
 ) -> Iterator[tuple[int, BattleEnvironment, Bot, Bot]]:
     """The two battles of a pair, ready to play: bot A's side, the referee, the bots of sides 0, 1.
+    The teams stay on their sides; with `follow`, they follow the bots: A plays team0 on both
+    sides, B team1 (palier 14: each level its own kind of team).
 
     The one place that decides how a seed sets up a battle, so that anything replaying a
     tournament plays exactly the battles it measured.
@@ -41,7 +44,8 @@ def pair_battles(
     for a_side in (0, 1):
         bot_a, bot_b = make_a(2 * seed), make_b(2 * seed + 1)
         bot0, bot1 = (bot_a, bot_b) if a_side == 0 else (bot_b, bot_a)
-        env = BattleEnvironment(led(bot0, team0), led(bot1, team1), seed=seed)
+        first, second = (team1, team0) if follow and a_side == 1 else (team0, team1)
+        env = BattleEnvironment(led(bot0, first), led(bot1, second), seed=seed)
         yield a_side, env, bot0, bot1
 
 
@@ -62,12 +66,13 @@ def play_pair(
     seed: int,
     team0: list[str],
     team1: list[str],
+    follow: bool = False,
 ) -> tuple[Outcome, Outcome]:
     """Plays one pair of battles and returns bot A's outcome in each."""
     outcomes = [
         outcome_of(play_battle(env, bot0, bot1), a_side)
         for a_side, env, bot0, bot1 in pair_battles(
-            make_a, make_b, seed=seed, team0=team0, team1=team1
+            make_a, make_b, seed=seed, team0=team0, team1=team1, follow=follow
         )
     ]
     return outcomes[0], outcomes[1]

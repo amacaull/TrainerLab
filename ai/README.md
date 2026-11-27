@@ -17,7 +17,7 @@ pip install -e ".[dev,rl]"                # again after any engine change; rl: P
 
 pytest --cov                              # every test, 100 % line and branch coverage required
 trainerlab                                # a menu: choose what to do, then each option
-trainerlab play                           # play a battle against the default bot
+trainerlab play --level hard              # play a battle against the hard level
 trainerlab duel matcher hitter            # rule 3 against rule 1, 500 pairs
 trainerlab bots                           # every bot and what it does
 ```
@@ -55,8 +55,8 @@ commands, `trainerlab duel --help` the options of one.
 
 | Command | What it does |
 |---|---|
-| `play [--against BOT] [--seed N] [--team A,B,…] [--size N]` | a battle against a bot in the terminal, teams of `--size` Pokémon (1 to 6); the bot builds its team as `species` does in a draft, with the strengths shipped in `game/species-strength.json`, and a search bot chooses its lead (palier 13) |
-| `duel BOT_A BOT_B` | bot A's score against bot B, with its 95 % interval; `--teams species` plays both sides' teams as the bot of `play` builds its own; a search bot followed by `+lead` (`alphazero+lead`) chooses its lead |
+| `play [--level L \| --against BOT] [--seed N] [--team A,B,…] [--size N]` | a battle against a bot in the terminal, teams of `--size` Pokémon (1 to 6); `--level easy\|medium\|hard\|impossible` (medium by default; facile, moyen, difficile in French) is `matcher`, `forecaster`, `alphazero` with random teams, or `alphazero@3200` building its team from the species' strengths (`game/species-strength.json`); a bot named with `--against` builds its team that way too; a search bot chooses its lead (palier 13) |
+| `duel BOT_A BOT_B` | bot A's score against bot B, with its 95 % interval; `--teams species` plays both sides' teams as the bot of `play` builds its own, `--teams species,random` one kind per bot, each keeping its team on both sides; a search bot followed by `+lead` (`alphazero+lead`) chooses its lead |
 | `watch BOT_A BOT_B --losses` / `--seed N --side S` | the battles A lost, or one replayed with what each bot saw (`--speed slow\|normal\|fast\|instant`) |
 | `audit BOT_A BOT_B` | situations a program can spot in bot A's play (moves that fail or hit an immunity, boosts and what came of them, sure knock-outs left unplayed…): a description of how it plays, not how badly (palier 7) |
 | `usage BOT_A BOT_B` | the kinds of moves bot A plays (attacks, hazards, boosts, statuses…), and how often each was an option |
@@ -88,7 +88,18 @@ bot is named after a gym leader drawn from the seed. You choose your lead, the
 turn is typed out (`--speed slow|normal|fast|instant`), and at the end: a
 rematch, the same battle again, or the battle saved as text in
 `~/TrainerLab/parties` (`TRAINERLAB_GAMES` to change it). A seed replays the
-same battle; `--team` takes the names in either language.
+same battle; `--team` takes the names in either language. `--level` chooses
+the opponent, as Play does in the menu:
+
+| Level | Bot | Its team |
+|---|---|---|
+| `easy` (facile) | `matcher` | random, as the player's |
+| `medium` (moyen), the default | `forecaster` | random |
+| `hard` (difficile) | `alphazero` | random |
+| `impossible` | `alphazero@3200` | built from the species' strengths, as `build species` does in a draft |
+
+Each level wins about 87 % of its battles against the one below
+([`docs/results.md`](../docs/results.md), palier 14).
 
 ## The bots
 
@@ -130,8 +141,10 @@ search N simulations per decision instead of 200: `alphazero@800`. PyTorch comes
 
 - **Paired battles.** A pair is two battles with the same seed and the same
   two teams, the bots swapping sides: team strength and luck cancel out.
-- **Random teams.** Every pair draws its own two legal teams of six: a result
-  on one fixed matchup can be specific to it.
+- **Random teams.** Every pair draws its own two legal teams, of six unless
+  `--size` says otherwise: a result on one fixed matchup can be specific to it.
+  `duel --teams species` builds both from the species' strengths instead, and
+  `--teams species,random` gives each bot its own kind, kept on both sides.
 - **Score.** Wins plus half the draws, with a 95 % Wilson interval. A bot is
   better only if the whole interval is above 0.5.
 - **Fixed before measuring.** A rule or a model is fixed before it is
@@ -142,12 +155,12 @@ search N simulations per decision instead of 200: `alphazero@800`. PyTorch comes
 
 | Package | Role |
 |---|---|
-| `game/` | The referee (`environment`), the loop (`battle`), the contract a player honours (`player`), a pair of battles from its seed (`pairs`), every decision replayed (`decisions`), the event kinds (`events`), what a player can reckon of damage and speed (`estimate`), a playable state built from a view (`views`). |
+| `game/` | The referee (`environment`), the loop (`battle`), the contract a player honours (`player`), a pair of battles from its seed (`pairs`), every decision replayed (`decisions`), the event kinds (`events`), what a player can reckon of damage and speed (`estimate`), a playable state built from a view (`views`), teams built around a core (`building`, with the shipped species' strengths), what a bot expects of the foe's lead (`leads`). |
 | `learning/` | The features of a position (`features`), the win probability model (`model`), fitting and scoring it (`fitting`), the shipped model (`models/`). |
-| `bots/` | Rules 1 to 5 (`rules`), rules 6 and 7 (`lookahead`), every bot by name (`roster`). |
-| `experiments/` | Duels (`tournament`), spreading pairs over the cores (`parallel`), the audit (`audit`, `situations`), the judge (`judge`) and its check by playing out (`rollouts`), how much teams decide (`teams`), the datasets (`dataset`). |
+| `bots/` | Rules 1 to 5 (`rules`), rules 6 and 7 (`lookahead`), every bot by name (`roster`), the four levels of `play` (`levels`). |
+| `experiments/` | Duels (`tournament`), spreading pairs over the cores (`parallel`), a search bot's battles played in C++ side by side (`arena`), the audit (`audit`, `situations`), the judge (`judge`) and its check by playing out (`rollouts`), how much teams decide (`teams`), builders measured against each other (`building`), each team's true score (`truth`), the evaluator of teams (`team_value`), the datasets (`dataset`, `imitation`). |
 | `terminal/` | A battle against a bot (`session`), a battle between bots told with what each saw (`commentary`), the human player, the text and the panels. |
-| `rl/` | Palier 6, with PyTorch: the policy and value network (`net`), the bot that plays it (`bot`), pre-training by imitation (`train`), self-play with PPO (`ppo`), the search it guides (`planner`). |
+| `rl/` | With PyTorch: the policy and value network (`net`), the bot that plays it (`bot`), pre-training by imitation (`train`), self-play with PPO (`ppo`), the search it guides and the choice of the lead (`planner`), the AlphaZero loop (`alphazero`), teaching a new network a search (`distill`), the models of a team's strength (`team_net`). |
 | `commands/` | `trainerlab`: the dispatch, the menu, and one thin module per mode that reads the options, calls the domain and prints the result. |
 
 Each package imports only those above it in the table (`terminal/`, only
@@ -197,6 +210,10 @@ hundreds of battles at once for self-play, both sides chosen by the caller.
 - Rules 1 to 4 score moves by power × STAB × type × accuracy, which ignores
   abilities, multi-hit and fixed-damage moves. Rule 5 asks the engine for its
   move choice, but its escapes and replacements still use these estimates.
-- The bots look one turn ahead at most; rule 6 guesses the foe, rule 7 assumes
-  the worst. More data or a network did not make rule 6 play better: the
-  limit is the search, not the evaluation.
+- The rule bots look one turn ahead at most; rule 6 guesses the foe, rule 7
+  assumes the worst. The search bots look further, but guess the foe's unseen
+  Pokémon uniformly (weighing them by strength was measured, without gain).
+- The network no longer learns from deeper searches (palier 13): what is left
+  to gain is at play time, in simulations.
+- 49 species, each with one set (moves, item, ability): the team builders
+  reach their ceiling there (palier 12).

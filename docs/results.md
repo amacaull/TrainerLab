@@ -1,10 +1,27 @@
 # Results
 
-Every line is a score over **5000 pairs of battles (10 000 battles)** on
-random teams, with its 95 % Wilson interval, reproducible with the command
-above its table. Since the engine is compiled without fused multiply-add
-(see the engine README), each line gives the same record, battle for
-battle, on macOS and on Linux.
+Every duel and every model of the project, negative results included, in the
+order they were made. A score is bot A's share of points over paired battles
+(a draw is half a point), with its 95 % Wilson interval: 5000 pairs (10 000
+battles) on random teams for rules 1 to 10, 2000 pairs from rule 11 on, each
+reproducible with the command above its table. A rule is kept only if the whole
+interval is above 0.5. Since the engine is compiled without fused multiply-add
+(see the engine README), each line gives the same record, battle for battle, on
+macOS and on Linux; the measures played by a network on the Mac are the same
+for the same number of processes.
+
+| Part | Question | Answer |
+|---|---|---|
+| [Rules 1 to 5](#rules-1-to-4) | How far does a heuristic go? | Replacements matter more than moves; the engine's damage beats an estimate |
+| [Rules 6 and 7](#rule-5-and-rule-6-against-every-other-bot) | A turn ahead, with a learned win model? | +34 points; assuming the worst is a trap |
+| [Rules 8 and 9](#rule-8-a-mixed-strategy-measured-negative) | Does search help without a better judge? | No: the judge is the limit |
+| [Palier 6](#palier-6-a-network-by-imitation-then-by-self-play) | A network, then a search it guides? | +17, then +26: once positions are judged well, search pays |
+| [Palier 7](#palier-7-how-good-is-rule-12-and-where-it-goes-wrong) | How good is the bot, and where does it go wrong? | Teams decide much; duels stay the measure |
+| [Paliers 8 to 10.5](#palier-8-a-faster-loop-and-rule-13) | What does the loop still learn? | Rules 13 to 17, the gains shrinking |
+| [Palier 12](#palier-12-teams-built-by-the-ai) | Can the AI build better teams? | +21 points from the species' strengths, then a ceiling |
+| [Palier 13](#palier-13-the-battle-with-the-teams-as-they-are) | Can the battle itself improve? | Only by searching more at play time |
+| [Palier 14](#palier-14-four-levels) | Four levels for a player? | A regular ladder, about 87 % per step |
+| [Where it ended](#where-it-ended) | | The final bot, and what was left undone |
 
 ## Rules 1 to 4
 
@@ -1132,7 +1149,8 @@ plays mostly on the Pokémon in front of it, already seen.
 | `alphazero@3200` vs `alphazero@1600` | 545000 | **0.525** | [0.509, 0.540] |
 
 Four times the simulations win 7 points, as for rule 12 in palier 7; each
-doubling after 800 still wins about 2.5. No ceiling in sight at 3200, where a
+doubling after 800 still wins about 2.5. (`alphazero@1600` against `alphazero`,
+seeds 543000, was stopped by hand as redundant with the chain: no result.) No ceiling in sight at 3200, where a
 decision takes about a quarter of a second on one core.
 
 ### Learning from deeper searches (13.4): measured negative
@@ -1156,3 +1174,67 @@ at the first iteration, 1.168 at the last): this network does not learn what a
 search of 3200 simulations sees. The loop's gains shrank rule after rule (4.9,
 4.0, 1.7, now 1.0 and not significant); what deeper search adds is there at play
 time, in simulations.
+
+## Palier 14: four levels
+
+`trainerlab play --level easy|medium|hard|impossible` (in French too: facile,
+moyen, difficile). Each level is a bot and the kind of team it plays; the
+player's team is random, or chosen with `--team`. Each bot keeps its own kind of
+team on both sides of a pair (`duel --teams A,B`), so a duel measures the whole
+level.
+
+| Level | Bot | Its team |
+|---|---|---|
+| Easy | `matcher` (rule 3) | random |
+| Medium | `forecaster` (rule 6) | random |
+| Hard | `alphazero` (rule 17, 200 simulations) | random |
+| Impossible | `alphazero@3200` | `species` |
+
+Easy and medium were chosen, before measuring, as the pair that makes the two
+first steps the most even (closest in logit) among a random or a `species` team
+for each:
+
+```bash
+trainerlab duel forecaster matcher --teams species,random --pairs 2000 --from 557000
+trainerlab duel alphazero forecaster --teams random,species --pairs 2000 --from 565000
+```
+
+| Duel (2000 pairs) | Teams | Seeds | Score | 95 % interval |
+|---|---|---|---|---|
+| **forecaster vs matcher** | **random, random** | 555000 | **0.874** | [0.863, 0.884] |
+| forecaster vs matcher | species, random | 557000 | 0.931 | [0.923, 0.939] |
+| forecaster vs matcher | random, species | 559000 | 0.811 | [0.799, 0.823] |
+| forecaster vs matcher | species, species | 561000 | 0.897 | [0.887, 0.906] |
+| **alphazero vs forecaster** | **random, random** | 563000 | **0.881** | [0.870, 0.890] |
+| alphazero vs forecaster | random, species | 565000 | 0.771 | [0.758, 0.784] |
+
+Each level wins about 87 % of its battles against the one below. Impossible
+against hard was not measured to its end; from its two parts, measured apart, it
+is about 0.80: 3200 simulations rather than 200 add 0.48 in logit (palier 13),
+a `species` team rather than a random one 0.91 (palier 12, teams of 6), if the
+two add up.
+
+In the menu, Play asks the level first; any bot by its name stays under Another
+bot. The battle names the level (Turn 3 · Hard), and medium is the default, the
+bot `play` faced before.
+
+## Where it ended
+
+The strongest bot is `alphazero`, rule 17: a tree search over simultaneous
+moves guided by a network with attention, taught rule 13's search, then 146
+iterations of the loop on its own search (rules 14, 16 and 17). It builds its team from the species' measured strengths
+and chooses its lead. Searching 3200 simulations rather than 200, it wins about
+12 points more; that is the impossible level.
+
+What the measures say is left to gain, and was not done:
+
+- **More species.** Composition reached its ceiling with 49 species (palier
+  12); a larger roster, with a network that reads a species' properties, would
+  give more room for roles, synergies and counters.
+- **A larger network.** The loop stopped learning from deeper searches (13.4),
+  while deeper searches still win at play time: a network with more capacity,
+  taught by a search of 3200 simulations, might absorb them. It would have to
+  win at equal time, not equal simulations.
+- **A league of opponents.** Every network learnt against itself; past
+  versions and bots that look for its weaknesses would test it harder.
+- **Showdown.** Playing real players, on Pokémon Showdown's rules.
