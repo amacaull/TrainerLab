@@ -62,24 +62,45 @@ def run_tournament(
     pairs: int = 500,
     first_seed: int = 0,
     teams: TeamSource = random_team_pair,
+    follow: bool = False,
 ) -> TournamentResult:
     """Plays `pairs` pairs of battles, from seed `first_seed` upwards, and tallies A's record.
 
     By default each pair draws its own two random teams, so that a result holds across team
-    compositions rather than for one matchup.
+    compositions rather than for one matchup. With `follow`, A plays the first team of each pair
+    on both sides, B the second.
     """
     tally = {"win": 0, "draw": 0, "loss": 0}
     for seed in range(first_seed, first_seed + pairs):
         team0, team1 = teams(seed)
-        for outcome in play_pair(make_a, make_b, seed=seed, team0=team0, team1=team1):
+        for outcome in play_pair(
+            make_a, make_b, seed=seed, team0=team0, team1=team1, follow=follow
+        ):
             tally[outcome] += 1
     return TournamentResult(wins=tally["win"], draws=tally["draw"], losses=tally["loss"])
 
 
 def play_block(bot_a: str, bot_b: str, seeds: range, teams: str = "random") -> TournamentResult:
-    """One block of pairs, by the bots' names: a process of its own when spread over the cores."""
+    """One block of pairs, by the bots' names: a process of its own when spread over the cores.
+    `teams` is a kind of TEAMS for both bots, or one per bot ("species,random"), each bot then
+    keeping its team on both sides."""
+    kinds = teams.split(",")
+    if len(kinds) == 1:
+        source, follow = TEAMS[teams], False
+    else:
+        a, b = (TEAMS[kind] for kind in kinds)
+
+        def source(seed: int) -> tuple[list[str], list[str]]:
+            return a(seed)[0], b(seed)[1]
+
+        follow = True
     return run_tournament(
-        factory(bot_a), factory(bot_b), pairs=len(seeds), first_seed=seeds[0], teams=TEAMS[teams]
+        factory(bot_a),
+        factory(bot_b),
+        pairs=len(seeds),
+        first_seed=seeds[0],
+        teams=source,
+        follow=follow,
     )
 
 

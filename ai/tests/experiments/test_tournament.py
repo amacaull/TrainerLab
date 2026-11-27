@@ -251,3 +251,37 @@ def test_a_duel_can_be_played_on_teams_built_by_the_species_strengths() -> None:
     assert play_block("hitter", "random", range(3, 5)) == run_tournament(
         BOTS["hitter"], BOTS["random"], pairs=2, first_seed=3
     )
+
+
+def test_each_bot_can_keep_a_team_of_its_own_kind_on_either_side() -> None:
+    from trainerlab.experiments.tournament import play_block
+    from trainerlab.game.building import species_team_pair
+    from trainerlab.game.environment import random_team_pair
+
+    created: list[RecordingBot] = []
+
+    def make(seed: int) -> RecordingBot:
+        created.append(RecordingBot())
+        return created[-1]
+
+    mine, theirs = species_team_pair(6)[0], random_team_pair(6)[1]
+    run_tournament(make, make, pairs=1, first_seed=6, teams=lambda s: (mine, theirs), follow=True)
+
+    a_first, b_first, a_second, b_second = created
+    lead = _engine.find_species_id
+    assert a_first.views[0].active(0).species_id == lead(mine[0])
+    assert b_first.views[0].active(1).species_id == lead(theirs[0])
+    assert a_second.views[0].active(1).species_id == lead(mine[0])  # A keeps its team
+    assert b_second.views[0].active(0).species_id == lead(theirs[0])
+
+    from trainerlab.bots.roster import BOTS
+
+    expected = run_tournament(
+        BOTS["hitter"],
+        BOTS["random"],
+        pairs=2,
+        first_seed=3,
+        teams=lambda s: (species_team_pair(s)[0], random_team_pair(s)[1]),
+        follow=True,
+    )
+    assert play_block("hitter", "random", range(3, 5), "species,random") == expected

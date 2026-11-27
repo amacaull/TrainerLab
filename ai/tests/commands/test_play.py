@@ -322,3 +322,70 @@ def test_a_search_bot_chooses_its_lead_as_a_player_would(
     _play(["--seed", "3", "--against", against])
 
     assert asked == [played]
+
+
+@pytest.mark.parametrize(
+    ("level", "spec", "species"),
+    [
+        ("easy", "matcher", False),
+        ("medium", "forecaster", False),
+        ("hard", "alphazero+lead", False),
+        ("impossible", "alphazero@3200+lead", True),
+        ("difficile", "alphazero+lead", False),  # in French too
+    ],
+)
+def test_a_level_names_the_bot_and_the_kind_of_its_team(
+    monkeypatch: pytest.MonkeyPatch, level: str, spec: str, species: bool
+) -> None:
+    from trainerlab.bots.roster import BOTS
+
+    asked, built = [], []
+
+    def factory(name: str) -> object:
+        asked.append(name)
+        return BOTS["hitter"]
+
+    def bot_team(seed: int, size: int) -> list[str]:
+        built.append((seed, size))
+        return ["Snorlax", "Blissey"]
+
+    monkeypatch.setattr("trainerlab.commands.play.factory", factory)
+    monkeypatch.setattr("trainerlab.commands.play.bot_team", bot_team)
+
+    _play(["--seed", "3", "--level", level, "--size", "2"])
+
+    assert asked == [spec]
+    assert built == ([(3, 2)] if species else [])
+
+
+def test_the_battle_names_the_level_and_medium_is_the_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from trainerlab.bots.roster import BOTS
+
+    asked = []
+
+    def factory(name: str) -> object:
+        asked.append(name)
+        return BOTS["hitter"]
+
+    monkeypatch.setattr("trainerlab.commands.play.factory", factory)
+
+    shown = _play(["--seed", "3"])[1]
+
+    assert asked == ["forecaster"]
+    assert "Turn 1 · Medium" in shown and f"{names.leader(3)} (Medium)" in shown
+
+
+def test_a_level_and_a_bot_cannot_both_be_asked(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit):
+        _play(["--level", "hard", "--against", "hitter"])
+    assert "not allowed with argument" in capsys.readouterr().err
+
+
+def test_an_unknown_level_is_refused_with_the_levels(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit):
+        _play(["--level", "expert"])
+    assert "easy, medium, hard, impossible (facile, moyen, difficile in French)" in (
+        capsys.readouterr().err
+    )

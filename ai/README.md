@@ -17,7 +17,7 @@ pip install -e ".[dev,rl]"                # again after any engine change; rl: P
 
 pytest --cov                              # every test, 100 % line and branch coverage required
 trainerlab                                # a menu: choose what to do, then each option
-trainerlab play                           # play a battle against the default bot
+trainerlab play --level hard              # play a battle against the hard level
 trainerlab duel matcher hitter            # rule 3 against rule 1, 500 pairs
 trainerlab bots                           # every bot and what it does
 ```
@@ -55,8 +55,8 @@ commands, `trainerlab duel --help` the options of one.
 
 | Command | What it does |
 |---|---|
-| `play [--against BOT] [--seed N] [--team A,B,…] [--size N]` | a battle against a bot in the terminal, teams of `--size` Pokémon (1 to 6); the bot builds its team as `species` does in a draft, with the strengths shipped in `game/species-strength.json`, and a search bot chooses its lead (palier 13) |
-| `duel BOT_A BOT_B` | bot A's score against bot B, with its 95 % interval; `--teams species` plays both sides' teams as the bot of `play` builds its own; a search bot followed by `+lead` (`alphazero+lead`) chooses its lead |
+| `play [--level L \| --against BOT] [--seed N] [--team A,B,…] [--size N]` | a battle against a bot in the terminal, teams of `--size` Pokémon (1 to 6); `--level easy\|medium\|hard\|impossible` (medium by default; facile, moyen, difficile in French) is `matcher`, `forecaster`, `alphazero` with random teams, or `alphazero@3200` building its team from the species' strengths (`game/species-strength.json`); a bot named with `--against` builds its team that way too; a search bot chooses its lead (palier 13) |
+| `duel BOT_A BOT_B` | bot A's score against bot B, with its 95 % interval; `--teams species` plays both sides' teams as the bot of `play` builds its own, `--teams species,random` one kind per bot, each keeping its team on both sides; a search bot followed by `+lead` (`alphazero+lead`) chooses its lead |
 | `watch BOT_A BOT_B --losses` / `--seed N --side S` | the battles A lost, or one replayed with what each bot saw (`--speed slow\|normal\|fast\|instant`) |
 | `audit BOT_A BOT_B` | situations a program can spot in bot A's play (moves that fail or hit an immunity, boosts and what came of them, sure knock-outs left unplayed…): a description of how it plays, not how badly (palier 7) |
 | `usage BOT_A BOT_B` | the kinds of moves bot A plays (attacks, hazards, boosts, statuses…), and how often each was an option |

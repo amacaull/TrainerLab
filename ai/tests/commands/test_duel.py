@@ -190,3 +190,18 @@ def test_in_a_pipe_the_progress_goes_to_the_terminal_watching(
     _run(["hitter", "random", "--pairs", "6", "--from", "5", "--jobs", "1"], capsys)
 
     assert seen[0] == 0 and 6 in seen  # at once, then as the blocks end
+
+
+def test_each_bot_can_play_its_own_kind_of_team(capsys: pytest.CaptureFixture[str]) -> None:
+    assert (
+        main(["hitter", "random", "--pairs", "2", "--from", "5", "--teams", "species,random"]) == 0
+    )
+
+    assert capsys.readouterr().out.startswith("hitter vs random, species teams against random: ")
+
+
+@pytest.mark.parametrize("wrong", ["best", "species,", "species,random,random", "random,best"])
+def test_unknown_kinds_of_teams_are_refused(wrong: str, capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit):
+        main(["hitter", "random", "--teams", wrong])
+    assert "random or species" in capsys.readouterr().err
