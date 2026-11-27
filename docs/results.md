@@ -1075,3 +1075,84 @@ strengths of `teams-6b`, shipped in `ai/src/trainerlab/game/species-strength.jso
 ```bash
 trainerlab teams --load runs/teams-6b.npz --strengths ai/src/trainerlab/game/species-strength.json
 ```
+
+## Palier 13: the battle, with the teams as they are
+
+Composition had reached its ceiling with this roster; palier 13 tried to make
+the bot itself stronger, without new species. Four ideas, each settled by one
+duel of 2000 pairs, its settings fixed before. Measured on the Mac, 25 to 27
+November 2026.
+
+### The lead (13.1)
+
+The foe's team is unknown before the battle. `alphazero+lead` values each of
+its Pokémon at the head of its team: against each species the foe could lead
+with, the network's value of the start of the battle (both leads seen, the rest
+of the foe's team hidden), weighed by the chance that the foe leads with it. That
+chance follows the odds w / (1 − w) of the species' lead score w, the share of
+points of the random teams it led in `teams-6b`:
+
+```bash
+trainerlab teams --load runs/teams-6b.npz --leads ai/src/trainerlab/game/lead-strength.json
+trainerlab duel alphazero+lead alphazero --pairs 2000 --from 535000
+```
+
+| Duel | Score | 95 % interval | Record (W / D / L) |
+|---|---|---|---|
+| `alphazero+lead` vs `alphazero` | 0.509 | [0.494, 0.525] | 2027 / 22 / 1951 |
+
+At most a point: the bot switches freely from the first turn, and a poor lead
+is soon mended. The criterion is not met, but the lead is kept where a player
+sees it: in `trainerlab play`, a search bot chooses its lead, as a player does.
+The measures leave it out; `+lead` names it.
+
+### Worlds weighed by strength (13.2): measured negative
+
+The search guesses the foe's unseen Pokémon as 8 legal teams, every species
+alike. A foe that builds well holds strong species more often: `+weighted` drew
+each in proportion to the odds of its strength (Toxapex about four times as
+often as Snorlax). The duel that decided was played on teams built as the bot
+of `play` builds its own (`duel --teams species`):
+
+| Duel | Teams | Score | 95 % interval |
+|---|---|---|---|
+| **`alphazero+weighted` vs `alphazero`** | species | **0.493** | [0.477, 0.508] |
+| `alphazero+weighted` vs `alphazero` | random | 0.496 | [0.481, 0.512] |
+
+Not kept, and removed: uniform worlds do not bias the search measurably. It
+plays mostly on the Pokémon in front of it, already seen.
+
+### Deeper searches (13.3)
+
+| Duel | Seeds | Score | 95 % interval |
+|---|---|---|---|
+| `alphazero@400` vs `alphazero` (200) | 537000 | **0.534** | [0.518, 0.549] |
+| `alphazero@800` vs `alphazero` | 539000 | **0.571** | [0.556, 0.587] |
+| `alphazero@1600` vs `alphazero@800` | 541000 | **0.523** | [0.507, 0.538] |
+| `alphazero@3200` vs `alphazero@1600` | 545000 | **0.525** | [0.509, 0.540] |
+
+Four times the simulations win 7 points, as for rule 12 in palier 7; each
+doubling after 800 still wins about 2.5. No ceiling in sight at 3200, where a
+decision takes about a quarter of a second on one core.
+
+### Learning from deeper searches (13.4): measured negative
+
+Rule 13 came from a loop whose recorded searches were deeper. From rule 17, the
+same loop with recorded searches of 3200 simulations (800 before) and fast ones
+of 400 (100), 40 iterations, about 20 minutes each on the Mac:
+
+```bash
+trainerlab alphazero ai/src/trainerlab/rl/models/alphazero.pt --iterations 40 \
+    --simulations 3200 --fast 400 --against alphazero --out runs/rule18.pt
+trainerlab duel plan:runs/rule18.pt alphazero --pairs 2000 --from 551000
+```
+
+| Duel | Score | 95 % interval | Record (W / D / L) |
+|---|---|---|---|
+| rule 18 vs rule 17 | 0.510 | [0.495, 0.526] | 2034 / 16 / 1950 |
+
+Not kept. The policy's loss on battles not yet learned stayed where it was (1.178
+at the first iteration, 1.168 at the last): this network does not learn what a
+search of 3200 simulations sees. The loop's gains shrank rule after rule (4.9,
+4.0, 1.7, now 1.0 and not significant); what deeper search adds is there at play
+time, in simulations.

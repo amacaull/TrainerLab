@@ -9,8 +9,8 @@ and measured in Python.
 > measured, the best of them a tree search guided by a network trained on its
 > own search, as AlphaZero. `trainerlab` opens a menu, in English or in French:
 > build a team and play any bot, or measure them. The bots build their own teams
-> from the species' measured strengths. Next: the choice of the lead, and how
-> the search imagines the foe's hidden Pokémon.
+> from the species' measured strengths, and choose their lead. Next: four levels
+> of difficulty.
 
 ## Results so far
 
@@ -71,6 +71,13 @@ Picking the best measured species from a draft of 12 beats picking at random by
 battles slightly better than the sum of the species, but building with it wins
 nothing more (0.507 [0.492, 0.522]): with 49 species, composition has reached
 its ceiling. The bots now build their teams that way.
+
+Palier 13 tried to strengthen the battle itself. Choosing the lead from the
+network's value of each pair of leads gains at most a point (0.509 [0.494,
+0.525]), kept in `play` as a player would; guessing the foe's hidden Pokémon by
+strength, and a loop learning from searches four times deeper, gain nothing.
+What does pay is searching more at play time: four times the simulations win 7
+points, each doubling after that about 2.5.
 
 ## Where to look
 
